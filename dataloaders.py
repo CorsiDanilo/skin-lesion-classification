@@ -5,11 +5,12 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from collections import Counter
 from sklearn.model_selection import train_test_split
-from imblearn.over_sampling import RandomOverSampler as ROS
+import torchvision.transforms.functional as TF
 import os
 from PIL import Image
 from tqdm import tqdm
 import random
+import math 
 
 from config import DATASET_TEST_DIR, DATASET_TRAIN_DIR, METADATA_TEST_DIR, METADATA_TRAIN_DIR, SEGMENTATION_DIR, BATCH_SIZE
 
@@ -101,19 +102,19 @@ class ImageDataset(Dataset):
                 if not os.path.exists(img['segmentation_path']):
                     not_found_files.append(img['segmentation_path'])
                     continue
-                '''
                 if img['augmented']:
                     #images.append(self.balance_transform(Image.open(img['image_path'])))
                     #segmentations.append(self.balance_transform(Image.open(img['segmentation_path'])))
-                    images.append(stateful_transform(Image.open(img['image_path'])))
-                    segmentations.append(stateful_transform(Image.open(img['segmentation_path'])))
+                    ti, ts = stateful_transform(Image.open(img['image_path']), Image.open(img['segmentation_path']))
+                    #segmentations.append(stateful_transform(Image.open(img['segmentation_path'])))
+                    images.append(ti)
+                    segmentations.append(ts)
                 else:
-                '''
-                segmentations.append(self.transform(Image.open(img['segmentation_path'])))
-                
+                    images.append(self.transform(Image.open(img['image_path'])))
+                    segmentations.append(self.transform(Image.open(img['segmentation_path'])))
             else:
                 images.append(self.transform(Image.open(img['image_path'])))
-        if segmentations:
+        if self.train:
             segmentations = torch.stack(segmentations)
         images = torch.stack(images)
 
@@ -157,16 +158,31 @@ class StatefulTransform:
         self.height = height
         self.width = width
 
-    def __call__(self, img):
+    def __call__(self, img, seg):
         img = transforms.Resize((self.height, self.width))(img)
-        img = transforms.RandomRotation(180)(img)
-        img = transforms.RandomHorizontalFlip()(img)
-        img = transforms.RandomVerticalFlip()(img)
-        img = transforms.RandomAffine(degrees=0, translate=(0.1, 0.1))(img)
-        img = transforms.ToTensor()(img)
-        
-        return img
+        seg = transforms.Resize((self.height, self.width))(seg)
 
+        if random.random() > 0.5:
+            img = TF.hflip(img)
+            seg = TF.hflip(seg)
+        
+        if random.random() > 0.5:
+            img = TF.vflip(img)
+            seg = TF.vflip(seg)
+
+        if random.random() > 0.5:
+            angle = random.randint(1, 360)
+            img = TF.rotate(img, angle)
+            seg = TF.rotate(seg, angle)
+
+        #img = transforms.RandomRotation(180)(img)
+        #img = transforms.RandomHorizontalFlip()(img)
+        #img = transforms.RandomVerticalFlip()(img)
+        #img = transforms.RandomAffine(degrees=0, translate=(0.1, 0.1))(img)
+        img = transforms.ToTensor()(img)
+        seg = transforms.ToTensor()(seg)
+        
+        return img, seg
 
 def load_metadata(train: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame] or pd.DataFrame:
     metadata = pd.read_csv(METADATA_TRAIN_DIR if train else METADATA_TEST_DIR)
@@ -213,13 +229,14 @@ if __name__ == '__main__':
         print(f"Segmentation shape is {segmentations.shape}")
         break
 
+
 '''
 class ImageDataset(Dataset):
     def __init__(self,
                  metadata: pd.DataFrame,
                  train: bool = True,
                  transform: Optional[transforms.Compose] = None):
-        self.metadata = metadata
+        self.metadata = metadata[:100]
         self.transform = transform
 
         unique_labels = self.metadata['dx'].unique()
@@ -243,7 +260,6 @@ class ImageDataset(Dataset):
         if self.transform is None:
             self.transform = transforms.Compose([
                 transforms.Resize((height, width)),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                 transforms.ToTensor()
             ])
 
