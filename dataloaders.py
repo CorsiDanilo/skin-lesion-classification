@@ -23,6 +23,7 @@ class ImageDataset(Dataset):
                  metadata: pd.DataFrame,
                  train: bool = True,
                  balance_data: bool = True,
+                 normalize: bool = True,
                  transform: Optional[transforms.Compose] = None,
                  balance_transform: Optional[transforms.Compose] = None):
         self.metadata = metadata
@@ -33,10 +34,11 @@ class ImageDataset(Dataset):
         labels_encoded = self.metadata['dx'].map(label_dict)
         self.metadata['label'] = labels_encoded
         self.metadata['augmented'] = False
-        self.metadata = self.metadata
+        self.metadata = self.metadata[:2000]
         self.train = train
         self.balance_data = balance_data
         self.balance_transform = balance_transform
+        self.normalize = normalize
 
         scale_factor = 0.1
         ORIGINAL_HEIGHT, ORIGINAL_WIDTH = 450, 600
@@ -44,10 +46,11 @@ class ImageDataset(Dataset):
             ORIGINAL_HEIGHT * scale_factor), int(ORIGINAL_WIDTH * scale_factor)
         if self.transform is None:
             self.transform = transforms.Compose([
-                transforms.Resize((height, width)),
+                #transforms.Resize((height, width)),
+                transforms.Resize((224, 224)),
                 transforms.ToTensor()
             ])
-
+        '''
         if self.balance_transform is None:
             self.balance_transform = transforms.Compose([
                 transforms.Resize((height, width)), #TO DO: TRY TO PUT TOGETHER SELF.TRASFORM AND BALANCE TRANSFORM
@@ -58,6 +61,7 @@ class ImageDataset(Dataset):
                 transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
                 transforms.ToTensor()
         ])
+        '''
 
         if self.train and self.balance_data:
             self.balance_dataset()
@@ -117,20 +121,11 @@ class ImageDataset(Dataset):
         if self.train:
             segmentations = torch.stack(segmentations)
         images = torch.stack(images)
+        self.mean = torch.tensor([torch.mean(images[:, :, :, channel]) for channel in range(3)]).reshape(3, 1, 1) 
+        print(self.mean)
+        self.std = torch.tensor([torch.std(images[:, :, :, channel]) for channel in range(3)]).reshape(3, 1, 1)  
+        print(self.std)
 
-        '''
-        if self.train:
-            for _, img in tqdm(self.metadata.iterrows(), desc='Loading train segmentations'):
-                if not os.path.exists(img['segmentation_path']):
-                    not_found_files.append(img['segmentation_path'])
-                    continue
-                if img['augmented']:
-                    segmentations.append(self.balance_transform(Image.open(img['segmentation_path'])))
-                else:
-                    segmentations.append(self.transform(Image.open(img['segmentation_path'])))
-            segmentations = torch.stack(segmentations)
-        images = torch.stack(images)
-        '''
         print("Len stack: " + str(len(images)))
 
         labels = torch.tensor(self.metadata['label'].tolist(
@@ -150,6 +145,9 @@ class ImageDataset(Dataset):
         label = self.labels[idx]
         if self.train:
             segmentation = self.segmentations[idx]
+            if self.normalize:
+                image -= self.mean
+                image /= self.std
             return image, label, segmentation
         return image, label
 
@@ -159,8 +157,8 @@ class StatefulTransform:
         self.width = width
 
     def __call__(self, img, seg):
-        img = transforms.Resize((self.height, self.width))(img)
-        seg = transforms.Resize((self.height, self.width))(seg)
+        img = transforms.Resize((224, 224))(img)
+        seg = transforms.Resize((224, 224))(seg)
 
         if random.random() > 0.5:
             img = TF.hflip(img)
