@@ -143,11 +143,11 @@ class ImageDataset(Dataset):
     def __getitem__(self, idx):
         image = self.images[idx]
         label = self.labels[idx]
+        if self.normalize:
+            image -= self.mean
+            image /= self.std
         if self.train:
             segmentation = self.segmentations[idx]
-            if self.normalize:
-                image -= self.mean
-                image /= self.std
             return image, label, segmentation
         return image, label
 
