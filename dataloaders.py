@@ -10,7 +10,7 @@ import os
 from PIL import Image
 from tqdm import tqdm
 import random
-import math 
+import math
 
 from config import DATASET_TEST_DIR, DATASET_TRAIN_DIR, METADATA_TEST_DIR, METADATA_TRAIN_DIR, SEGMENTATION_DIR, BATCH_SIZE
 
@@ -18,15 +18,20 @@ seed = 42
 random.seed(seed)
 torch.manual_seed(seed)
 
+
 class ImageDataset(Dataset):
     def __init__(self,
                  metadata: pd.DataFrame,
                  train: bool = True,
                  balance_data: bool = True,
-                 normalize: bool = True,
+                 normalize: bool = False,
                  transform: Optional[transforms.Compose] = None,
-                 balance_transform: Optional[transforms.Compose] = None):
-        self.metadata = metadata[:3000]
+                 balance_transform: Optional[transforms.Compose] = None,
+                 limit: int = None):
+        if limit is not None:
+            self.metadata = metadata[:limit]
+        else:
+            self.metadata = metadata
         self.transform = transform
 
         unique_labels = self.metadata['dx'].unique()
@@ -34,7 +39,6 @@ class ImageDataset(Dataset):
         labels_encoded = self.metadata['dx'].map(label_dict)
         self.metadata['label'] = labels_encoded
         self.metadata['augmented'] = False
-        self.metadata = self.metadata
         self.train = train
         self.balance_data = balance_data
         self.balance_transform = balance_transform
@@ -46,7 +50,7 @@ class ImageDataset(Dataset):
             ORIGINAL_HEIGHT * scale_factor), int(ORIGINAL_WIDTH * scale_factor)
         if self.transform is None:
             self.transform = transforms.Compose([
-                #transforms.Resize((height, width)),
+                # transforms.Resize((height, width)),
                 transforms.Resize((224, 224)),
                 transforms.ToTensor()
             ])
@@ -81,27 +85,36 @@ class ImageDataset(Dataset):
         print(max_count)
         print(second_max_count)
 
-        #Undersampling most common class
-        max_label_images_to_remove = max(math.floor(max_count*0.5), second_max_count)
-        label_indices = self.metadata[self.metadata['label'] == max_label].index
-        removal_indices = random.sample(label_indices.tolist(), k=max_label_images_to_remove)
+        # Undersampling most common class
+        max_label_images_to_remove = max(
+            math.floor(max_count*0.5), second_max_count)
+        label_indices = self.metadata[self.metadata['label']
+                                      == max_label].index
+        removal_indices = random.sample(
+            label_indices.tolist(), k=max_label_images_to_remove)
         self.metadata = self.metadata.drop(index=removal_indices)
         self.metadata.reset_index(drop=True, inplace=True)
 
         labels_counts = Counter(self.metadata['label'])
-        max_label, max_count = max(labels_counts.items(), key=lambda x: x[1]) #Compute max label again - Maybe create a function to avoid doing this operation twice
+        # Compute max label again - Maybe create a function to avoid doing this operation twice
+        max_label, max_count = max(labels_counts.items(), key=lambda x: x[1])
 
-        #Oversampling of the other classes
+        # Oversampling of the other classes
         for label in self.metadata['label'].unique():
-            label_indices = self.metadata[self.metadata['label'] == label].index
+            label_indices = self.metadata[self.metadata['label']
+                                          == label].index
             current_images = len(label_indices)
 
             if current_images < max_count:
                 num_images_to_add = max_count - current_images
-                aug_indices = random.choices(label_indices.tolist(), k=num_images_to_add)
-                self.metadata = pd.concat([self.metadata, self.metadata.loc[aug_indices]])
-                self.metadata.loc[aug_indices, 'augmented'] = True # Apply data augmentation only to the augmented subset
-                label_indices = self.metadata[self.metadata['label'] == label].index
+                aug_indices = random.choices(
+                    label_indices.tolist(), k=num_images_to_add)
+                self.metadata = pd.concat(
+                    [self.metadata, self.metadata.loc[aug_indices]])
+                # Apply data augmentation only to the augmented subset
+                self.metadata.loc[aug_indices, 'augmented'] = True
+                label_indices = self.metadata[self.metadata['label']
+                                              == label].index
             print(label, label_indices)
         self.metadata.reset_index(drop=True, inplace=True)
 
@@ -109,39 +122,45 @@ class ImageDataset(Dataset):
         not_found_files = []
         images = []
         segmentations = []
+        labels = []
         for _, img in tqdm(self.metadata.iterrows(), desc=f'Loading {"train" if self.train else "test"} images'):
             if not os.path.exists(img['image_path']):
                 not_found_files.append(img['image_path'])
                 continue
+            labels.append(img['label'])
             if self.train:
-                stateful_transform = StatefulTransform(45, 60) #CHANGE WITH NEW SIZES DINAMICALLY!
+                # CHANGE WITH NEW SIZES DINAMICALLY!
+                stateful_transform = StatefulTransform(45, 60)
                 if not os.path.exists(img['segmentation_path']):
                     not_found_files.append(img['segmentation_path'])
                     continue
                 if img['augmented']:
-                    #images.append(self.balance_transform(Image.open(img['image_path'])))
-                    #segmentations.append(self.balance_transform(Image.open(img['segmentation_path'])))
-                    ti, ts = stateful_transform(Image.open(img['image_path']), Image.open(img['segmentation_path']))
-                    #segmentations.append(stateful_transform(Image.open(img['segmentation_path'])))
+                    # images.append(self.balance_transform(Image.open(img['image_path'])))
+                    # segmentations.append(self.balance_transform(Image.open(img['segmentation_path'])))
+                    ti, ts = stateful_transform(Image.open(
+                        img['image_path']), Image.open(img['segmentation_path']))
+                    # segmentations.append(stateful_transform(Image.open(img['segmentation_path'])))
                     images.append(ti)
                     segmentations.append(ts)
                 else:
-                    images.append(self.transform(Image.open(img['image_path'])))
-                    segmentations.append(self.transform(Image.open(img['segmentation_path'])))
+                    images.append(self.transform(
+                        Image.open(img['image_path'])))
+                    segmentations.append(self.transform(
+                        Image.open(img['segmentation_path'])))
             else:
                 images.append(self.transform(Image.open(img['image_path'])))
         if self.train:
             segmentations = torch.stack(segmentations)
         images = torch.stack(images)
-        self.mean = torch.tensor([torch.mean(images[:, :, :, channel]) for channel in range(3)]).reshape(3, 1, 1) 
+        labels = torch.tensor(labels, dtype=torch.long)
+        self.mean = torch.tensor(
+            [torch.mean(images[:, :, :, channel]) for channel in range(3)]).reshape(3, 1, 1)
         print(self.mean)
-        self.std = torch.tensor([torch.std(images[:, :, :, channel]) for channel in range(3)]).reshape(3, 1, 1)  
+        self.std = torch.tensor([torch.std(images[:, :, :, channel])
+                                for channel in range(3)]).reshape(3, 1, 1)
         print(self.std)
 
         print("Len stack: " + str(len(images)))
-
-        labels = torch.tensor(self.metadata['label'].tolist(
-        ), dtype=torch.long)
 
         print(
             f"Loading complete, some files ({len(not_found_files)}) were not found: {not_found_files}")
@@ -163,6 +182,7 @@ class ImageDataset(Dataset):
             return image, label, segmentation
         return image, label
 
+
 class StatefulTransform:
     def __init__(self, height, width):
         self.height = height
@@ -175,7 +195,7 @@ class StatefulTransform:
         if random.random() > 0.5:
             img = TF.hflip(img)
             seg = TF.hflip(seg)
-        
+
         if random.random() > 0.5:
             img = TF.vflip(img)
             seg = TF.vflip(seg)
@@ -185,14 +205,15 @@ class StatefulTransform:
             img = TF.rotate(img, angle)
             seg = TF.rotate(seg, angle)
 
-        #img = transforms.RandomRotation(180)(img)
-        #img = transforms.RandomHorizontalFlip()(img)
-        #img = transforms.RandomVerticalFlip()(img)
-        #img = transforms.RandomAffine(degrees=0, translate=(0.1, 0.1))(img)
+        # img = transforms.RandomRotation(180)(img)
+        # img = transforms.RandomHorizontalFlip()(img)
+        # img = transforms.RandomVerticalFlip()(img)
+        # img = transforms.RandomAffine(degrees=0, translate=(0.1, 0.1))(img)
         img = transforms.ToTensor()(img)
         seg = transforms.ToTensor()(seg)
-        
+
         return img, seg
+
 
 def load_metadata(train: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame] or pd.DataFrame:
     metadata = pd.read_csv(METADATA_TRAIN_DIR if train else METADATA_TEST_DIR)
@@ -212,13 +233,14 @@ def load_metadata(train: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame] or pd
     return metadata
 
 
-def create_dataloaders() -> Tuple[DataLoader, DataLoader, DataLoader]:
+def create_dataloaders(limit: int = None) -> Tuple[DataLoader, DataLoader, DataLoader]:
     df_train, df_val = load_metadata()
     df_test = load_metadata(train=False)
 
-    train_dataset = ImageDataset(df_train)
-    val_dataset = ImageDataset(df_val, train=False)
-    test_dataset = ImageDataset(df_test, train=False)
+    train_dataset = ImageDataset(df_train, limit=limit)
+    # TODO: remove the train here, it's just to test if the segmentation helps the model
+    val_dataset = ImageDataset(df_val, train=True, limit=limit)
+    test_dataset = ImageDataset(df_test, train=False, limit=limit)
 
     train_loader = DataLoader(
         train_dataset, batch_size=BATCH_SIZE, shuffle=True)
