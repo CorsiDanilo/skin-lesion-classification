@@ -26,7 +26,7 @@ class ImageDataset(Dataset):
                  normalize: bool = True,
                  transform: Optional[transforms.Compose] = None,
                  balance_transform: Optional[transforms.Compose] = None):
-        self.metadata = metadata
+        self.metadata = metadata[:3000]
         self.transform = transform
 
         unique_labels = self.metadata['dx'].unique()
@@ -76,22 +76,34 @@ class ImageDataset(Dataset):
 
     def balance_dataset(self):
         labels_counts = Counter(self.metadata['label'])
-        max_label_images = max(labels_counts.values())
-        print(max_label_images)
+        max_label, max_count = max(labels_counts.items(), key=lambda x: x[1])
+        _, second_max_count = labels_counts.most_common(2)[-1]
+        print(max_count)
+        print(second_max_count)
 
+        #Undersampling most common class
+        max_label_images_to_remove = max(math.floor(max_count*0.5), second_max_count)
+        label_indices = self.metadata[self.metadata['label'] == max_label].index
+        removal_indices = random.sample(label_indices.tolist(), k=max_label_images_to_remove)
+        self.metadata = self.metadata.drop(index=removal_indices)
+        self.metadata.reset_index(drop=True, inplace=True)
+
+        labels_counts = Counter(self.metadata['label'])
+        max_label, max_count = max(labels_counts.items(), key=lambda x: x[1]) #Compute max label again - Maybe create a function to avoid doing this operation twice
+
+        #Oversampling of the other classes
         for label in self.metadata['label'].unique():
             label_indices = self.metadata[self.metadata['label'] == label].index
             current_images = len(label_indices)
 
-            if current_images < max_label_images:
-                num_images_to_add = max_label_images - current_images
+            if current_images < max_count:
+                num_images_to_add = max_count - current_images
                 aug_indices = random.choices(label_indices.tolist(), k=num_images_to_add)
                 self.metadata = pd.concat([self.metadata, self.metadata.loc[aug_indices]])
                 self.metadata.loc[aug_indices, 'augmented'] = True # Apply data augmentation only to the augmented subset
                 label_indices = self.metadata[self.metadata['label'] == label].index
             print(label, label_indices)
         self.metadata.reset_index(drop=True, inplace=True)
-        print(self.metadata.to_string())
 
     def load_images_and_labels(self):
         not_found_files = []
