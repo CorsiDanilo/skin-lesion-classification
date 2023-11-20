@@ -34,7 +34,7 @@ class ImageDataset(Dataset):
         labels_encoded = self.metadata['dx'].map(label_dict)
         self.metadata['label'] = labels_encoded
         self.metadata['augmented'] = False
-        self.metadata = self.metadata[:2000]
+        self.metadata = self.metadata
         self.train = train
         self.balance_data = balance_data
         self.balance_transform = balance_transform
