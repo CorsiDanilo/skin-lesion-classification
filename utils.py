@@ -17,6 +17,10 @@ def plot_image_grid(inp: torch.Tensor, title=None):
 
 
 def crop_roi(images: torch.Tensor) -> torch.Tensor:
+    assert images.dim(
+    ) == 4, f"Input must be a 4D tensor. Input shape is {images.shape}"
+    assert images.shape[1:] == (
+        3, 224, 224), "Input must be a 4D tensor of shape (N, 3, 224, 224)"
     batch_images = np.array([image_tensor.permute(1, 2, 0).numpy()
                             for image_tensor in images])
     transform = torchvision.transforms.Compose([torchvision.transforms.Resize((224, 224)),

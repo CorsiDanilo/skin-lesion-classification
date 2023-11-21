@@ -67,7 +67,7 @@ class ImageDataset(Dataset):
         ])
         '''
 
-        if self.train and self.balance_data:
+        if self.balance_data:
             self.balance_dataset()
 
         if self.train:
@@ -82,8 +82,6 @@ class ImageDataset(Dataset):
         labels_counts = Counter(self.metadata['label'])
         max_label, max_count = max(labels_counts.items(), key=lambda x: x[1])
         _, second_max_count = labels_counts.most_common(2)[-1]
-        print(max_count)
-        print(second_max_count)
 
         # Undersampling most common class
         max_label_images_to_remove = max(
@@ -115,7 +113,6 @@ class ImageDataset(Dataset):
                 self.metadata.loc[aug_indices, 'augmented'] = True
                 label_indices = self.metadata[self.metadata['label']
                                               == label].index
-            print(label, label_indices)
         self.metadata.reset_index(drop=True, inplace=True)
 
     def load_images_and_labels(self):
@@ -128,7 +125,7 @@ class ImageDataset(Dataset):
                 not_found_files.append(img['image_path'])
                 continue
             labels.append(img['label'])
-            if self.train:
+            if self.balance_data:
                 # CHANGE WITH NEW SIZES DINAMICALLY!
                 stateful_transform = StatefulTransform(45, 60)
                 if not os.path.exists(img['segmentation_path']):
@@ -142,11 +139,11 @@ class ImageDataset(Dataset):
                     # segmentations.append(stateful_transform(Image.open(img['segmentation_path'])))
                     images.append(ti)
                     segmentations.append(ts)
-                else:
-                    images.append(self.transform(
-                        Image.open(img['image_path'])))
-                    segmentations.append(self.transform(
-                        Image.open(img['segmentation_path'])))
+            elif self.train:
+                images.append(self.transform(
+                    Image.open(img['image_path'])))
+                segmentations.append(self.transform(
+                    Image.open(img['segmentation_path'])))
             else:
                 images.append(self.transform(Image.open(img['image_path'])))
         if self.train:
@@ -154,13 +151,9 @@ class ImageDataset(Dataset):
         images = torch.stack(images)
         labels = torch.tensor(labels, dtype=torch.long)
         self.mean = torch.tensor(
-            [torch.mean(images[:, :, :, channel]) for channel in range(3)]).reshape(3, 1, 1)
-        print(self.mean)
-        self.std = torch.tensor([torch.std(images[:, :, :, channel])
+            [torch.mean(images[:, channel, :, :]) for channel in range(3)]).reshape(3, 1, 1)
+        self.std = torch.tensor([torch.std(images[:, channel, :, :])
                                 for channel in range(3)]).reshape(3, 1, 1)
-        print(self.std)
-
-        print("Len stack: " + str(len(images)))
 
         print(
             f"Loading complete, some files ({len(not_found_files)}) were not found: {not_found_files}")
@@ -174,6 +167,7 @@ class ImageDataset(Dataset):
     def __getitem__(self, idx):
         image = self.images[idx]
         label = self.labels[idx]
+        # TODO: you should first crop the roi and then normalize the image
         if self.normalize:
             image -= self.mean
             image /= self.std
@@ -237,15 +231,38 @@ def create_dataloaders(limit: int = None) -> Tuple[DataLoader, DataLoader, DataL
     df_train, df_val = load_metadata()
     df_test = load_metadata(train=False)
 
-    train_dataset = ImageDataset(df_train, limit=limit)
+    train_dataset = ImageDataset(
+        df_train,
+        train=True,
+        limit=limit,
+        balance_data=True)
+
     # TODO: remove the train here, it's just to test if the segmentation helps the model
-    val_dataset = ImageDataset(df_val, train=True, limit=limit)
-    test_dataset = ImageDataset(df_test, train=False, limit=limit)
+    # I'm puttingbalance data false in order to not augment the validation even if train is true.
+    val_dataset = ImageDataset(
+        df_val,
+        train=True,
+        limit=limit,
+        balance_data=False)
+
+    test_dataset = ImageDataset(
+        df_test,
+        train=False,
+        limit=limit,
+        balance_data=False)
 
     train_loader = DataLoader(
-        train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
+        train_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=True)
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=BATCH_SIZE)
+
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=BATCH_SIZE)
+    
     return train_loader, val_loader, test_loader
 
 
