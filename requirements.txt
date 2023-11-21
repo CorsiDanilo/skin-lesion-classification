@@ -3,3 +3,4 @@ torchvision
 pandas
 scikit-learn
 tqdm
+wandb
