@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Optional, Tuple
 import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -18,72 +18,75 @@ from config import DATASET_TEST_DIR, DATASET_TRAIN_DIR, METADATA_TEST_DIR, METAD
 class ImageDataset(Dataset):
     def __init__(self,
                  metadata: pd.DataFrame,
-                 train: bool = True,
+                 load_segmentations: bool = True,
                  # Control the data augmentation process aim to solve class imbalance
                  balance_data: bool = True,
+                 # Percentage of data to remove from the majority class
+                 balance_undersampling: float = 0.5,
                  # If balace_data, controls how many images to remove from the majority class in percentage. 1 if you don't want to apply undersampling.
                  undersampling_majority_class_weight: float = 0.5,
                  normalize: bool = False,  # Control the application of z-score normalization
-                 mean: float = 0,
-                 std: float = 0,
+                 # Mean (per channel) for the z-score normalization
+                 mean: float = None,
+                 # Standard deviation (per channel) for the z-score normalization
+                 std: float = None,
                  # Adjustment value to avoid division per zero during normalization
                  std_epsilon: float = 0.01,
-                 transform: Optional[transforms.Compose] = None,
-                 balance_transform: Optional[transforms.Compose] = None):
+                 # Sizes (height, width) for resize the images
+                 resize_dims=(224, 224),
+                 transform: Optional[transforms.Compose] = None):
         self.metadata = metadata
         self.transform = transform
 
         unique_labels = self.metadata['dx'].unique()
         label_dict = {label: idx for idx, label in enumerate(unique_labels)}
+        labels_encoded = self.metadata['dx'].map(label_dict)
         assert len(
             label_dict) == 7, "There should be 7 unique labels, increase the limit"
-        labels_encoded = self.metadata['dx'].map(label_dict)
         self.metadata['label'] = labels_encoded
         self.metadata['augmented'] = False
         self.metadata = self.metadata
-        self.train = train
+        self.load_segmentations = load_segmentations
         self.balance_data = balance_data
-        self.balance_transform = balance_transform
         self.normalize = normalize
         self.mean = mean
         self.std = std
+        self.resize_dims = resize_dims
         if std_epsilon <= 0:
-            raise ValueError("std_epsilon must be a positive number")
+            raise ValueError("std_epsilon must be a positive number.")
         else:
             self.std_epsilon = std_epsilon
         if undersampling_majority_class_weight <= 0 and undersampling_majority_class_weight > 1:
             raise ValueError(
-                "undersampling_majority_class_weight must be a value in the range (0, 1]")
+                "undersampling_majority_class_weight must be a value in the range (0, 1].")
         else:
             self.undersampling_majority_class_weight = undersampling_majority_class_weight
+        if balance_undersampling <= 0 and balance_undersampling > 1:
+            raise ValueError(
+                "balance_undersampling must be a value in the range (0, 1].")
+        else:
+            self.balance_undersampling = balance_undersampling
+        if self.normalize and (self.mean is None or self.std is None):
+            raise ValueError(
+                "Normalization flag set to True. Please specify the mean a standard deviation for z-score normalization.")
 
-        scale_factor = 0.1
-        ORIGINAL_HEIGHT, ORIGINAL_WIDTH = 450, 600
-        height, width = int(
-            ORIGINAL_HEIGHT * scale_factor), int(ORIGINAL_WIDTH * scale_factor)
         if self.transform is None:
             self.transform = transforms.Compose([
-                # transforms.Resize((height, width)),
-                transforms.Resize((224, 224)),
+                transforms.Resize((self.resize_dims[0], self.resize_dims[1])),
+                # transforms.RandomEqualize(p=1),
+                transforms.RandomAdjustSharpness(sharpness_factor=10, p=1),
                 transforms.ToTensor()
             ])
-        '''
-        if self.balance_transform is None:
-            self.balance_transform = transforms.Compose([
-                transforms.Resize((height, width)), #TO DO: TRY TO PUT TOGETHER SELF.TRASFORM AND BALANCE TRANSFORM
-                transforms.RandomRotation(180),
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomVerticalFlip(),
-                #transforms.RandomResizedCrop(size=(self.height, self.width), scale=(0.9, 1.1)),
-                transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
+
+            self.segmentation_transform = transforms.Compose([
+                transforms.Resize((self.resize_dims[0], self.resize_dims[1])),
                 transforms.ToTensor()
-        ])
-        '''
+            ])
 
         if self.balance_data:
             self.balance_dataset()
 
-        if self.train:
+        if self.load_segmentations:
             self.images, self.labels, self.segmentations = self.load_images_and_labels()
         else:
             self.images, self.labels = self.load_images_and_labels()
@@ -92,29 +95,33 @@ class ImageDataset(Dataset):
         # encode it in one-hot vectors and concatenate them to the images in order to feed it to the NN
 
     def balance_dataset(self):
+        print("--Data Balance-- balance_data set to True. Training data will be balanced.")
         # Count images associated to each label
         labels_counts = Counter(self.metadata['label'])
         max_label, max_count = max(
             labels_counts.items(), key=lambda x: x[1])  # Majority class
-        _, second_max_count = labels_counts.most_common(
+        second_max_label, second_max_count = labels_counts.most_common(
             2)[-1]  # Second majority class
-
         print(
-            f"Max count is {max_count}, while second max count is {second_max_count}")
+            f"--Data Balance-- The most common class is {max_label} with {max_count} images.")
+        print(
+            f"--Data Balance-- The second common class is {second_max_label} with {second_max_count} images with a difference of {max_count-second_max_count} images from the most common class.")
 
         # Undersampling most common class
-        max_label_images_to_remove = max_count - max(
-            math.floor(max_count*self.undersampling_majority_class_weight), second_max_count)
-
-        print(f"Max labels to remove is {max_label_images_to_remove}")
+        max_label_images_to_remove = max(math.floor(
+            max_count*self.balance_undersampling), second_max_count)
+        print(
+            f"--Data Balance (Undersampling)-- Removing {max_label_images_to_remove} from {max_label} class..")
         label_indices = self.metadata[self.metadata['label']
                                       == max_label].index
         removal_indices = random.sample(
-            label_indices.tolist(), k=max_label_images_to_remove)
+            label_indices.tolist(), k=max_count-max_label_images_to_remove)
         self.metadata = self.metadata.drop(index=removal_indices)
         self.metadata.reset_index(drop=True, inplace=True)
         labels_counts = Counter(self.metadata['label'])
         max_label, max_count = max(labels_counts.items(), key=lambda x: x[1])
+        print(
+            f"--Data Balance (Undersampling)-- {max_label} now has {max_count} images")
 
         # Oversampling of the other classes
         for label in self.metadata['label'].unique():
@@ -124,6 +131,8 @@ class ImageDataset(Dataset):
 
             if current_images < max_count:
                 num_images_to_add = max_count - current_images
+                print(
+                    f"-- Data Balance (Oversampling) -- Adding {num_images_to_add} from {label} class..")
                 aug_indices = random.choices(
                     label_indices.tolist(), k=num_images_to_add)
                 self.metadata = pd.concat(
@@ -138,46 +147,50 @@ class ImageDataset(Dataset):
         images = []
         segmentations = []
         labels = []
-        for _, img in tqdm(self.metadata.iterrows(), desc=f'Loading {"train" if self.train else "test"} images'):
+        for _, img in tqdm(self.metadata.iterrows(), desc=f'Loading images'):
             if not os.path.exists(img['image_path']):
                 not_found_files.append(img['image_path'])
                 continue
             labels.append(img['label'])
+            # Augment the data if balance_data is true and load segmentations
             if self.balance_data:
-                # CHANGE WITH NEW SIZES DINAMICALLY!
-                stateful_transform = StatefulTransform(45, 60)
+                stateful_transform = StatefulTransform(
+                    self.resize_dims[0], self.resize_dims[1])
                 if not os.path.exists(img['segmentation_path']):
                     not_found_files.append(img['segmentation_path'])
                     continue
+                # Apply these transformations only the oversampled data (for data augmentation)
                 if img['augmented']:
                     ti, ts = stateful_transform(Image.open(
-                        img['image_path']), Image.open(img['segmentation_path']))
+                        img['image_path']), Image.open(img['segmentation_path']).convert('1'))
                     images.append(ti)
                     segmentations.append(ts)
                 else:
                     images.append(self.transform(
                         Image.open(img['image_path'])))
-                    segmentations.append(self.transform(
-                        Image.open(img['segmentation_path'])))
-
-            elif self.train:
+                    segmentations.append(self.segmentation_transform(
+                        Image.open(img['segmentation_path']).convert('1')))
+            # Load segmentations without augmenting the data
+            elif self.load_segmentations:
                 if not os.path.exists(img['segmentation_path']):
                     not_found_files.append(img['segmentation_path'])
                     continue
+                segmentations.append(self.segmentation_transform(
+                    Image.open(img['segmentation_path']).convert('1')))
                 images.append(self.transform(Image.open(img['image_path'])))
-                segmentations.append(self.transform(
-                    Image.open(img['segmentation_path'])))
+            # Only load images
             else:
                 images.append(self.transform(Image.open(img['image_path'])))
-        if self.train:
+        if self.load_segmentations:
             segmentations = torch.stack(segmentations)
         images = torch.stack(images)
         labels = torch.tensor(labels, dtype=torch.long)
+
         print(f"---Data Loader--- Images uploaded: " + str(len(images)))
 
         print(
             f"Loading complete, some files ({len(not_found_files)}) were not found: {not_found_files}")
-        if self.train:
+        if self.load_segmentations:
             return images, labels, segmentations
         return images, labels
 
@@ -188,11 +201,15 @@ class ImageDataset(Dataset):
         image = self.images[idx]
         label = self.labels[idx]
         if self.normalize:
-            image = (image - self.mean) / (self.std + self.std_epsilon)
-        if self.train:
+            image = (image - self.mean.view(3, 1, 1)) / \
+                (self.std + self.std_epsilon).view(3, 1, 1)
+        if self.load_segmentations:
             segmentation = self.segmentations[idx]
             return image, label, segmentation
         return image, label
+
+
+# Class that implement the transformations to be applied to the images and the associated segmentations jointly
 
 
 class StatefulTransform:
@@ -201,17 +218,23 @@ class StatefulTransform:
         self.width = width
 
     def __call__(self, img, seg):
-        img = transforms.Resize((224, 224))(img)
-        seg = transforms.Resize((224, 224))(seg)
+        # Resize
+        img = transforms.Resize((self.height, self.width))(img)
+        # img = transforms.RandomEqualize(p=1)(img)
+        img = transforms.RandomAdjustSharpness(sharpness_factor=10, p=1)(img)
+        seg = transforms.Resize((self.height, self.width))(seg)
 
+        # Horizonal flip
         if random.random() > 0.5:
             img = TF.hflip(img)
             seg = TF.hflip(seg)
 
+        # Vertical flip
         if random.random() > 0.5:
             img = TF.vflip(img)
             seg = TF.vflip(seg)
 
+        # Random rotation
         if random.random() > 0.5:
             angle = random.randint(1, 360)
             img = TF.rotate(img, angle)
@@ -221,6 +244,8 @@ class StatefulTransform:
         seg = transforms.ToTensor()(seg)
 
         return img, seg
+
+# Function that computes the normalization statistics
 
 
 def calculate_normalization_statistics(df: pd.DataFrame) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -233,9 +258,9 @@ def calculate_normalization_statistics(df: pd.DataFrame) -> Tuple[torch.Tensor, 
         images_for_normalization.append(image)
 
     images_for_normalization = torch.stack(images_for_normalization)
-    mean = torch.tensor([torch.mean(images_for_normalization[:, :, :, channel])
+    mean = torch.tensor([torch.mean(images_for_normalization[:, channel, :, :])
                         for channel in range(3)]).reshape(3, 1, 1)
-    std = torch.tensor([torch.std(images_for_normalization[:, :, :, channel])
+    std = torch.tensor([torch.std(images_for_normalization[:, channel, :, :])
                        for channel in range(3)]).reshape(3, 1, 1)
 
     print("---Normalization--- Normalization flag set to True: Images will be normalized with z-score normalization")
@@ -263,54 +288,49 @@ def load_metadata(train: bool = True,
 
         # Assuming `df` is your DataFrame
         df_train, df_val = train_test_split(
-            metadata, test_size=0.2, random_state=42, stratify=metadata['dx'])
+            metadata,
+            test_size=0.2,
+            random_state=42,
+            stratify=metadata['dx'])
 
         return df_train, df_val
 
     return metadata
 
 
-def check_distribution(df: pd.DataFrame, name: Optional[str] = None):
-    labels_counts = Counter(df['dx'])
-    label_percentage = {label: count/len(df) for label,
-                        count in labels_counts.items()}
-    percentages = [(x[0], round(x[1], 2)) for x in sorted(
-        label_percentage.items(), key=lambda x: x[0])]
-    if name is not None:
-        print(f"Labels percentages for {name} are {percentages}")
-    return label_percentage
+def create_dataloaders(normalize: bool = True,
+                       mean: Optional[torch.Tensor] = None,
+                       std: Optional[torch.Tensor] = None,
+                       limit: Optional[int] = None) -> Tuple[DataLoader, DataLoader, DataLoader]:
 
-
-def compute_weights(df: pd.DataFrame, labels_encoding: Dict[str, int]):
-    inverted_encoding = {v: k for k, v in labels_encoding.items()}
-    label_percentage = check_distribution(df)
-    weights = [label_percentage[inverted_encoding[i]] for i in range(7)]
-    return weights
-
-
-def create_dataloaders(normalize: bool = True, limit: Optional[int] = None) -> Tuple[DataLoader, DataLoader, DataLoader]:
     df_train, df_val = load_metadata(limit=limit)
     df_test = load_metadata(train=False, limit=limit)
 
-    print("------Check distribution-----")
-    check_distribution(df_train, "train")
-    check_distribution(df_val, "val")
-    check_distribution(df_test, "test")
-    print("-----------------------------")
-
     # Calculate and store normalization statistics for the training dataset
-    train_mean = torch.tensor([0.485, 0.456, 0.406]).reshape(3, 1, 1)
-    train_std = torch.tensor([0.229, 0.224, 0.225]).reshape(3, 1, 1)
-    # if normalize:
-    #    train_mean, train_std = calculate_normalization_statistics(df_train)
-    # print(train_mean, train_std)
+    if normalize and (mean is None or std is None):
+        mean, std = calculate_normalization_statistics(df_train)
 
     train_dataset = ImageDataset(
-        df_train, normalize=normalize, mean=train_mean, std=train_std, balance_data=True)
+        df_train,
+        load_segmentations=True,
+        normalize=normalize,
+        mean=mean,
+        std=std,
+        balance_data=True)
     val_dataset = ImageDataset(
-        df_val, train=True, normalize=normalize, mean=train_mean, std=train_std, balance_data=False)
+        df_val,
+        load_segmentations=True,
+        normalize=normalize,
+        mean=mean,
+        std=std,
+        balance_data=False)
     test_dataset = ImageDataset(
-        df_test, train=False, normalize=normalize, mean=train_mean, std=train_std, balance_data=False)
+        df_test,
+        load_segmentations=False,
+        normalize=normalize,
+        mean=mean,
+        std=std,
+        balance_data=False)
 
     train_loader = DataLoader(
         train_dataset, batch_size=BATCH_SIZE, shuffle=True)
@@ -320,7 +340,8 @@ def create_dataloaders(normalize: bool = True, limit: Optional[int] = None) -> T
 
 
 if __name__ == '__main__':
-    train_loader, val_loader, test_loader = create_dataloaders(normalize=True)
+    train_loader, val_loader, test_loader = create_dataloaders(
+        normalize=True, limit=1000)
 
     batch: torch.Tensor
     labels: torch.Tensor
