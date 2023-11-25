@@ -1,13 +1,13 @@
-from torchvision.models import ResNet34_Weights
-from torchvision.models import Inception_V3_Weights
 import torch
 import torch.nn as nn
-import torchvision.models as models
 import numpy as np
 import random
 import os
 import wandb
-from config import BATCH_SIZE
+from config import BATCH_SIZE, INPUT_SIZE, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, SEGMENT, CROP_ROI, ARCHITECHTURE, DATASET_LIMIT, DROPOUT_P, NORMALIZE, HISTOGRAM_NORMALIZATION, USE_WANDB
+from models.ResNet24Pretrained import ResNet24Pretrained
+from models.DenseNetPretrained import DenseNetPretrained
+from models.InceptionV3Pretrained import InceptionV3Pretrained
 
 import dataloaders
 import utils
@@ -18,22 +18,8 @@ from tqdm import tqdm
 device = torch.device("mps")
 print('Using device: %s' % device)
 
-USE_WANDB = True
-# Configurations
-INPUT_SIZE = 3
-NUM_CLASSES = 7
-HIDDEN_SIZE = [32, 64, 128, 256]
-N_EPOCHS = 20
-LR = 1e-3
-LR_DECAY = 0.85
-REG = 0.01
-SEGMENT = True
-CROP_ROI = True
-ARCHITECHTURE = "resnet24"
-DATASET_LIMIT = None
-DROPOUT_P = 0.1
-NORMALIZE = True
-HISTOGRAM_NORMALIZATION = False
+RESUME = True
+FROM_EPOCH = 1
 
 if CROP_ROI:
     assert SEGMENT, f"Crop roi needs segment to be True"
@@ -58,9 +44,11 @@ if USE_WANDB:
             "dataset_limit": DATASET_LIMIT,
             "dropout_p": DROPOUT_P,
             "normalize": NORMALIZE,
-            "histogram_normalization": HISTOGRAM_NORMALIZATION
-
-        }
+            "histogram_normalization": HISTOGRAM_NORMALIZATION,
+            "resumed": RESUME,
+            "from_epoch": FROM_EPOCH
+        },
+        resume=RESUME,
     )
 
 
@@ -83,7 +71,6 @@ def set_seed(seed):
     # Set a fixed value for the hash seed
     os.environ["PYTHONHASHSEED"] = str(seed)
     print(f"Random seed set as {seed}")
-    set_seed(RANDOM_SEED)
 
 
 def create_loaders():
@@ -100,136 +87,8 @@ def create_loaders():
     return train_loader, val_loader, test_loader
 
 
-class ResNet24Pretrained(nn.Module):
-    def __init__(self, input_size, hidden_layers, num_classes, norm_layer=None):
-        super(ResNet24Pretrained, self).__init__()
-        self.model = models.resnet34(weights=ResNet34_Weights.DEFAULT)
-        self.classifier = nn.Sequential(
-            nn.Dropout(p=DROPOUT_P),
-            nn.Linear(self.model.fc.in_features, 256, bias=False),
-            nn.ReLU(),
-            nn.BatchNorm1d(256),
-
-            nn.Dropout(p=DROPOUT_P),
-            nn.Linear(256, 128, bias=False),
-            nn.ReLU(),
-            nn.BatchNorm1d(128),
-
-            nn.Linear(128, num_classes, bias=False),
-            nn.BatchNorm1d(num_classes),
-
-        )
-        self.model.fc = self.classifier
-
-        model_parameters = filter(
-            lambda p: p.requires_grad, self.model.parameters())
-        params = sum([np.prod(p.size()) for p in model_parameters])
-        print(f'Model has {params} trainable params.')
-
-    def forward(self, x):
-        return self.model(x)
-
-    def initialize_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.kaiming_normal_(
-                    m.weight, mode='fan_out', nonlinearity='relu')
-                if m.bias:
-                    nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.BatchNorm1d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
-
-
-class DenseNetPretrained(nn.Module):
-    def __init__(self, input_size, hidden_layers, num_classes, norm_layer=None):
-        super(DenseNetPretrained, self).__init__()
-        self.model = models.densenet121(pretrained=True)
-
-        self.classifier = nn.Sequential(
-            nn.Dropout(p=DROPOUT_P),
-
-            nn.Linear(self.model.classifier.in_features, 256, bias=False),
-            nn.ReLU(),
-            nn.BatchNorm1d(256),
-
-            nn.Linear(256, 128, bias=False),
-            nn.ReLU(),
-            nn.BatchNorm1d(128),
-
-            nn.Linear(128, num_classes, bias=False),
-            nn.BatchNorm1d(num_classes),
-        )
-
-        self.model.classifier = self.classifier
-
-        model_parameters = filter(
-            lambda p: p.requires_grad, self.model.parameters())
-        params = sum([np.prod(p.size()) for p in model_parameters])
-        print(f'Model has {params} trainable params.')
-
-    def forward(self, x):
-        return self.model(x)
-
-    def initialize_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.kaiming_normal_(
-                    m.weight, mode='fan_out', nonlinearity='relu')
-                if m.bias:
-                    nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.BatchNorm1d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
-
-
-class InceptionV3(nn.Module):
-    def __init__(self, num_classes):
-        super(InceptionV3, self).__init__()
-        self.model = models.inception_v3(weights=Inception_V3_Weights.DEFAULT)
-
-        print(f"In features are: {self.model.fc.in_features}")
-        self.classifier = nn.Sequential(
-            nn.Dropout(p=DROPOUT_P),
-
-            nn.Linear(self.model.fc.in_features, 1024, bias=False),
-            nn.ReLU(),
-            nn.BatchNorm1d(1024),
-
-            nn.Linear(1024, 256, bias=False),
-            nn.ReLU(),
-            nn.BatchNorm1d(256),
-
-            nn.Linear(256, 64, bias=False),
-            nn.ReLU(),
-            nn.BatchNorm1d(64),
-
-            nn.Linear(64, num_classes, bias=False),
-            nn.BatchNorm1d(num_classes),
-        )
-
-        self.model.fc = self.classifier
-
-        model_parameters = filter(
-            lambda p: p.requires_grad, self.model.parameters())
-        params = sum([np.prod(p.size()) for p in model_parameters])
-        print(f'Model has {params} trainable params.')
-
-    def forward(self, x):
-        if self.model.training:
-            return self.model(x).logits
-        return self.model(x)
-
-    def initialize_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.kaiming_normal_(
-                    m.weight, mode='fan_out', nonlinearity='relu')
-                if m.bias:
-                    nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.BatchNorm1d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
+def save_model(model, model_name, epoch):
+    torch.save(model.state_dict(), f"{model_name}_{epoch}.pt")
 
 
 def train_eval_loop():
@@ -243,10 +102,10 @@ def train_eval_loop():
     total_step = len(train_loader)
     train_losses = []
     val_losses = []
-    best_accuracy = None
+    best_accuracy = -torch.inf
     val_accuracies = []
     # best_model = type(model)(INPUT_SIZE, HIDDEN_SIZE, NUM_CLASSES, norm_layer='BN') # get a new instance
-    for epoch in range(N_EPOCHS):
+    for epoch in range(FROM_EPOCH if RESUME else 0, N_EPOCHS):
         model.train()
         tr_loss_iter = 0
         training_count = 0
@@ -315,6 +174,11 @@ def train_eval_loop():
             val_losses.append(val_loss_iter/(len(val_loader)*BATCH_SIZE))
 
             val_accuracy = 100 * (validation_correct_preds / validation_count)
+
+            if val_accuracy > best_accuracy:
+                best_accuracy = val_accuracy
+                save_model(model, ARCHITECHTURE, epoch)
+
             val_accuracies.append(val_accuracy)
             if USE_WANDB:
                 wandb.log({"Validation Accuracy": val_accuracy})
@@ -333,9 +197,13 @@ def get_model():
         model = DenseNetPretrained(
             INPUT_SIZE, HIDDEN_SIZE, NUM_CLASSES, norm_layer='BN').to(device)
     elif ARCHITECHTURE == "inception_v3":
-        model = InceptionV3(NUM_CLASSES).to(device)
+        model = InceptionV3Pretrained(NUM_CLASSES).to(device)
     else:
         raise ValueError(f"Unknown architechture {ARCHITECHTURE}")
+
+    if RESUME:
+        model.load_state_dict(torch.load(
+            f"{ARCHITECHTURE}_{FROM_EPOCH-1}.pt"))
 
     for p in model.parameters():
         p.requires_grad = False
@@ -352,6 +220,7 @@ def get_model():
 
 
 def main():
+    set_seed(RANDOM_SEED)
     train_eval_loop()
 
 

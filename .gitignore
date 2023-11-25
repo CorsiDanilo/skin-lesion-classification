@@ -1,6 +1,9 @@
 .DS_Store
 data/*
+checkpoints/*
+!checkpoints/.gitkeep
 !data/.gitkeep
 __pycache__/
 wandb
 *_ignore.*
+vast

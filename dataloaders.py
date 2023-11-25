@@ -341,7 +341,8 @@ def create_dataloaders(normalize: bool = True,
                        mean: Optional[torch.Tensor] = None,
                        std: Optional[torch.Tensor] = None,
                        limit: Optional[int] = None,
-                       size: Tuple[int, int] = (224, 224)) -> Tuple[DataLoader, DataLoader, DataLoader]:
+                       size: Tuple[int, int] = (224, 224),
+                       batch_size: int = BATCH_SIZE) -> Tuple[DataLoader, DataLoader, DataLoader]:
 
     df_train, df_val = load_metadata(limit=limit)
     df_test = load_metadata(train=False, limit=limit)
@@ -379,9 +380,9 @@ def create_dataloaders(normalize: bool = True,
         resize_dims=size)
 
     train_loader = DataLoader(
-        train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
+        train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size)
     return train_loader, val_loader, test_loader
 
 
