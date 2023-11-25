@@ -1,3 +1,4 @@
+from typing import Tuple
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -16,16 +17,13 @@ def plot_image_grid(inp: torch.Tensor, title=None):
     plt.pause(0.001)  # pause a bit so that plots are updated
 
 
-def crop_roi(images: torch.Tensor) -> torch.Tensor:
+def crop_roi(images: torch.Tensor, size: Tuple[int, int]) -> torch.Tensor:
     assert images.dim(
     ) == 4, f"Input must be a 4D tensor. Input shape is {images.shape}"
     assert images.shape[1:] == (
-        3, 224, 224), "Input must be a 4D tensor of shape (N, 3, 224, 224)"
+        3, size[0], size[1]), "Input must be a 4D tensor of shape (N, 3, H, W)"
     batch_images = np.array([image_tensor.permute(1, 2, 0).numpy()
                             for image_tensor in images])
-    transform = torchvision.transforms.Compose(
-        [torchvision.transforms.Resize((224, 224)),
-         torchvision.transforms.ToTensor()])
 
     cropped_images = []
     for image_array in batch_images:
@@ -56,18 +54,8 @@ def crop_roi(images: torch.Tensor) -> torch.Tensor:
 
         # Crop the image using the bounding box
         cropped_image = image_array[y:y + h, x:x + w]
-        cropped_image = cv2.resize(cropped_image, (224, 224))
-        # cropped_image = (cropped_image - cropped_image.min()) / \
-        # (cropped_image.max() - cropped_image.min())
-        # print(
-        # f"Min and max cropped image is {cropped_image.min()} and {cropped_image.max()}")
-        # plot_image_grid(torch.from_numpy(
-        # (cropped_image * 255).astype(np.int64)).permute(2, 0, 1))
-        # cropped_image = Image.fromarray((cropped_image * 255).astype(np.uint8))
-        # cropped_image = transform(cropped_image)
+        cropped_image = cv2.resize(cropped_image, size)
         cropped_image = torch.from_numpy(cropped_image).permute(2, 0, 1)
-        # Convert from bgr to rgb
-        # cropped_image = cropped_image[[2, 1, 0], :, :]
         cropped_images.append(cropped_image)
 
     cropped_images = torch.stack(cropped_images, dim=0)

@@ -21,10 +21,8 @@ class ImageDataset(Dataset):
                  load_segmentations: bool = True,
                  # Control the data augmentation process aim to solve class imbalance
                  balance_data: bool = True,
-                 # Percentage of data to remove from the majority class
-                 balance_undersampling: float = 0.5,
-                 # If balace_data, controls how many images to remove from the majority class in percentage. 1 if you don't want to apply undersampling.
-                 undersampling_majority_class_weight: float = 0.5,
+                 # Percentage of data to keep from the majority class
+                 balance_undersampling: float = 1,
                  normalize: bool = False,  # Control the application of z-score normalization
                  # Mean (per channel) for the z-score normalization
                  mean: float = None,
@@ -56,11 +54,6 @@ class ImageDataset(Dataset):
             raise ValueError("std_epsilon must be a positive number.")
         else:
             self.std_epsilon = std_epsilon
-        if undersampling_majority_class_weight <= 0 and undersampling_majority_class_weight > 1:
-            raise ValueError(
-                "undersampling_majority_class_weight must be a value in the range (0, 1].")
-        else:
-            self.undersampling_majority_class_weight = undersampling_majority_class_weight
         if balance_undersampling <= 0 and balance_undersampling > 1:
             raise ValueError(
                 "balance_undersampling must be a value in the range (0, 1].")
@@ -72,7 +65,8 @@ class ImageDataset(Dataset):
 
         if self.transform is None:
             self.transform = transforms.Compose([
-                transforms.Resize((self.resize_dims[0], self.resize_dims[1])),
+                transforms.Resize(
+                    (self.resize_dims[0], self.resize_dims[1]), interpolation=Image.BILINEAR),
                 # transforms.RandomEqualize(p=1),
                 transforms.RandomAdjustSharpness(sharpness_factor=10, p=1),
                 transforms.ToTensor()
@@ -85,11 +79,6 @@ class ImageDataset(Dataset):
 
         if self.balance_data:
             self.balance_dataset()
-
-        if self.load_segmentations:
-            self.images, self.labels, self.segmentations = self.load_images_and_labels()
-        else:
-            self.images, self.labels = self.load_images_and_labels()
 
         # TODO: maybe load other information,
         # encode it in one-hot vectors and concatenate them to the images in order to feed it to the NN
@@ -111,7 +100,7 @@ class ImageDataset(Dataset):
         max_label_images_to_remove = max(math.floor(
             max_count*self.balance_undersampling), second_max_count)
         print(
-            f"--Data Balance (Undersampling)-- Removing {max_label_images_to_remove} from {max_label} class..")
+            f"--Data Balance (Undersampling)-- Keeping {max_label_images_to_remove} from {max_label} class..")
         label_indices = self.metadata[self.metadata['label']
                                       == max_label].index
         removal_indices = random.sample(
@@ -141,6 +130,42 @@ class ImageDataset(Dataset):
                 self.metadata.loc[aug_indices, 'augmented'] = True
                 label_indices = self.metadata[self.metadata['label']
                                               == label].index
+
+    def load_images_and_labels_at_idx(self, idx):
+        img = self.metadata.iloc[idx]
+        if not os.path.exists(img['image_path']):
+            self.load_images_and_labels_at_idx(idx+1)
+        label = img['label']
+        # Augment the data if balance_data is true and load segmentations
+        if self.balance_data:
+            stateful_transform = StatefulTransform(
+                self.resize_dims[0], self.resize_dims[1])
+            if not os.path.exists(img['segmentation_path']):
+                self.load_images_and_labels_at_idx(idx+1)
+            # Apply these transformations only the oversampled data (for data augmentation)
+            if img['augmented']:
+                ti, ts = stateful_transform(Image.open(
+                    img['image_path']), Image.open(img['segmentation_path']).convert('1'))
+                image = ti
+                segmentation = ts
+            else:
+                image = self.transform(
+                    Image.open(img['image_path']))
+                segmentation = self.segmentation_transform(
+                    Image.open(img['segmentation_path']).convert('1'))
+        # Load segmentations without augmenting the data
+        elif self.load_segmentations:
+            if not os.path.exists(img['segmentation_path']):
+                self.load_images_and_labels_at_idx(idx+1)
+            segmentation = self.segmentation_transform(
+                Image.open(img['segmentation_path']).convert('1'))
+            images = self.transform(Image.open(img['image_path']))
+        # Only load images
+        else:
+            image = self.transform(Image.open(img['image_path']))
+        if self.load_segmentations:
+            return image, label, segmentation
+        return image, label
 
     def load_images_and_labels(self):
         not_found_files = []
@@ -195,16 +220,27 @@ class ImageDataset(Dataset):
         return images, labels
 
     def __len__(self):
-        return len(self.images)
+        return len(self.metadata)
 
     def __getitem__(self, idx):
-        image = self.images[idx]
-        label = self.labels[idx]
+        # image = self.images[idx]
+        # label = self.labels[idx]
+        # if self.normalize:
+        #     image = (image - self.mean.view(3, 1, 1)) / \
+        #         (self.std + self.std_epsilon).view(3, 1, 1)
+        # if self.load_segmentations:
+        #     segmentation = self.segmentations[idx]
+        #     return image, label, segmentation
+        # return image, label
+        if self.load_segmentations:
+            image, label, segmentation = self.load_images_and_labels_at_idx(
+                idx)
+        else:
+            image, label = self.load_images_and_labels_at_idx(idx)
         if self.normalize:
             image = (image - self.mean.view(3, 1, 1)) / \
                 (self.std + self.std_epsilon).view(3, 1, 1)
         if self.load_segmentations:
-            segmentation = self.segmentations[idx]
             return image, label, segmentation
         return image, label
 
@@ -219,7 +255,8 @@ class StatefulTransform:
 
     def __call__(self, img, seg):
         # Resize
-        img = transforms.Resize((self.height, self.width))(img)
+        img = transforms.Resize((self.height, self.width),
+                                interpolation=Image.BILINEAR)(img)
         # img = transforms.RandomEqualize(p=1)(img)
         img = transforms.RandomAdjustSharpness(sharpness_factor=10, p=1)(img)
         seg = transforms.Resize((self.height, self.width))(seg)
@@ -301,10 +338,15 @@ def load_metadata(train: bool = True,
 def create_dataloaders(normalize: bool = True,
                        mean: Optional[torch.Tensor] = None,
                        std: Optional[torch.Tensor] = None,
-                       limit: Optional[int] = None) -> Tuple[DataLoader, DataLoader, DataLoader]:
+                       limit: Optional[int] = None,
+                       size: Tuple[int, int] = (224, 224)) -> Tuple[DataLoader, DataLoader, DataLoader]:
 
     df_train, df_val = load_metadata(limit=limit)
     df_test = load_metadata(train=False, limit=limit)
+
+    df_train = df_train.sample(frac=1, random_state=42).reset_index(drop=True)
+    df_val = df_val.sample(frac=1, random_state=42).reset_index(drop=True)
+    df_test = df_test.sample(frac=1, random_state=42).reset_index(drop=True)
 
     # Calculate and store normalization statistics for the training dataset
     if normalize and (mean is None or std is None):
@@ -316,21 +358,24 @@ def create_dataloaders(normalize: bool = True,
         normalize=normalize,
         mean=mean,
         std=std,
-        balance_data=True)
+        balance_data=True,
+        resize_dims=size)
     val_dataset = ImageDataset(
         df_val,
         load_segmentations=True,
         normalize=normalize,
         mean=mean,
         std=std,
-        balance_data=False)
+        balance_data=False,
+        resize_dims=size)
     test_dataset = ImageDataset(
         df_test,
         load_segmentations=False,
         normalize=normalize,
         mean=mean,
         std=std,
-        balance_data=False)
+        balance_data=False,
+        resize_dims=size)
 
     train_loader = DataLoader(
         train_dataset, batch_size=BATCH_SIZE, shuffle=True)
@@ -341,7 +386,7 @@ def create_dataloaders(normalize: bool = True,
 
 if __name__ == '__main__':
     train_loader, val_loader, test_loader = create_dataloaders(
-        normalize=True, limit=1000)
+        normalize=True, limit=None)
 
     batch: torch.Tensor
     labels: torch.Tensor
