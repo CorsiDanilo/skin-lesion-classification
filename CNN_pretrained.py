@@ -1,11 +1,9 @@
+from torchvision.models import ResNet34_Weights
 from torchvision.models import Inception_V3_Weights
 import torch
 import torch.nn as nn
-import torchvision
-import torchvision.transforms as transforms
 import torchvision.models as models
 import numpy as np
-import matplotlib.pyplot as plt
 import random
 import os
 import wandb
@@ -13,8 +11,6 @@ from config import BATCH_SIZE
 
 import dataloaders
 import utils
-from importlib import reload
-import config
 from tqdm import tqdm
 
 # Device configuration
@@ -22,6 +18,7 @@ from tqdm import tqdm
 device = torch.device("mps")
 print('Using device: %s' % device)
 
+USE_WANDB = True
 # Configurations
 INPUT_SIZE = 3
 NUM_CLASSES = 7
@@ -32,7 +29,7 @@ LR_DECAY = 0.85
 REG = 0.01
 SEGMENT = True
 CROP_ROI = True
-ARCHITECHTURE = "inception_v3"
+ARCHITECHTURE = "resnet24"
 DATASET_LIMIT = None
 DROPOUT_P = 0.1
 NORMALIZE = True
@@ -41,31 +38,30 @@ HISTOGRAM_NORMALIZATION = False
 if CROP_ROI:
     assert SEGMENT, f"Crop roi needs segment to be True"
 
-# Start a new run
-wandb.init(
-    project="melanoma",
+if USE_WANDB:
+    # Start a new run
+    wandb.init(
+        project="melanoma",
 
-    # track hyperparameters and run metadata
-    config={
-        "learning_rate": LR,
-        "architecture": ARCHITECHTURE,
-        "epochs": N_EPOCHS,
-        'reg': REG,
-        'batch_size': BATCH_SIZE,
-        "hidden_size": HIDDEN_SIZE,
-        "dataset": "HAM10K",
-        "optimizer": "AdamW",
-        "segmentation": SEGMENT,
-        "crop_roi": CROP_ROI,
-        "dataset_limit": DATASET_LIMIT,
-        "dropout_p": DROPOUT_P,
-        "normalize": NORMALIZE,
-        "histogram_normalization": HISTOGRAM_NORMALIZATION
+        # track hyperparameters and run metadata
+        config={
+            "learning_rate": LR,
+            "architecture": ARCHITECHTURE,
+            "epochs": N_EPOCHS,
+            'reg': REG,
+            'batch_size': BATCH_SIZE,
+            "hidden_size": HIDDEN_SIZE,
+            "dataset": "HAM10K",
+            "optimizer": "AdamW",
+            "segmentation": SEGMENT,
+            "crop_roi": CROP_ROI,
+            "dataset_limit": DATASET_LIMIT,
+            "dropout_p": DROPOUT_P,
+            "normalize": NORMALIZE,
+            "histogram_normalization": HISTOGRAM_NORMALIZATION
 
-    }
-)
-
-# Weight initilization
+        }
+    )
 
 
 def update_lr(optimizer, lr):
@@ -100,14 +96,14 @@ def create_loaders():
         std=resnet_std,
         normalize=NORMALIZE,
         limit=DATASET_LIMIT,
-        size=(299, 299))
+        size=(224, 224))
     return train_loader, val_loader, test_loader
 
 
 class ResNet24Pretrained(nn.Module):
     def __init__(self, input_size, hidden_layers, num_classes, norm_layer=None):
         super(ResNet24Pretrained, self).__init__()
-        self.model = models.resnet34(pretrained=True)
+        self.model = models.resnet34(weights=ResNet34_Weights.DEFAULT)
         self.classifier = nn.Sequential(
             nn.Dropout(p=DROPOUT_P),
             nn.Linear(self.model.fc.in_features, 256, bias=False),
@@ -220,6 +216,8 @@ class InceptionV3(nn.Module):
         print(f'Model has {params} trainable params.')
 
     def forward(self, x):
+        if self.model.training:
+            return self.model(x).logits
         return self.model(x)
 
     def initialize_weights(self):
@@ -258,13 +256,14 @@ def train_eval_loop():
                 # Apply segmentation
                 tr_images = torch.mul(tr_images, segmentations)
                 if CROP_ROI:
-                    tr_images = utils.crop_roi(tr_images, size=(299, 299))
+                    tr_images = utils.crop_roi(tr_images, size=(224, 224))
             tr_images = tr_images.to(device)
             tr_labels = tr_labels.to(device)
 
-            tr_outputs = model(tr_images).logits
+            tr_outputs = model(tr_images)
             tr_loss = loss_function(tr_outputs, tr_labels)
-            wandb.log({"Training Loss": tr_loss.item()})
+            if USE_WANDB:
+                wandb.log({"Training Loss": tr_loss.item()})
 
             optimizer.zero_grad()
             tr_loss.backward()
@@ -278,7 +277,8 @@ def train_eval_loop():
             tr_loss_iter += tr_loss.item()
 
         current_train_accuracy = 100 * (training_correct_preds/training_count)
-        wandb.log({"Training Accuracy": current_train_accuracy})
+        if USE_WANDB:
+            wandb.log({"Training Accuracy": current_train_accuracy})
         print('Training -> Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%'
               .format(epoch+1, N_EPOCHS, tr_i+1, total_step, tr_loss.item(), current_train_accuracy))
 
@@ -298,7 +298,7 @@ def train_eval_loop():
                     val_images = torch.mul(val_images, segmentations)
                     if CROP_ROI:
                         val_images = utils.crop_roi(
-                            val_images, size=(299, 299))
+                            val_images, size=(224, 224))
                 val_images = val_images.to(device)
                 val_labels = val_labels.to(device)
 
@@ -308,14 +308,16 @@ def train_eval_loop():
                 validation_correct_preds += (validation_preds ==
                                              val_labels).sum()
                 val_loss = loss_function(val_outputs, val_labels)
-                wandb.log({"Validation Loss": val_loss.item()})
+                if USE_WANDB:
+                    wandb.log({"Validation Loss": val_loss.item()})
                 val_loss_iter += val_loss.item()
 
             val_losses.append(val_loss_iter/(len(val_loader)*BATCH_SIZE))
 
             val_accuracy = 100 * (validation_correct_preds / validation_count)
             val_accuracies.append(val_accuracy)
-            wandb.log({"Validation Accuracy": val_accuracy})
+            if USE_WANDB:
+                wandb.log({"Validation Accuracy": val_accuracy})
 
             print(
                 'Validation -> Validation accuracy for epoch {} is: {:.4f}%'.format(epoch+1, val_accuracy))
@@ -346,9 +348,6 @@ def get_model():
     for p in model.classifier.parameters():
         p.requires_grad = True
 
-    for name, param in model.named_parameters():
-        if param.requires_grad:
-            print(name)
     return model
 
 

@@ -25,9 +25,9 @@ class ImageDataset(Dataset):
                  balance_undersampling: float = 1,
                  normalize: bool = False,  # Control the application of z-score normalization
                  # Mean (per channel) for the z-score normalization
-                 mean: float = None,
+                 mean: torch.Tensor = None,
                  # Standard deviation (per channel) for the z-score normalization
-                 std: float = None,
+                 std: torch.Tensor = None,
                  # Adjustment value to avoid division per zero during normalization
                  std_epsilon: float = 0.01,
                  # Sizes (height, width) for resize the images
@@ -144,8 +144,9 @@ class ImageDataset(Dataset):
                 self.load_images_and_labels_at_idx(idx+1)
             # Apply these transformations only the oversampled data (for data augmentation)
             if img['augmented']:
-                ti, ts = stateful_transform(Image.open(
-                    img['image_path']), Image.open(img['segmentation_path']).convert('1'))
+                ti, ts = stateful_transform(
+                    Image.open(img['image_path']),
+                    Image.open(img['segmentation_path']).convert('1'))
                 image = ti
                 segmentation = ts
             else:
@@ -167,57 +168,57 @@ class ImageDataset(Dataset):
             return image, label, segmentation
         return image, label
 
-    def load_images_and_labels(self):
-        not_found_files = []
-        images = []
-        segmentations = []
-        labels = []
-        for _, img in tqdm(self.metadata.iterrows(), desc=f'Loading images'):
-            if not os.path.exists(img['image_path']):
-                not_found_files.append(img['image_path'])
-                continue
-            labels.append(img['label'])
-            # Augment the data if balance_data is true and load segmentations
-            if self.balance_data:
-                stateful_transform = StatefulTransform(
-                    self.resize_dims[0], self.resize_dims[1])
-                if not os.path.exists(img['segmentation_path']):
-                    not_found_files.append(img['segmentation_path'])
-                    continue
-                # Apply these transformations only the oversampled data (for data augmentation)
-                if img['augmented']:
-                    ti, ts = stateful_transform(Image.open(
-                        img['image_path']), Image.open(img['segmentation_path']).convert('1'))
-                    images.append(ti)
-                    segmentations.append(ts)
-                else:
-                    images.append(self.transform(
-                        Image.open(img['image_path'])))
-                    segmentations.append(self.segmentation_transform(
-                        Image.open(img['segmentation_path']).convert('1')))
-            # Load segmentations without augmenting the data
-            elif self.load_segmentations:
-                if not os.path.exists(img['segmentation_path']):
-                    not_found_files.append(img['segmentation_path'])
-                    continue
-                segmentations.append(self.segmentation_transform(
-                    Image.open(img['segmentation_path']).convert('1')))
-                images.append(self.transform(Image.open(img['image_path'])))
-            # Only load images
-            else:
-                images.append(self.transform(Image.open(img['image_path'])))
-        if self.load_segmentations:
-            segmentations = torch.stack(segmentations)
-        images = torch.stack(images)
-        labels = torch.tensor(labels, dtype=torch.long)
+    # def load_images_and_labels(self):
+    #     not_found_files = []
+    #     images = []
+    #     segmentations = []
+    #     labels = []
+    #     for _, img in tqdm(self.metadata.iterrows(), desc=f'Loading images'):
+    #         if not os.path.exists(img['image_path']):
+    #             not_found_files.append(img['image_path'])
+    #             continue
+    #         labels.append(img['label'])
+    #         # Augment the data if balance_data is true and load segmentations
+    #         if self.balance_data:
+    #             stateful_transform = StatefulTransform(
+    #                 self.resize_dims[0], self.resize_dims[1])
+    #             if not os.path.exists(img['segmentation_path']):
+    #                 not_found_files.append(img['segmentation_path'])
+    #                 continue
+    #             # Apply these transformations only the oversampled data (for data augmentation)
+    #             if img['augmented']:
+    #                 ti, ts = stateful_transform(Image.open(
+    #                     img['image_path']), Image.open(img['segmentation_path']).convert('1'))
+    #                 images.append(ti)
+    #                 segmentations.append(ts)
+    #             else:
+    #                 images.append(self.transform(
+    #                     Image.open(img['image_path'])))
+    #                 segmentations.append(self.segmentation_transform(
+    #                     Image.open(img['segmentation_path']).convert('1')))
+    #         # Load segmentations without augmenting the data
+    #         elif self.load_segmentations:
+    #             if not os.path.exists(img['segmentation_path']):
+    #                 not_found_files.append(img['segmentation_path'])
+    #                 continue
+    #             segmentations.append(self.segmentation_transform(
+    #                 Image.open(img['segmentation_path']).convert('1')))
+    #             images.append(self.transform(Image.open(img['image_path'])))
+    #         # Only load images
+    #         else:
+    #             images.append(self.transform(Image.open(img['image_path'])))
+    #     if self.load_segmentations:
+    #         segmentations = torch.stack(segmentations)
+    #     images = torch.stack(images)
+    #     labels = torch.tensor(labels, dtype=torch.long)
 
-        print(f"---Data Loader--- Images uploaded: " + str(len(images)))
+    #     print(f"---Data Loader--- Images uploaded: " + str(len(images)))
 
-        print(
-            f"Loading complete, some files ({len(not_found_files)}) were not found: {not_found_files}")
-        if self.load_segmentations:
-            return images, labels, segmentations
-        return images, labels
+    #     print(
+    #         f"Loading complete, some files ({len(not_found_files)}) were not found: {not_found_files}")
+    #     if self.load_segmentations:
+    #         return images, labels, segmentations
+    #     return images, labels
 
     def __len__(self):
         return len(self.metadata)
@@ -310,6 +311,7 @@ def calculate_normalization_statistics(df: pd.DataFrame) -> Tuple[torch.Tensor, 
 def load_metadata(train: bool = True,
                   limit: Optional[int] = None) -> Tuple[pd.DataFrame, pd.DataFrame] or pd.DataFrame:
     metadata = pd.read_csv(METADATA_TRAIN_DIR if train else METADATA_TEST_DIR)
+    # metadata = metadata.sample(frac=1, random_state=42).reset_index(drop=True)
     if limit is not None and limit > len(metadata):
         print(
             f"Ignoring limit for {METADATA_TRAIN_DIR if train else METADATA_TEST_DIR} because it is bigger than the dataset size")
@@ -344,9 +346,8 @@ def create_dataloaders(normalize: bool = True,
     df_train, df_val = load_metadata(limit=limit)
     df_test = load_metadata(train=False, limit=limit)
 
-    df_train = df_train.sample(frac=1, random_state=42).reset_index(drop=True)
-    df_val = df_val.sample(frac=1, random_state=42).reset_index(drop=True)
-    df_test = df_test.sample(frac=1, random_state=42).reset_index(drop=True)
+    # df_train.reset_index(drop=True, inplace=True)
+    # df_val.reset_index(drop=True, inplace=True)
 
     # Calculate and store normalization statistics for the training dataset
     if normalize and (mean is None or std is None):
