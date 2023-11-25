@@ -159,7 +159,7 @@ class ImageDataset(Dataset):
                 self.load_images_and_labels_at_idx(idx+1)
             segmentation = self.segmentation_transform(
                 Image.open(img['segmentation_path']).convert('1'))
-            images = self.transform(Image.open(img['image_path']))
+            image = self.transform(Image.open(img['image_path']))
         # Only load images
         else:
             image = self.transform(Image.open(img['image_path']))
