@@ -15,7 +15,6 @@ class ResNet24Pretrained(nn.Module):
             nn.ReLU(),
             nn.BatchNorm1d(256),
 
-            nn.Dropout(p=DROPOUT_P),
             nn.Linear(256, 128, bias=False),
             nn.ReLU(),
             nn.BatchNorm1d(128),

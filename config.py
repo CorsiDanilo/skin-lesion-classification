@@ -11,7 +11,7 @@ METADATA_TEST_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_test.csv')
 
 BATCH_SIZE = 512
 
-USE_WANDB = True
+USE_WANDB = False
 # Configurations
 INPUT_SIZE = 3
 NUM_CLASSES = 7
@@ -24,6 +24,6 @@ SEGMENT = False
 CROP_ROI = False
 ARCHITECHTURE = "resnet24"
 DATASET_LIMIT = None
-DROPOUT_P = 0.5
+DROPOUT_P = 0.3
 NORMALIZE = True
 HISTOGRAM_NORMALIZATION = False

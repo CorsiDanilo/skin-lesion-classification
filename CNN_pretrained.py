@@ -18,8 +18,8 @@ from tqdm import tqdm
 device = torch.device("mps")
 print('Using device: %s' % device)
 
-RESUME = True
-FROM_EPOCH = 1
+RESUME = False
+FROM_EPOCH = 0
 
 if CROP_ROI:
     assert SEGMENT, f"Crop roi needs segment to be True"
@@ -82,7 +82,7 @@ def create_loaders():
         mean=resnet_mean,
         std=resnet_std,
         normalize=NORMALIZE,
-        limit=DATASET_LIMIT,
+        limit=1000,
         size=(224, 224))
     return train_loader, val_loader, test_loader
 
@@ -146,6 +146,50 @@ def train_eval_loop():
         # LR *= LR_DECAY
         # update_lr(optimizer, LR)
 
+        # TODO: this commented part of the code is to compute the validation accuracy with a weighted average based on the distribution of the classes in the validation set.
+        # val_distribution = [
+        #     0.601190,
+        #     0.143519,
+        #     0.113095,
+        #     0.028439,
+        #     0.061508,
+        #     0.023148,
+        #     0.029101,
+        # ]
+        # class_weights = torch.tensor(val_distribution).to(device)
+        # model.eval()
+        # with torch.no_grad():
+        #     validation_correct_preds = torch.zeros(
+        #         len(class_weights)).to(device)
+        #     validation_count = torch.zeros(len(class_weights)).to(device)
+        #     val_loss_iter = 0
+        #     for val_i, (val_images, val_labels, segmentations) in enumerate(val_loader):
+        #         if SEGMENT:
+        #             # Apply segmentation
+        #             val_images = torch.mul(val_images, segmentations)
+        #             if CROP_ROI:
+        #                 val_images = utils.crop_roi(
+        #                     val_images, size=(224, 224))
+        #         val_images = val_images.to(device)
+        #         val_labels = val_labels.to(device)
+
+        #         val_outputs = model(val_images)
+        #         validation_preds = torch.argmax(val_outputs, -1).detach()
+        #         for i in range(len(class_weights)):
+        #             class_mask = (val_labels == i)
+        #             validation_correct_preds[i] += (
+        #                 validation_preds[class_mask] == val_labels[class_mask]).sum()
+        #             validation_count[i] += class_mask.sum()
+        #         val_loss = loss_function(val_outputs, val_labels)
+        #         if USE_WANDB:
+        #             wandb.log({"Validation Loss": val_loss.item()})
+        #         val_loss_iter += val_loss.item()
+
+        #     val_losses.append(val_loss_iter/(len(val_loader)*BATCH_SIZE))
+
+        #     val_accuracy = 100 * \
+        #         ((validation_correct_preds / validation_count) * class_weights).sum()
+
         model.eval()
         with torch.no_grad():
             validation_correct_preds = 0
@@ -157,7 +201,7 @@ def train_eval_loop():
                     val_images = torch.mul(val_images, segmentations)
                     if CROP_ROI:
                         val_images = utils.crop_roi(
-                            val_images, size=(224, 224))
+                            val_images, size=(299, 299))
                 val_images = val_images.to(device)
                 val_labels = val_labels.to(device)
 

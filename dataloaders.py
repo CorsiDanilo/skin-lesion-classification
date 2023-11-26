@@ -32,7 +32,8 @@ class ImageDataset(Dataset):
                  std_epsilon: float = 0.01,
                  # Sizes (height, width) for resize the images
                  resize_dims=(224, 224),
-                 transform: Optional[transforms.Compose] = None):
+                 transform: Optional[transforms.Compose] = None,
+                 dynamic_load: bool = False):
         self.metadata = metadata
         self.transform = transform
 
@@ -79,6 +80,10 @@ class ImageDataset(Dataset):
 
         if self.balance_data:
             self.balance_dataset()
+
+        self.dynamic_load = dynamic_load
+        if not dynamic_load:
+            self.images, self.labels, self.segmentations = self.load_images_and_labels()
 
         # TODO: maybe load other information,
         # encode it in one-hot vectors and concatenate them to the images in order to feed it to the NN
@@ -168,86 +173,87 @@ class ImageDataset(Dataset):
             return image, label, segmentation
         return image, label
 
-    # def load_images_and_labels(self):
-    #     not_found_files = []
-    #     images = []
-    #     segmentations = []
-    #     labels = []
-    #     for _, img in tqdm(self.metadata.iterrows(), desc=f'Loading images'):
-    #         if not os.path.exists(img['image_path']):
-    #             not_found_files.append(img['image_path'])
-    #             continue
-    #         labels.append(img['label'])
-    #         # Augment the data if balance_data is true and load segmentations
-    #         if self.balance_data:
-    #             stateful_transform = StatefulTransform(
-    #                 self.resize_dims[0], self.resize_dims[1])
-    #             if not os.path.exists(img['segmentation_path']):
-    #                 not_found_files.append(img['segmentation_path'])
-    #                 continue
-    #             # Apply these transformations only the oversampled data (for data augmentation)
-    #             if img['augmented']:
-    #                 ti, ts = stateful_transform(Image.open(
-    #                     img['image_path']), Image.open(img['segmentation_path']).convert('1'))
-    #                 images.append(ti)
-    #                 segmentations.append(ts)
-    #             else:
-    #                 images.append(self.transform(
-    #                     Image.open(img['image_path'])))
-    #                 segmentations.append(self.segmentation_transform(
-    #                     Image.open(img['segmentation_path']).convert('1')))
-    #         # Load segmentations without augmenting the data
-    #         elif self.load_segmentations:
-    #             if not os.path.exists(img['segmentation_path']):
-    #                 not_found_files.append(img['segmentation_path'])
-    #                 continue
-    #             segmentations.append(self.segmentation_transform(
-    #                 Image.open(img['segmentation_path']).convert('1')))
-    #             images.append(self.transform(Image.open(img['image_path'])))
-    #         # Only load images
-    #         else:
-    #             images.append(self.transform(Image.open(img['image_path'])))
-    #     if self.load_segmentations:
-    #         segmentations = torch.stack(segmentations)
-    #     images = torch.stack(images)
-    #     labels = torch.tensor(labels, dtype=torch.long)
+    def load_images_and_labels(self):
+        not_found_files = []
+        images = []
+        segmentations = []
+        labels = []
+        for _, img in tqdm(self.metadata.iterrows(), desc=f'Loading images'):
+            if not os.path.exists(img['image_path']):
+                not_found_files.append(img['image_path'])
+                continue
+            labels.append(img['label'])
+            # Augment the data if balance_data is true and load segmentations
+            if self.balance_data:
+                stateful_transform = StatefulTransform(
+                    self.resize_dims[0], self.resize_dims[1])
+                if not os.path.exists(img['segmentation_path']):
+                    not_found_files.append(img['segmentation_path'])
+                    continue
+                # Apply these transformations only the oversampled data (for data augmentation)
+                if img['augmented']:
+                    ti, ts = stateful_transform(Image.open(
+                        img['image_path']), Image.open(img['segmentation_path']).convert('1'))
+                    images.append(ti)
+                    segmentations.append(ts)
+                else:
+                    images.append(self.transform(
+                        Image.open(img['image_path'])))
+                    segmentations.append(self.segmentation_transform(
+                        Image.open(img['segmentation_path']).convert('1')))
+            # Load segmentations without augmenting the data
+            elif self.load_segmentations:
+                if not os.path.exists(img['segmentation_path']):
+                    not_found_files.append(img['segmentation_path'])
+                    continue
+                segmentations.append(self.segmentation_transform(
+                    Image.open(img['segmentation_path']).convert('1')))
+                images.append(self.transform(Image.open(img['image_path'])))
+            # Only load images
+            else:
+                images.append(self.transform(Image.open(img['image_path'])))
+        if self.load_segmentations:
+            segmentations = torch.stack(segmentations)
+        images = torch.stack(images)
+        labels = torch.tensor(labels, dtype=torch.long)
 
-    #     print(f"---Data Loader--- Images uploaded: " + str(len(images)))
+        print(f"---Data Loader--- Images uploaded: " + str(len(images)))
 
-    #     print(
-    #         f"Loading complete, some files ({len(not_found_files)}) were not found: {not_found_files}")
-    #     if self.load_segmentations:
-    #         return images, labels, segmentations
-    #     return images, labels
+        print(
+            f"Loading complete, some files ({len(not_found_files)}) were not found: {not_found_files}")
+        if self.load_segmentations:
+            return images, labels, segmentations
+        return images, labels
 
     def __len__(self):
         return len(self.metadata)
 
     def __getitem__(self, idx):
-        # image = self.images[idx]
-        # label = self.labels[idx]
-        # if self.normalize:
-        #     image = (image - self.mean.view(3, 1, 1)) / \
-        #         (self.std + self.std_epsilon).view(3, 1, 1)
-        # if self.load_segmentations:
-        #     segmentation = self.segmentations[idx]
-        #     return image, label, segmentation
-        # return image, label
-        if self.load_segmentations:
-            image, label, segmentation = self.load_images_and_labels_at_idx(
-                idx)
+        if self.dynamic_load:
+            if self.load_segmentations:
+                image, label, segmentation = self.load_images_and_labels_at_idx(
+                    idx)
+            else:
+                image, label = self.load_images_and_labels_at_idx(idx)
+            if self.normalize:
+                image = (image - self.mean.view(3, 1, 1)) / \
+                    (self.std + self.std_epsilon).view(3, 1, 1)
+            if self.load_segmentations:
+                return image, label, segmentation
+            return image, label
         else:
-            image, label = self.load_images_and_labels_at_idx(idx)
-        if self.normalize:
-            image = (image - self.mean.view(3, 1, 1)) / \
-                (self.std + self.std_epsilon).view(3, 1, 1)
-        if self.load_segmentations:
-            return image, label, segmentation
-        return image, label
+            image = self.images[idx]
+            label = self.labels[idx]
+            if self.normalize:
+                image = (image - self.mean.view(3, 1, 1)) / \
+                    (self.std + self.std_epsilon).view(3, 1, 1)
+            if self.load_segmentations:
+                segmentation = self.segmentations[idx]
+                return image, label, segmentation
+            return image, label
 
 
 # Class that implement the transformations to be applied to the images and the associated segmentations jointly
-
 
 class StatefulTransform:
     def __init__(self, height, width):
@@ -342,7 +348,8 @@ def create_dataloaders(normalize: bool = True,
                        std: Optional[torch.Tensor] = None,
                        limit: Optional[int] = None,
                        size: Tuple[int, int] = (224, 224),
-                       batch_size: int = BATCH_SIZE) -> Tuple[DataLoader, DataLoader, DataLoader]:
+                       batch_size: int = BATCH_SIZE,
+                       dynamic_load: bool = True) -> Tuple[DataLoader, DataLoader, DataLoader]:
 
     df_train, df_val = load_metadata(limit=limit)
     df_test = load_metadata(train=False, limit=limit)
@@ -361,7 +368,8 @@ def create_dataloaders(normalize: bool = True,
         mean=mean,
         std=std,
         balance_data=True,
-        resize_dims=size)
+        resize_dims=size,
+        dynamic_load=dynamic_load)
     val_dataset = ImageDataset(
         df_val,
         load_segmentations=True,
@@ -369,7 +377,8 @@ def create_dataloaders(normalize: bool = True,
         mean=mean,
         std=std,
         balance_data=False,
-        resize_dims=size)
+        resize_dims=size,
+        dynamic_load=dynamic_load)
     test_dataset = ImageDataset(
         df_test,
         load_segmentations=False,
@@ -377,7 +386,8 @@ def create_dataloaders(normalize: bool = True,
         mean=mean,
         std=std,
         balance_data=False,
-        resize_dims=size)
+        resize_dims=size,
+        dynamic_load=dynamic_load)
 
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True)
