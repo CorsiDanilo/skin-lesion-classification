@@ -343,6 +343,7 @@ def calculate_normalization_statistics(df: pd.DataFrame) -> Tuple[torch.Tensor, 
 
 def load_metadata(train: bool = True,
                   limit: Optional[int] = None) -> Tuple[pd.DataFrame, pd.DataFrame] or pd.DataFrame:
+    # TODO: BE AWARE: the test set (not train and val) labels may be different from the train and val labels with this implementation
     metadata = pd.read_csv(
         METADATA_NO_DUPLICATES_DIR if train else METADATA_TEST_DIR)
     unique_labels = metadata['dx'].unique()

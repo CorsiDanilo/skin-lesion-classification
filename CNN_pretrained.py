@@ -58,6 +58,8 @@ def update_lr(optimizer, lr):
 
 
 RANDOM_SEED = 42
+resnet_mean = torch.tensor([0.485, 0.456, 0.406])
+resnet_std = torch.tensor([0.229, 0.224, 0.225])
 
 
 def set_seed(seed):
@@ -81,7 +83,7 @@ def create_loaders():
     train_loader, val_loader, test_loader = dataloaders.create_dataloaders(
         mean=resnet_mean,
         std=resnet_std,
-        normalize=NORMALIZE,
+        normalize=NORMALIZE if not CROP_ROI else False,
         limit=DATASET_LIMIT,
         size=(224, 224))
     return train_loader, val_loader, test_loader
@@ -116,6 +118,9 @@ def train_eval_loop():
                 tr_images = torch.mul(tr_images, segmentations)
                 if CROP_ROI:
                     tr_images = utils.crop_roi(tr_images, size=(224, 224))
+                    if NORMALIZE:
+                        tr_images = (tr_images - resnet_mean.view(3, 1, 1)) / \
+                            resnet_std.view(3, 1, 1)
             tr_images = tr_images.to(device)
             tr_labels = tr_labels.to(device)
 
@@ -201,7 +206,10 @@ def train_eval_loop():
                     val_images = torch.mul(val_images, segmentations)
                     if CROP_ROI:
                         val_images = utils.crop_roi(
-                            val_images, size=(299, 299))
+                            val_images, size=(224, 224))
+                        if NORMALIZE:
+                            val_images = (val_images - resnet_mean.view(3, 1, 1)) / \
+                                resnet_std.view(3, 1, 1)
                 val_images = val_images.to(device)
                 val_labels = val_labels.to(device)
 
