@@ -7,9 +7,11 @@ DATASET_TEST_DIR = os.path.join(DATA_DIR, "HAM10000_images_test")
 SEGMENTATION_DIR = os.path.join(
     DATA_DIR, 'HAM10000_segmentations_lesion_tschandl')
 METADATA_TRAIN_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_train.csv')
+METADATA_NO_DUPLICATES_DIR = os.path.join(
+    DATA_DIR, 'HAM10000_metadata_train_no_duplicates.csv')
 METADATA_TEST_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_test.csv')
 
-BATCH_SIZE = 512
+BATCH_SIZE = 256
 
 USE_WANDB = False
 # Configurations

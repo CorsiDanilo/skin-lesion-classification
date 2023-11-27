@@ -12,7 +12,7 @@ from tqdm import tqdm
 import random
 import math
 
-from config import DATASET_TEST_DIR, DATASET_TRAIN_DIR, METADATA_TEST_DIR, METADATA_TRAIN_DIR, SEGMENTATION_DIR, BATCH_SIZE
+from config import DATASET_TEST_DIR, DATASET_TRAIN_DIR, METADATA_TEST_DIR, METADATA_NO_DUPLICATES_DIR, SEGMENTATION_DIR, BATCH_SIZE
 
 
 class ImageDataset(Dataset):
@@ -35,6 +35,7 @@ class ImageDataset(Dataset):
                  transform: Optional[transforms.Compose] = None,
                  dynamic_load: bool = False):
         self.metadata = metadata
+        # self.remove_duplicates()
         self.transform = transform
 
         unique_labels = self.metadata['dx'].unique()
@@ -69,7 +70,7 @@ class ImageDataset(Dataset):
                 transforms.Resize(
                     (self.resize_dims[0], self.resize_dims[1]), interpolation=Image.BILINEAR),
                 # transforms.RandomEqualize(p=1),
-                transforms.RandomAdjustSharpness(sharpness_factor=10, p=1),
+                # transforms.RandomAdjustSharpness(sharpness_factor=10, p=1),
                 transforms.ToTensor()
             ])
 
@@ -83,10 +84,42 @@ class ImageDataset(Dataset):
 
         self.dynamic_load = dynamic_load
         if not dynamic_load:
-            self.images, self.labels, self.segmentations = self.load_images_and_labels()
+            if self.load_segmentations:
+                self.images, self.labels, self.segmentations = self.load_images_and_labels()
+            else:
+                self.images, self.labels = self.load_images_and_labels()
 
         # TODO: maybe load other information,
         # encode it in one-hot vectors and concatenate them to the images in order to feed it to the NN
+
+    def remove_duplicates(self):
+        # Find duplicates in 'lesion_id'
+        duplicates = self.metadata[self.metadata.duplicated(
+            'lesion_id', keep=False)]
+
+        print(f"Original metadata length: {len(self.metadata)}")
+        # Print duplicates
+        print(duplicates)
+
+        # Add 'is_duplicated' column
+        self.metadata['is_duplicated'] = self.metadata.duplicated(
+            'lesion_id', keep=False)
+
+        # Sort by 'lesion_id' and 'is_duplicated'
+        self.metadata.sort_values(
+            ['lesion_id', 'is_duplicated'], inplace=True)
+
+        # Drop duplicates, keeping the first occurrence
+        matadata_train_no_duplicates = self.metadata.drop_duplicates(
+            'lesion_id', keep='first')
+
+        matadata_train_no_duplicates.drop(
+            'is_duplicated', axis=1, inplace=True)
+
+        print(
+            f"Metadata length without duplicates: {len(matadata_train_no_duplicates)}")
+
+        self.metadata = matadata_train_no_duplicates
 
     def balance_dataset(self):
         print("--Data Balance-- balance_data set to True. Training data will be balanced.")
@@ -265,7 +298,7 @@ class StatefulTransform:
         img = transforms.Resize((self.height, self.width),
                                 interpolation=Image.BILINEAR)(img)
         # img = transforms.RandomEqualize(p=1)(img)
-        img = transforms.RandomAdjustSharpness(sharpness_factor=10, p=1)(img)
+        # img = transforms.RandomAdjustSharpness(sharpness_factor=10, p=1)(img)
         seg = transforms.Resize((self.height, self.width))(seg)
 
         # Horizonal flip
@@ -316,11 +349,12 @@ def calculate_normalization_statistics(df: pd.DataFrame) -> Tuple[torch.Tensor, 
 
 def load_metadata(train: bool = True,
                   limit: Optional[int] = None) -> Tuple[pd.DataFrame, pd.DataFrame] or pd.DataFrame:
-    metadata = pd.read_csv(METADATA_TRAIN_DIR if train else METADATA_TEST_DIR)
-    # metadata = metadata.sample(frac=1, random_state=42).reset_index(drop=True)
+    metadata = pd.read_csv(
+        METADATA_NO_DUPLICATES_DIR if train else METADATA_TEST_DIR)
+    print(f"LOADED METADATA HAS LENGTH {len(metadata)}")
     if limit is not None and limit > len(metadata):
         print(
-            f"Ignoring limit for {METADATA_TRAIN_DIR if train else METADATA_TEST_DIR} because it is bigger than the dataset size")
+            f"Ignoring limit for {METADATA_NO_DUPLICATES_DIR if train else METADATA_TEST_DIR} because it is bigger than the dataset size")
         limit = None
     if limit is not None:
         metadata = metadata.sample(n=limit, random_state=42)
@@ -331,6 +365,7 @@ def load_metadata(train: bool = True,
         metadata['segmentation_path'] = metadata['image_id'].apply(
             lambda x: os.path.join(SEGMENTATION_DIR, x + '_segmentation.png'))
 
+        print(f"Metadata before split has length {len(metadata)}")
         # Assuming `df` is your DataFrame
         df_train, df_val = train_test_split(
             metadata,
@@ -338,6 +373,8 @@ def load_metadata(train: bool = True,
             random_state=42,
             stratify=metadata['dx'])
 
+        print(f"DF_TRAIN LENGTH: {len(df_train)}")
+        print(f"DF_VAL LENGTH: {len(df_val)}")
         return df_train, df_val
 
     return metadata
@@ -367,7 +404,7 @@ def create_dataloaders(normalize: bool = True,
         normalize=normalize,
         mean=mean,
         std=std,
-        balance_data=True,
+        balance_data=False,
         resize_dims=size,
         dynamic_load=dynamic_load)
     val_dataset = ImageDataset(

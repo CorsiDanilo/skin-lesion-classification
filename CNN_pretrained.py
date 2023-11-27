@@ -82,7 +82,7 @@ def create_loaders():
         mean=resnet_mean,
         std=resnet_std,
         normalize=NORMALIZE,
-        limit=1000,
+        limit=DATASET_LIMIT,
         size=(224, 224))
     return train_loader, val_loader, test_loader
 
