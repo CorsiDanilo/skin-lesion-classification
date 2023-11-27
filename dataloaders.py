@@ -38,12 +38,6 @@ class ImageDataset(Dataset):
         # self.remove_duplicates()
         self.transform = transform
 
-        unique_labels = self.metadata['dx'].unique()
-        label_dict = {label: idx for idx, label in enumerate(unique_labels)}
-        labels_encoded = self.metadata['dx'].map(label_dict)
-        assert len(
-            label_dict) == 7, "There should be 7 unique labels, increase the limit"
-        self.metadata['label'] = labels_encoded
         self.metadata['augmented'] = False
         self.metadata = self.metadata
         self.load_segmentations = load_segmentations
@@ -351,6 +345,14 @@ def load_metadata(train: bool = True,
                   limit: Optional[int] = None) -> Tuple[pd.DataFrame, pd.DataFrame] or pd.DataFrame:
     metadata = pd.read_csv(
         METADATA_NO_DUPLICATES_DIR if train else METADATA_TEST_DIR)
+    unique_labels = metadata['dx'].unique()
+    label_dict = {label: idx for idx, label in enumerate(unique_labels)}
+    labels_encoded = metadata['dx'].map(label_dict)
+    assert len(
+        label_dict) == 7, "There should be 7 unique labels, increase the limit"
+    metadata['label'] = labels_encoded
+    # df_count = metadata.groupby('label').count()
+    # print(df_count)
     print(f"LOADED METADATA HAS LENGTH {len(metadata)}")
     if limit is not None and limit > len(metadata):
         print(
@@ -371,7 +373,7 @@ def load_metadata(train: bool = True,
             metadata,
             test_size=0.2,
             random_state=42,
-            stratify=metadata['dx'])
+            stratify=metadata['label'])
 
         print(f"DF_TRAIN LENGTH: {len(df_train)}")
         print(f"DF_VAL LENGTH: {len(df_val)}")
