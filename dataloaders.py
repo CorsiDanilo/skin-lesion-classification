@@ -12,7 +12,7 @@ from tqdm import tqdm
 import random
 import math
 
-from config import DATASET_TEST_DIR, DATASET_TRAIN_DIR, METADATA_TEST_DIR, METADATA_NO_DUPLICATES_DIR, SEGMENTATION_DIR, BATCH_SIZE
+from config import DATASET_TEST_DIR, DATASET_TRAIN_DIR, METADATA_TEST_DIR, METADATA_NO_DUPLICATES_DIR, SEGMENTATION_DIR, BATCH_SIZE, SEGMENTATION_WITH_BOUNDING_BOX_DIR, SEGMENTATION_BOUNDING_BOX
 
 
 class ImageDataset(Dataset):
@@ -365,8 +365,9 @@ def load_metadata(train: bool = True,
         lambda x: os.path.join(DATASET_TRAIN_DIR if train else DATASET_TEST_DIR, x + '.jpg'))
 
     if train:
+        segmentation_path = SEGMENTATION_WITH_BOUNDING_BOX_DIR if SEGMENTATION_BOUNDING_BOX else SEGMENTATION_DIR
         metadata['segmentation_path'] = metadata['image_id'].apply(
-            lambda x: os.path.join(SEGMENTATION_DIR, x + '_segmentation.png'))
+            lambda x: os.path.join(segmentation_path, x + '_segmentation.png'))
 
         print(f"Metadata before split has length {len(metadata)}")
         # Assuming `df` is your DataFrame

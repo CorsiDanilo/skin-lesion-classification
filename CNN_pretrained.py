@@ -4,7 +4,7 @@ import numpy as np
 import random
 import os
 import wandb
-from config import BATCH_SIZE, INPUT_SIZE, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, SEGMENT, CROP_ROI, ARCHITECHTURE, DATASET_LIMIT, DROPOUT_P, NORMALIZE, HISTOGRAM_NORMALIZATION, USE_WANDB
+from config import BATCH_SIZE, INPUT_SIZE, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, SEGMENT, CROP_ROI, ARCHITECHTURE, DATASET_LIMIT, DROPOUT_P, NORMALIZE, SEGMENTATION_BOUNDING_BOX, USE_WANDB
 from models.ResNet24Pretrained import ResNet24Pretrained
 from models.DenseNetPretrained import DenseNetPretrained
 from models.InceptionV3Pretrained import InceptionV3Pretrained
@@ -12,6 +12,8 @@ from models.InceptionV3Pretrained import InceptionV3Pretrained
 import dataloaders
 import utils
 from tqdm import tqdm
+
+from sklearn.metrics import recall_score, accuracy_score
 
 # Device configuration
 # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -44,9 +46,9 @@ if USE_WANDB:
             "dataset_limit": DATASET_LIMIT,
             "dropout_p": DROPOUT_P,
             "normalize": NORMALIZE,
-            "histogram_normalization": HISTOGRAM_NORMALIZATION,
             "resumed": RESUME,
-            "from_epoch": FROM_EPOCH
+            "from_epoch": FROM_EPOCH,
+            "segmentation_bounding_box": SEGMENTATION_BOUNDING_BOX,
         },
         resume=RESUME,
     )
@@ -85,7 +87,8 @@ def create_loaders():
         std=resnet_std,
         normalize=NORMALIZE if not CROP_ROI else False,
         limit=DATASET_LIMIT,
-        size=(224, 224))
+        size=(224, 224),
+        dynamic_load=True)
     return train_loader, val_loader, test_loader
 
 
@@ -110,8 +113,8 @@ def train_eval_loop():
     for epoch in range(FROM_EPOCH if RESUME else 0, N_EPOCHS):
         model.train()
         tr_loss_iter = 0
-        training_count = 0
-        training_correct_preds = 0
+        epoch_tr_preds = torch.tensor([]).to(device)
+        epoch_tr_labels = torch.tensor([]).to(device)
         for tr_i, (tr_images, tr_labels, segmentations) in enumerate(tqdm(train_loader, desc="Training", leave=False)):
             if SEGMENT:
                 # Apply segmentation
@@ -135,71 +138,30 @@ def train_eval_loop():
 
             with torch.no_grad():
                 training_preds = torch.argmax(tr_outputs, -1).detach()
-                training_count += len(tr_labels)
-                training_correct_preds += (training_preds == tr_labels).sum()
+                epoch_tr_preds = torch.cat(
+                    (epoch_tr_preds, training_preds), 0)
+                epoch_tr_labels = torch.cat(
+                    (epoch_tr_labels, tr_labels), 0)
 
             tr_loss_iter += tr_loss.item()
-
-        current_train_accuracy = 100 * (training_correct_preds/training_count)
+        tr_accuracy = accuracy_score(
+            epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy()) * 100
+        tr_recall = recall_score(
+            epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy(), average='macro') * 100
         if USE_WANDB:
-            wandb.log({"Training Accuracy": current_train_accuracy})
-        print('Training -> Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%'
-              .format(epoch+1, N_EPOCHS, tr_i+1, total_step, tr_loss.item(), current_train_accuracy))
+            wandb.log({"Training Accuracy": tr_accuracy})
+            wandb.log({"Training Recall": tr_recall})
+
+        print('Training -> Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%, Recall: {:.4f}%'
+              .format(epoch+1, N_EPOCHS, tr_i+1, total_step, tr_loss.item(), tr_accuracy, tr_recall))
 
         train_losses.append(tr_loss_iter/(len(train_loader)*BATCH_SIZE))
 
-        # LR *= LR_DECAY
-        # update_lr(optimizer, LR)
-
-        # TODO: this commented part of the code is to compute the validation accuracy with a weighted average based on the distribution of the classes in the validation set.
-        # val_distribution = [
-        #     0.601190,
-        #     0.143519,
-        #     0.113095,
-        #     0.028439,
-        #     0.061508,
-        #     0.023148,
-        #     0.029101,
-        # ]
-        # class_weights = torch.tensor(val_distribution).to(device)
-        # model.eval()
-        # with torch.no_grad():
-        #     validation_correct_preds = torch.zeros(
-        #         len(class_weights)).to(device)
-        #     validation_count = torch.zeros(len(class_weights)).to(device)
-        #     val_loss_iter = 0
-        #     for val_i, (val_images, val_labels, segmentations) in enumerate(val_loader):
-        #         if SEGMENT:
-        #             # Apply segmentation
-        #             val_images = torch.mul(val_images, segmentations)
-        #             if CROP_ROI:
-        #                 val_images = utils.crop_roi(
-        #                     val_images, size=(224, 224))
-        #         val_images = val_images.to(device)
-        #         val_labels = val_labels.to(device)
-
-        #         val_outputs = model(val_images)
-        #         validation_preds = torch.argmax(val_outputs, -1).detach()
-        #         for i in range(len(class_weights)):
-        #             class_mask = (val_labels == i)
-        #             validation_correct_preds[i] += (
-        #                 validation_preds[class_mask] == val_labels[class_mask]).sum()
-        #             validation_count[i] += class_mask.sum()
-        #         val_loss = loss_function(val_outputs, val_labels)
-        #         if USE_WANDB:
-        #             wandb.log({"Validation Loss": val_loss.item()})
-        #         val_loss_iter += val_loss.item()
-
-        #     val_losses.append(val_loss_iter/(len(val_loader)*BATCH_SIZE))
-
-        #     val_accuracy = 100 * \
-        #         ((validation_correct_preds / validation_count) * class_weights).sum()
-
         model.eval()
         with torch.no_grad():
-            validation_correct_preds = 0
-            validation_count = 0
             val_loss_iter = 0
+            epoch_val_preds = torch.tensor([]).to(device)
+            epoch_val_labels = torch.tensor([]).to(device)
             for val_i, (val_images, val_labels, segmentations) in enumerate(val_loader):
                 if SEGMENT:
                     # Apply segmentation
@@ -215,9 +177,11 @@ def train_eval_loop():
 
                 val_outputs = model(val_images)
                 validation_preds = torch.argmax(val_outputs, -1).detach()
-                validation_count += len(val_labels)
-                validation_correct_preds += (validation_preds ==
-                                             val_labels).sum()
+                epoch_val_preds = torch.cat(
+                    (epoch_val_preds, validation_preds), 0)
+                epoch_val_labels = torch.cat(
+                    (epoch_val_labels, val_labels), 0)
+
                 val_loss = loss_function(val_outputs, val_labels)
                 if USE_WANDB:
                     wandb.log({"Validation Loss": val_loss.item()})
@@ -225,18 +189,24 @@ def train_eval_loop():
 
             val_losses.append(val_loss_iter/(len(val_loader)*BATCH_SIZE))
 
-            val_accuracy = 100 * (validation_correct_preds / validation_count)
+            val_accuracy = accuracy_score(
+                epoch_val_labels.cpu().numpy(), epoch_val_preds.cpu().numpy()) * 100
+            val_recall = recall_score(
+                epoch_val_labels.cpu().numpy(), epoch_val_preds.cpu().numpy(), average='macro') * 100
 
-            if val_accuracy > best_accuracy:
-                best_accuracy = val_accuracy
-                save_model(model, ARCHITECHTURE, epoch)
+            # if val_accuracy > best_accuracy:
+            #     best_accuracy = val_accuracy
+            #     save_model(model, ARCHITECHTURE, epoch)
 
             val_accuracies.append(val_accuracy)
             if USE_WANDB:
                 wandb.log({"Validation Accuracy": val_accuracy})
+                wandb.log({"Validation Recall": val_recall})
 
             print(
                 'Validation -> Validation accuracy for epoch {} is: {:.4f}%'.format(epoch+1, val_accuracy))
+            print(
+                'Validation -> Validation recall for epoch {} is: {:.4f}%'.format(epoch+1, val_recall))
             print(
                 'Validation -> Validation loss for epoch {} is: {:.4f}'.format(epoch+1, val_loss.item()))
 
