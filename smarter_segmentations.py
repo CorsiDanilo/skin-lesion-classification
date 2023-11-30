@@ -4,14 +4,13 @@ import cv2
 import numpy as np
 from tqdm import tqdm
 
-from utils import zoom_out
+from utilities import zoom_out
 
 # TODO: try to zoom out the segmentation and the image before cropping, in order to always have a square bounding box
 
 
 def find_bounding_box(segmentation_mask):
     # Find the indices of the white pixels
-
     rows, cols, _ = np.where(segmentation_mask > 0)
     # Get the coordinates of the bounding box
     top = np.min(rows)
@@ -33,7 +32,7 @@ def find_bounding_box(segmentation_mask):
 
 
 def draw_bounding_box(segmentation_mask):
-    segmentation_mask = zoom_out(segmentation_mask).permute(1, 2, 0).numpy()
+    # segmentation_mask = zoom_out(segmentation_mask).permute(1, 2, 0).numpy() #TODO: uncomment for CNN, comment for R-CNN
     top, left, bottom, right = find_bounding_box(segmentation_mask)
     # Create a copy of the segmentation mask
     segmentation_mask_with_bounding_box = segmentation_mask.copy()

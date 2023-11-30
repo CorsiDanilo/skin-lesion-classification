@@ -116,3 +116,61 @@ def zoom_out(image: torch.Tensor or np.ndarray, size=(700, 700)) -> torch.Tensor
     new_image = torch.from_numpy(new_image)
     new_image = new_image.permute(2, 0, 1)
     return new_image
+
+
+def get_bounding_boxes_from_segmentation(segmentation: torch.Tensor) -> torch.Tensor:
+    segmentation_channel = segmentation.squeeze(0)
+    # Find the indices of the white pixels
+    rows, cols = torch.where(segmentation_channel == 1)
+    # Get the minimum and maximum of the rows and columns
+    min_row, max_row = rows.min(), rows.max()
+    min_col, max_col = cols.min(), cols.max()
+    # Define the bounding box
+    bbox = torch.tensor([min_row, min_col, max_row, max_col])
+    # Reshape the bounding box tensor to the expected shape
+    bbox = bbox.unsqueeze(0)
+    # print(f"Bounding box are: {bbox}")
+    return bbox
+
+
+def approximate_bounding_box_to_square(box):
+    # Calculate the width and height of the box
+    MAX_WIDTH = 700
+    MAX_HEIGHT = 700
+    width = (box[2] - box[0]).item()
+    height = (box[3] - box[1]).item()
+
+    # Calculate the center of the box
+    center_x = ((box[0] + box[2]) // 2).item()
+    center_y = ((box[1] + box[3]) // 2).item()
+
+    # Calculate the side length of the square
+    side_length = max(width, height)
+
+    # Calculate the new coordinates of the square
+    new_box = [
+        max(center_x - side_length // 2, 0),
+        max(center_y - side_length // 2, 0),
+        min(center_x + side_length // 2, MAX_WIDTH),
+        min(center_y + side_length // 2, MAX_HEIGHT)
+    ]
+
+    return new_box
+
+
+def shift_boxes(boxes, h_shift, w_shift):
+    shifted_boxes = []
+    for box in boxes:
+        shifted_box = torch.tensor(
+            box) + torch.tensor([h_shift // 2, w_shift//2, h_shift//2, w_shift//2])
+        shifted_boxes.append([i.item() for i in shifted_box])
+    return shifted_boxes
+
+
+def crop_image_from_box(image, box):
+    # print(f"Box is {box}")
+    cropped_image = image[:, box[0]:box[2], box[1]:box[3]]
+    # print(f"Cropped image shape is {cropped_image.shape}")
+    cropped_image = cropped_image.permute(1, 2, 0).numpy()
+    resized_image = cv2.resize(cropped_image, (224, 224))
+    return resized_image

@@ -7,3 +7,4 @@ __pycache__/
 wandb
 *_ignore.*
 vast
+boxes_outputs
