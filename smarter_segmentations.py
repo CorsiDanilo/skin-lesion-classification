@@ -4,19 +4,15 @@ import cv2
 import numpy as np
 from tqdm import tqdm
 
+from utils import zoom_out
 
-# def find_bounding_box(segmentation_mask):
-#     # Find the indices of the white pixels
-#     rows, cols = np.where(segmentation_mask > 0)
-#     # Get the coordinates of the bounding box
-#     top = np.min(rows)
-#     left = np.min(cols)
-#     bottom = np.max(rows)
-#     right = np.max(cols)
-#     return top, left, bottom, right
+# TODO: try to zoom out the segmentation and the image before cropping, in order to always have a square bounding box
+
+
 def find_bounding_box(segmentation_mask):
     # Find the indices of the white pixels
-    rows, cols = np.where(segmentation_mask > 0)
+
+    rows, cols, _ = np.where(segmentation_mask > 0)
     # Get the coordinates of the bounding box
     top = np.min(rows)
     left = np.min(cols)
@@ -37,6 +33,7 @@ def find_bounding_box(segmentation_mask):
 
 
 def draw_bounding_box(segmentation_mask):
+    segmentation_mask = zoom_out(segmentation_mask).permute(1, 2, 0).numpy()
     top, left, bottom, right = find_bounding_box(segmentation_mask)
     # Create a copy of the segmentation mask
     segmentation_mask_with_bounding_box = segmentation_mask.copy()
@@ -65,8 +62,8 @@ def main():
     os.makedirs(new_segmentation_dir, exist_ok=True)
     for file in tqdm(os.listdir(segmentation_dir), desc="Drawing bounding boxes"):
         if file.endswith(".png"):
-            segmentation_mask = cv2.imread(os.path.join(
-                segmentation_dir, file), cv2.IMREAD_GRAYSCALE)
+            segmentation_mask = cv2.imread(
+                os.path.join(segmentation_dir, file))
             segmentation_mask_with_bounding_box = draw_bounding_box(
                 segmentation_mask)
             cv2.imwrite(os.path.join(new_segmentation_dir, file),

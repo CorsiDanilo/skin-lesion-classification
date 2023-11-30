@@ -20,7 +20,7 @@ USE_WANDB = True
 INPUT_SIZE = 3
 NUM_CLASSES = 7
 HIDDEN_SIZE = [32, 64, 128, 256]
-N_EPOCHS = 20
+N_EPOCHS = 100
 LR = 1e-3
 LR_DECAY = 0.85
 REG = 0.01
@@ -31,4 +31,5 @@ DATASET_LIMIT = None
 DROPOUT_P = 0.3
 NORMALIZE = True
 # If true, the segmentation is approximated by a squared bounding box.
-SEGMENTATION_BOUNDING_BOX = False
+SEGMENTATION_BOUNDING_BOX = True
+BALANCE_UNDERSAMPLING = 1

@@ -12,17 +12,17 @@ from tqdm import tqdm
 import random
 import math
 
-from config import DATASET_TEST_DIR, DATASET_TRAIN_DIR, METADATA_TEST_DIR, METADATA_NO_DUPLICATES_DIR, SEGMENTATION_DIR, BATCH_SIZE, SEGMENTATION_WITH_BOUNDING_BOX_DIR, SEGMENTATION_BOUNDING_BOX
+from config import DATASET_TEST_DIR, DATASET_TRAIN_DIR, METADATA_TEST_DIR, METADATA_NO_DUPLICATES_DIR, SEGMENTATION_DIR, BATCH_SIZE, SEGMENTATION_WITH_BOUNDING_BOX_DIR, SEGMENTATION_BOUNDING_BOX, BALANCE_UNDERSAMPLING
+from utils import crop_roi, zoom_out
 
 
 class ImageDataset(Dataset):
     def __init__(self,
                  metadata: pd.DataFrame,
-                 load_segmentations: bool = True,
                  # Control the data augmentation process aim to solve class imbalance
                  balance_data: bool = True,
                  # Percentage of data to keep from the majority class
-                 balance_undersampling: float = 1,
+                 balance_undersampling: float = BALANCE_UNDERSAMPLING,
                  normalize: bool = False,  # Control the application of z-score normalization
                  # Mean (per channel) for the z-score normalization
                  mean: torch.Tensor = None,
@@ -35,12 +35,10 @@ class ImageDataset(Dataset):
                  transform: Optional[transforms.Compose] = None,
                  dynamic_load: bool = False):
         self.metadata = metadata
-        # self.remove_duplicates()
         self.transform = transform
 
         self.metadata['augmented'] = False
         self.metadata = self.metadata
-        self.load_segmentations = load_segmentations
         self.balance_data = balance_data
         self.normalize = normalize
         self.mean = mean
@@ -61,15 +59,10 @@ class ImageDataset(Dataset):
 
         if self.transform is None:
             self.transform = transforms.Compose([
-                # transforms.Resize(
-                # (self.resize_dims[0], self.resize_dims[1]), interpolation=Image.BILINEAR),
-                # transforms.RandomEqualize(p=1),
-                # transforms.RandomAdjustSharpness(sharpness_factor=10, p=1),
-                transforms.ToTensor()
-            ])
-
-            self.segmentation_transform = transforms.Compose([
-                # transforms.Resize((self.resize_dims[0], self.resize_dims[1])),
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.RandomVerticalFlip(p=0.5),
+                transforms.RandomRotation(degrees=90),
+                # transforms.RandomAffine(0, scale=(0.8, 1.2)),
                 transforms.ToTensor()
             ])
 
@@ -78,42 +71,10 @@ class ImageDataset(Dataset):
 
         self.dynamic_load = dynamic_load
         if not dynamic_load:
-            if self.load_segmentations:
-                self.images, self.labels, self.segmentations = self.load_images_and_labels()
-            else:
-                self.images, self.labels = self.load_images_and_labels()
+            self.images, self.labels = self.load_images_and_labels()
 
         # TODO: maybe load other information,
         # encode it in one-hot vectors and concatenate them to the images in order to feed it to the NN
-
-    def remove_duplicates(self):
-        # Find duplicates in 'lesion_id'
-        duplicates = self.metadata[self.metadata.duplicated(
-            'lesion_id', keep=False)]
-
-        print(f"Original metadata length: {len(self.metadata)}")
-        # Print duplicates
-        print(duplicates)
-
-        # Add 'is_duplicated' column
-        self.metadata['is_duplicated'] = self.metadata.duplicated(
-            'lesion_id', keep=False)
-
-        # Sort by 'lesion_id' and 'is_duplicated'
-        self.metadata.sort_values(
-            ['lesion_id', 'is_duplicated'], inplace=True)
-
-        # Drop duplicates, keeping the first occurrence
-        matadata_train_no_duplicates = self.metadata.drop_duplicates(
-            'lesion_id', keep='first')
-
-        matadata_train_no_duplicates.drop(
-            'is_duplicated', axis=1, inplace=True)
-
-        print(
-            f"Metadata length without duplicates: {len(matadata_train_no_duplicates)}")
-
-        self.metadata = matadata_train_no_duplicates
 
     def balance_dataset(self):
         print("--Data Balance-- balance_data set to True. Training data will be balanced.")
@@ -164,83 +125,37 @@ class ImageDataset(Dataset):
                                               == label].index
 
     def load_images_and_labels_at_idx(self, idx):
-        img = self.metadata.iloc[idx]
-        if not os.path.exists(img['image_path']):
-            self.load_images_and_labels_at_idx(idx+1)
+        try:
+            img = self.metadata.iloc[idx]
+        except IndexError:
+            print(
+                f"Index {idx} is out of bounds. Dataset has {len(self.metadata)} images.")
+            raise IndexError
+        # Augment the data if balance_data is true and load segmentations
         label = img['label']
         # Augment the data if balance_data is true and load segmentations
-        if self.balance_data:
-            stateful_transform = StatefulTransform(
-                self.resize_dims[0], self.resize_dims[1])
-            if not os.path.exists(img['segmentation_path']):
-                self.load_images_and_labels_at_idx(idx+1)
-            # Apply these transformations only the oversampled data (for data augmentation)
-            if img['augmented']:
-                ti, ts = stateful_transform(
-                    Image.open(img['image_path']),
-                    Image.open(img['segmentation_path']).convert('1'))
-                image = ti
-                segmentation = ts
-            else:
-                image = self.transform(
-                    Image.open(img['image_path']))
-                segmentation = self.segmentation_transform(
-                    Image.open(img['segmentation_path']).convert('1'))
-        # Load segmentations without augmenting the data
-        elif self.load_segmentations:
-            if not os.path.exists(img['segmentation_path']):
-                self.load_images_and_labels_at_idx(idx+1)
-            segmentation = self.segmentation_transform(
-                Image.open(img['segmentation_path']).convert('1'))
-            image = self.transform(Image.open(img['image_path']))
-        # Only load images
+        ti, ts = Image.open(img['image_path']), Image.open(
+            img['segmentation_path']).convert('1')
+        ti, ts = TF.to_tensor(ti), TF.to_tensor(ts)
+        ti = zoom_out(ti)
+        if self.balance_data and img["augmented"]:
+            pil_image = TF.to_pil_image(ti)
+            image = self.transform(pil_image)
+            image = image * ts
         else:
-            image = self.transform(Image.open(img['image_path']))
-        if self.load_segmentations:
-            return image, label, segmentation
+            image = ti * ts
+        image = crop_roi(image, self.resize_dims)
+        image = image.squeeze(0)
         return image, label
 
     def load_images_and_labels(self):
         not_found_files = []
         images = []
-        segmentations = []
         labels = []
-        for _, img in tqdm(self.metadata.iterrows(), desc=f'Loading images'):
-            if not os.path.exists(img['image_path']):
-                not_found_files.append(img['image_path'])
-                continue
-            labels.append(img['label'])
-            # Augment the data if balance_data is true and load segmentations
-            if self.balance_data:
-                stateful_transform = StatefulTransform(
-                    self.resize_dims[0], self.resize_dims[1])
-                if not os.path.exists(img['segmentation_path']):
-                    not_found_files.append(img['segmentation_path'])
-                    continue
-                # Apply these transformations only the oversampled data (for data augmentation)
-                if img['augmented']:
-                    ti, ts = stateful_transform(Image.open(
-                        img['image_path']), Image.open(img['segmentation_path']).convert('1'))
-                    images.append(ti)
-                    segmentations.append(ts)
-                else:
-                    images.append(self.transform(
-                        Image.open(img['image_path'])))
-                    segmentations.append(self.segmentation_transform(
-                        Image.open(img['segmentation_path']).convert('1')))
-            # Load segmentations without augmenting the data
-            elif self.load_segmentations:
-                if not os.path.exists(img['segmentation_path']):
-                    not_found_files.append(img['segmentation_path'])
-                    continue
-                segmentations.append(self.segmentation_transform(
-                    Image.open(img['segmentation_path']).convert('1')))
-                images.append(self.transform(Image.open(img['image_path'])))
-            # Only load images
-            else:
-                images.append(self.transform(Image.open(img['image_path'])))
-        if self.load_segmentations:
-            segmentations = torch.stack(segmentations)
+        for index, (row_index, img) in tqdm(enumerate(self.metadata.iterrows()), desc=f'Loading images'):
+            image, label = self.load_images_and_labels_at_idx(index)
+            images.append(image)
+            labels.append(label)
         images = torch.stack(images)
         labels = torch.tensor(labels, dtype=torch.long)
 
@@ -248,8 +163,6 @@ class ImageDataset(Dataset):
 
         print(
             f"Loading complete, some files ({len(not_found_files)}) were not found: {not_found_files}")
-        if self.load_segmentations:
-            return images, labels, segmentations
         return images, labels
 
     def __len__(self):
@@ -257,16 +170,10 @@ class ImageDataset(Dataset):
 
     def __getitem__(self, idx):
         if self.dynamic_load:
-            if self.load_segmentations:
-                image, label, segmentation = self.load_images_and_labels_at_idx(
-                    idx)
-            else:
-                image, label = self.load_images_and_labels_at_idx(idx)
+            image, label = self.load_images_and_labels_at_idx(idx)
             if self.normalize:
                 image = (image - self.mean.view(3, 1, 1)) / \
                     (self.std + self.std_epsilon).view(3, 1, 1)
-            if self.load_segmentations:
-                return image, label, segmentation
             return image, label
         else:
             image = self.images[idx]
@@ -274,71 +181,7 @@ class ImageDataset(Dataset):
             if self.normalize:
                 image = (image - self.mean.view(3, 1, 1)) / \
                     (self.std + self.std_epsilon).view(3, 1, 1)
-            if self.load_segmentations:
-                segmentation = self.segmentations[idx]
-                return image, label, segmentation
             return image, label
-
-
-# Class that implement the transformations to be applied to the images and the associated segmentations jointly
-
-class StatefulTransform:
-    def __init__(self, height, width):
-        self.height = height
-        self.width = width
-
-    def __call__(self, img, seg):
-        # Resize
-        # img = transforms.Resize((self.height, self.width),
-        #                         interpolation=Image.BILINEAR)(img)
-        # img = transforms.RandomEqualize(p=1)(img)
-        # img = transforms.RandomAdjustSharpness(sharpness_factor=10, p=1)(img)
-        # seg = transforms.Resize((self.height, self.width))(seg)
-
-        # Horizonal flip
-        if random.random() > 0.5:
-            img = TF.hflip(img)
-            seg = TF.hflip(seg)
-
-        # Vertical flip
-        if random.random() > 0.5:
-            img = TF.vflip(img)
-            seg = TF.vflip(seg)
-
-        # Random rotation
-        if random.random() > 0.5:
-            angle = random.randint(1, 360)
-            img = TF.rotate(img, angle)
-            seg = TF.rotate(seg, angle)
-
-        img = transforms.ToTensor()(img)
-        seg = transforms.ToTensor()(seg)
-
-        return img, seg
-
-# Function that computes the normalization statistics
-
-
-def calculate_normalization_statistics(df: pd.DataFrame) -> Tuple[torch.Tensor, torch.Tensor]:
-    images_for_normalization = []
-
-    for _, img in tqdm(df[:100].iterrows(), desc=f'Calculating normalization statistics'):
-        if not os.path.exists(img['image_path']):
-            continue
-        image = transforms.ToTensor()(Image.open(img['image_path']))
-        images_for_normalization.append(image)
-
-    images_for_normalization = torch.stack(images_for_normalization)
-    mean = torch.tensor([torch.mean(images_for_normalization[:, channel, :, :])
-                        for channel in range(3)]).reshape(3, 1, 1)
-    std = torch.tensor([torch.std(images_for_normalization[:, channel, :, :])
-                       for channel in range(3)]).reshape(3, 1, 1)
-
-    print("---Normalization--- Normalization flag set to True: Images will be normalized with z-score normalization")
-    print(
-        f"---Normalization--- Statistics for normalization (per channel) -> Mean: {mean.view(-1)}, Variance: {std.view(-1)}, Epsilon (adjustment value): 0.01")
-
-    return mean, std
 
 
 def load_metadata(train: bool = True,
@@ -384,6 +227,27 @@ def load_metadata(train: bool = True,
     return metadata
 
 
+# def remove_non_existing_images(metadata: pd.DataFrame, name: str) -> Tuple[pd.DataFrame, set]:
+#     initial_length = len(metadata)
+#     metadata['image_exists'] = metadata['image_path'].apply(
+#         lambda x: os.path.exists(x))
+#     if 'segmentation_path' in metadata.columns:
+#         metadata["segmentation_exists"] = metadata['segmentation_path'].apply(
+#             lambda x: os.path.exists(x))
+#         metadata = metadata[metadata['segmentation_exists']]
+#         metadata.reset_index(drop=True, inplace=True)
+#     metadata = metadata[metadata['image_exists']]
+#     if "is_duplicated" in metadata.columns:
+#         metadata.drop(columns=['is_duplicated'], inplace=True)
+#     metadata.reset_index(drop=True, inplace=True)
+#     metadata.to_csv(
+#         f"new_metadata_{name}.csv")
+#     print(
+#         f"Removed {initial_length - len(metadata)} images from {name} out of {initial_length} total images")
+
+#     return metadata
+
+
 def create_dataloaders(normalize: bool = True,
                        mean: Optional[torch.Tensor] = None,
                        std: Optional[torch.Tensor] = None,
@@ -399,12 +263,11 @@ def create_dataloaders(normalize: bool = True,
     # df_val.reset_index(drop=True, inplace=True)
 
     # Calculate and store normalization statistics for the training dataset
-    if normalize and (mean is None or std is None):
-        mean, std = calculate_normalization_statistics(df_train)
+    # if normalize and (mean is None or std is None):
+    #     mean, std = calculate_normalization_statistics(df_train)
 
     train_dataset = ImageDataset(
         df_train,
-        load_segmentations=True,
         normalize=normalize,
         mean=mean,
         std=std,
@@ -413,30 +276,29 @@ def create_dataloaders(normalize: bool = True,
         dynamic_load=dynamic_load)
     val_dataset = ImageDataset(
         df_val,
-        load_segmentations=True,
         normalize=normalize,
         mean=mean,
         std=std,
         balance_data=False,
         resize_dims=size,
         dynamic_load=dynamic_load)
-    test_dataset = ImageDataset(
-        df_test,
-        load_segmentations=False,
-        normalize=normalize,
-        mean=mean,
-        std=std,
-        balance_data=False,
-        resize_dims=size,
-        dynamic_load=dynamic_load)
+    # test_dataset = ImageDataset(
+    #     df_test,
+    #     load_segmentations=False,
+    #     normalize=normalize,
+    #     mean=mean,
+    #     std=std,
+    #     balance_data=False,
+    #     resize_dims=size,
+    #     dynamic_load=dynamic_load)
 
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
     val_loader = DataLoader(
         val_dataset, batch_size=batch_size, pin_memory=True)
-    test_loader = DataLoader(
-        test_dataset, batch_size=batch_size, pin_memory=True)
-    return train_loader, val_loader, test_loader
+    # test_loader = DataLoader(
+    #     test_dataset, batch_size=batch_size, pin_memory=True)
+    return train_loader, val_loader, None
 
 
 if __name__ == '__main__':
