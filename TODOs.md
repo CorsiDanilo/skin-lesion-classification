@@ -1,0 +1,2 @@
+-   [ ] See the results with the segmentation but without stretching the image, so first apply the bounding box and then the segmentation.
+-   [ ] Get the segmentation mask dynamically with SAM

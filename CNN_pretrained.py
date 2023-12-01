@@ -9,7 +9,8 @@ from models.ResNet24Pretrained import ResNet24Pretrained
 from models.DenseNetPretrained import DenseNetPretrained
 from models.InceptionV3Pretrained import InceptionV3Pretrained
 
-from segmentation_dataloaders import create_dataloaders
+# TODO:  Segmentation dataloaders segment the image using only the ground truth, no dynamic segmentation is done!
+from dataloaders.segmentation_dataloaders import create_dataloaders
 from tqdm import tqdm
 
 from sklearn.metrics import recall_score, accuracy_score
@@ -49,7 +50,8 @@ if USE_WANDB:
             "from_epoch": FROM_EPOCH,
             "segmentation_bounding_box": SEGMENTATION_BOUNDING_BOX,
             "balance_undersampling": BALANCE_UNDERSAMPLING,
-            "initialization": "default"
+            "initialization": "default",
+            "dynamic_segmentation": False,
         },
         resume=RESUME,
     )
@@ -117,14 +119,6 @@ def train_eval_loop():
         epoch_tr_preds = torch.tensor([]).to(device)
         epoch_tr_labels = torch.tensor([]).to(device)
         for tr_i, (tr_images, tr_labels) in enumerate(tqdm(train_loader, desc="Training", leave=False)):
-            # if SEGMENT:
-            #     # Apply segmentation
-            #     tr_images = torch.mul(tr_images, segmentations)
-            #     if CROP_ROI:
-            #         tr_images = utils.crop_roi(tr_images, size=(224, 224))
-            #         if NORMALIZE:
-            #             tr_images = (tr_images - resnet_mean.view(3, 1, 1)) / \
-            #                 resnet_std.view(3, 1, 1)
             tr_images = tr_images.to(torch.float32)
             tr_images = tr_images.to(device)
             tr_labels = tr_labels.to(device)
@@ -167,15 +161,6 @@ def train_eval_loop():
             epoch_val_preds = torch.tensor([]).to(device)
             epoch_val_labels = torch.tensor([]).to(device)
             for val_i, (val_images, val_labels) in enumerate(val_loader):
-                # if SEGMENT:
-                #     # Apply segmentation
-                #     val_images = torch.mul(val_images, segmentations)
-                #     if CROP_ROI:
-                #         val_images = utils.crop_roi(
-                #             val_images, size=(224, 224))
-                #         if NORMALIZE:
-                #             val_images = (val_images - resnet_mean.view(3, 1, 1)) / \
-                #                 resnet_std.view(3, 1, 1)
                 val_images = val_images.to(torch.float32)
                 val_images = val_images.to(device)
                 val_labels = val_labels.to(device)

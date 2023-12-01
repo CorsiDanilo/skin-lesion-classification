@@ -80,7 +80,6 @@ def crop_roi(images: torch.Tensor, size: Tuple[int, int]) -> torch.Tensor:
         if len(contours) == 0:
             cropped_images.append(torch.from_numpy(
                 image_array).permute(2, 0, 1))
-            print("No contours found")
             continue
 
         # Find the contour with the maximum area (assuming it corresponds to the item)

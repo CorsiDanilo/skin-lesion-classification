@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 from tqdm import tqdm
 
-from utilities import zoom_out
+from utils.utils import zoom_out
 
 # TODO: try to zoom out the segmentation and the image before cropping, in order to always have a square bounding box
 

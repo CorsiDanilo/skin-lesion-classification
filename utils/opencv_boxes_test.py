@@ -9,7 +9,7 @@ import os
 from detection_dataloaders import create_dataloaders
 from tqdm import tqdm
 
-from utilities import approximate_bounding_box_to_square, crop_image_from_box, get_bounding_boxes_from_segmentation, shift_boxes, zoom_out
+from utils.utils import approximate_bounding_box_to_square, crop_image_from_box, get_bounding_boxes_from_segmentation, shift_boxes, zoom_out
 import numpy as np
 import matplotlib.pyplot as plt
 

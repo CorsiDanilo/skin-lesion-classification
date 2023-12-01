@@ -14,7 +14,7 @@ import math
 
 from config import DATASET_TEST_DIR, DATASET_TRAIN_DIR, METADATA_TEST_DIR, METADATA_NO_DUPLICATES_DIR, SEGMENTATION_DIR, BATCH_SIZE, SEGMENTATION_WITH_BOUNDING_BOX_DIR, SEGMENTATION_BOUNDING_BOX, BALANCE_UNDERSAMPLING
 from opencv_boxes_test import bounding_box_pipeline
-from utilities import crop_roi, zoom_out
+from utilities import crop_image_from_box, crop_roi, get_bounding_boxes_from_segmentation, zoom_out
 
 
 class ImageDataset(Dataset):
@@ -143,13 +143,18 @@ class ImageDataset(Dataset):
         ti, ts = TF.to_tensor(ti), TF.to_tensor(ts)
         ti = zoom_out(ti)
         if self.balance_data and img["augmented"]:
+            # TODO: verify that the box is squared and doesn't go out of borders for the augmented images
             pil_image = TF.to_pil_image(ti)
             image = self.transform(pil_image)
-            image = image * ts
+            # image = image * ts
         else:
-            image = ti * ts
-        image = crop_roi(image, self.resize_dims)
-        image = image.squeeze(0)
+            image = ti
+        bbox = get_bounding_boxes_from_segmentation(ts)[0]
+        image = crop_image_from_box(image, bbox)
+        image = torch.from_numpy(image).permute(2, 0, 1)
+        # image = ti * ts
+        # image = crop_roi(image, self.resize_dims)
+        # image = image.squeeze(0)
         return image, label
 
     def load_images_and_labels(self):
