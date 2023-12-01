@@ -6,6 +6,8 @@ import torch
 import torchvision
 import cv2
 from PIL import Image
+from tqdm import tqdm
+import dataloaders
 
 
 def plot_image_grid(inp: torch.Tensor, title=None):
@@ -118,6 +120,20 @@ def zoom_out(image: torch.Tensor or np.ndarray, size=(700, 700)) -> torch.Tensor
     return new_image
 
 
+def get_mean_area_from_segmentations() -> float:
+    tr_loader, val_loader, te_loader = dataloaders.create_dataloaders(
+        normalize=False, batch_size=32, dynamic_load=True)
+    for images, _, segmentations in tqdm(tr_loader, desc="Calculating mean area"):
+        areas = []
+        for segmentation in segmentations:
+            bbox = get_bounding_boxes_from_segmentation(segmentation)[0]
+            area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
+            areas.append(area)
+    mean_area = sum(areas) / len(areas)
+    print(f"Mean area is {mean_area}")
+    return mean_area
+
+
 def get_bounding_boxes_from_segmentation(segmentation: torch.Tensor) -> torch.Tensor:
     segmentation_channel = segmentation.squeeze(0)
     # Find the indices of the white pixels
@@ -134,6 +150,7 @@ def get_bounding_boxes_from_segmentation(segmentation: torch.Tensor) -> torch.Te
 
 
 def approximate_bounding_box_to_square(box):
+    # TODO: copy the code from crop_roi to approximate in the same way the ROI
     # Calculate the width and height of the box
     MAX_WIDTH = 700
     MAX_HEIGHT = 700
@@ -174,3 +191,7 @@ def crop_image_from_box(image, box):
     cropped_image = cropped_image.permute(1, 2, 0).numpy()
     resized_image = cv2.resize(cropped_image, (224, 224))
     return resized_image
+
+
+if __name__ == "__main__":
+    get_mean_area_from_segmentations()

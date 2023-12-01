@@ -7,7 +7,7 @@ DATASET_TEST_DIR = os.path.join(DATA_DIR, "HAM10000_images_test")
 SEGMENTATION_DIR = os.path.join(
     DATA_DIR, 'HAM10000_segmentations_lesion_tschandl')
 SEGMENTATION_WITH_BOUNDING_BOX_DIR = os.path.join(
-    DATA_DIR, 'HAM10000_segmentations_lesion_tschandl_with_bounding_box_700_700')
+    DATA_DIR, 'HAM10000_segmentations_lesion_tschandl_with_bounding_box_450_600')
 METADATA_TRAIN_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_train.csv')
 METADATA_NO_DUPLICATES_DIR = os.path.join(
     DATA_DIR, 'HAM10000_metadata_train_no_duplicates.csv')

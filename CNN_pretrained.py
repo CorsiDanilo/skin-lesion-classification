@@ -48,7 +48,8 @@ if USE_WANDB:
             "resumed": RESUME,
             "from_epoch": FROM_EPOCH,
             "segmentation_bounding_box": SEGMENTATION_BOUNDING_BOX,
-            "balance_undersampling": BALANCE_UNDERSAMPLING
+            "balance_undersampling": BALANCE_UNDERSAMPLING,
+            "initialization": "default"
         },
         resume=RESUME,
     )

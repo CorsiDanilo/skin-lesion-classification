@@ -30,7 +30,7 @@ class ResNet24Pretrained(nn.Module):
         params = sum([np.prod(p.size()) for p in model_parameters])
         print(f'Model has {params} trainable params.')
 
-        self.initialize_weights()  # TODO: test this with balance_data = 1
+        # self.initialize_weights()  # TODO: test this with balance_data = 1
 
     def forward(self, x):
         return self.model(x)
