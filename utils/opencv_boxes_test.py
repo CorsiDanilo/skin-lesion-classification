@@ -6,7 +6,7 @@ import numpy as np
 import random
 import os
 
-from detection_dataloaders import create_dataloaders
+from dataloaders.detection_dataloaders import create_dataloaders
 from tqdm import tqdm
 
 from utils.utils import approximate_bounding_box_to_square, crop_image_from_box, get_bounding_boxes_from_segmentation, shift_boxes, zoom_out

@@ -13,8 +13,15 @@ import random
 import math
 
 from config import DATASET_TEST_DIR, DATASET_TRAIN_DIR, METADATA_TEST_DIR, METADATA_NO_DUPLICATES_DIR, SEGMENTATION_DIR, BATCH_SIZE, SEGMENTATION_WITH_BOUNDING_BOX_DIR, SEGMENTATION_BOUNDING_BOX, BALANCE_UNDERSAMPLING
-from opencv_boxes_test import bounding_box_pipeline
-from utilities import crop_image_from_box, crop_roi, get_bounding_boxes_from_segmentation, zoom_out
+from utils.opencv_boxes_test import bounding_box_pipeline
+from utils.utils import crop_image_from_box, crop_roi, get_bounding_boxes_from_segmentation, zoom_out
+
+"""
+This dataloader uses a dynamic segmentation technique on the validation set in order to produce the segmented image given the image.
+On the training set it uses the ground truth segmentation already provided.
+
+Both the training and validation set images that are output of the dataloader are already normalized and segmented, so no further operation are needed.
+"""
 
 
 class ImageDataset(Dataset):

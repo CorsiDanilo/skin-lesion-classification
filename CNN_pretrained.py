@@ -9,7 +9,6 @@ from models.ResNet24Pretrained import ResNet24Pretrained
 from models.DenseNetPretrained import DenseNetPretrained
 from models.InceptionV3Pretrained import InceptionV3Pretrained
 
-# TODO:  Segmentation dataloaders segment the image using only the ground truth, no dynamic segmentation is done!
 from dataloaders.segmentation_dataloaders import create_dataloaders
 from tqdm import tqdm
 
@@ -91,7 +90,7 @@ def create_loaders():
         normalize=NORMALIZE,
         limit=DATASET_LIMIT,
         size=(224, 224),
-        dynamic_load=False)
+        dynamic_load=True)
     return train_loader, val_loader, test_loader
 
 

@@ -14,6 +14,13 @@ import math
 
 from config import DATASET_TEST_DIR, DATASET_TRAIN_DIR, METADATA_TEST_DIR, METADATA_NO_DUPLICATES_DIR, SEGMENTATION_DIR, BATCH_SIZE, SEGMENTATION_WITH_BOUNDING_BOX_DIR, SEGMENTATION_BOUNDING_BOX
 
+"""
+This is the first dataloader implementation, which loads the images and the segmentations separately, and performs the same 
+transformations to both of them.
+
+The images that are output of the dataloader are normalized but not segmented, since the segmentation is output separately.
+"""
+
 
 class ImageDataset(Dataset):
     def __init__(self,

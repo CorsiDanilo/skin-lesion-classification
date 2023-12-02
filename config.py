@@ -32,4 +32,4 @@ DROPOUT_P = 0.3
 NORMALIZE = True
 # If true, the segmentation is approximated by a squared bounding box.
 SEGMENTATION_BOUNDING_BOX = True
-BALANCE_UNDERSAMPLING = 0.5
+BALANCE_UNDERSAMPLING = 1

@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from sklearn.metrics import recall_score, accuracy_score
 
-from utilities import get_bounding_boxes_from_segmentation
+from utils.utils import get_bounding_boxes_from_segmentation
 
 USE_WANDB = False
 # Configurations
