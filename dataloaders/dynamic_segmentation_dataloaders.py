@@ -1,3 +1,4 @@
+import enum
 from typing import Optional, Tuple
 import pandas as pd
 import torch
@@ -13,8 +14,16 @@ import random
 import math
 
 from config import DATASET_TEST_DIR, DATASET_TRAIN_DIR, METADATA_TEST_DIR, METADATA_NO_DUPLICATES_DIR, SEGMENTATION_DIR, BATCH_SIZE, SEGMENTATION_WITH_BOUNDING_BOX_DIR, SEGMENTATION_BOUNDING_BOX, BALANCE_UNDERSAMPLING
-from utils.opencv_boxes_test import bounding_box_pipeline
+from utils.opencv_segmentation import bounding_box_pipeline
 from utils.utils import crop_image_from_box, crop_roi, get_bounding_boxes_from_segmentation, zoom_out
+
+
+class DynamicSegmentationStrategy(enum):
+    OPENCV = "opencv"
+    SAM = "sam"
+
+
+DYNAMIC_SEGMENTATION_STRATEGY = DynamicSegmentationStrategy.OPENCV
 
 """
 This dataloader uses a dynamic segmentation technique on the validation set in order to produce the segmented image given the image.
@@ -141,8 +150,12 @@ class ImageDataset(Dataset):
         if not self.train:
             image = Image.open(img['image_path'])
             image = TF.to_tensor(image)
-            segmented_image = bounding_box_pipeline(
-                image.unsqueeze(0)).squeeze(0)
+            if DYNAMIC_SEGMENTATION_STRATEGY == DynamicSegmentationStrategy.OPENCV:
+                segmented_image = bounding_box_pipeline(
+                    image.unsqueeze(0)).squeeze(0)
+            else:
+                raise NotImplementedError(
+                    f"Dynamic segmentation strategy {DYNAMIC_SEGMENTATION_STRATEGY} not implemented")
             return segmented_image, label
         # Augment the data if balance_data is true and load segmentations
         ti, ts = Image.open(img['image_path']), Image.open(
@@ -159,9 +172,6 @@ class ImageDataset(Dataset):
         bbox = get_bounding_boxes_from_segmentation(ts)[0]
         image = crop_image_from_box(image, bbox)
         image = torch.from_numpy(image).permute(2, 0, 1)
-        # image = ti * ts
-        # image = crop_roi(image, self.resize_dims)
-        # image = image.squeeze(0)
         return image, label
 
     def load_images_and_labels(self):

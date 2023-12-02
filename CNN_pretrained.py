@@ -1,3 +1,6 @@
+from sklearn.metrics import recall_score, accuracy_score
+from tqdm import tqdm
+import enum
 import torch
 import torch.nn as nn
 import numpy as np
@@ -9,10 +12,23 @@ from models.ResNet24Pretrained import ResNet24Pretrained
 from models.DenseNetPretrained import DenseNetPretrained
 from models.InceptionV3Pretrained import InceptionV3Pretrained
 
-from dataloaders.segmentation_dataloaders import create_dataloaders
-from tqdm import tqdm
 
-from sklearn.metrics import recall_score, accuracy_score
+class SegmentationStrategy(enum):
+    DYNAMIC_SEGMENTATION = "dynamic_segmentation"
+    SEGMENTATION_BOUNDING_BOX = "segmentation_bounding_box"
+    SEGMENTATION = "segmentation"
+    NO_SEGMENTATION = "no_segmentation"
+
+
+SEGMENTATION_STRATEGY = SegmentationStrategy.SEGMENTATION
+
+if SEGMENTATION_STRATEGY == SegmentationStrategy.DYNAMIC_SEGMENTATION:
+    from dataloaders.dynamic_segmentation_dataloaders import create_dataloaders
+elif SEGMENTATION_STRATEGY == SegmentationStrategy.SEGMENTATION:
+    from dataloaders.segmentation_dataloaders import create_dataloaders
+else:
+    raise NotImplementedError(
+        f"Segmentation strategy {SEGMENTATION_STRATEGY} not implemented")
 
 # Device configuration
 # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -50,7 +66,7 @@ if USE_WANDB:
             "segmentation_bounding_box": SEGMENTATION_BOUNDING_BOX,
             "balance_undersampling": BALANCE_UNDERSAMPLING,
             "initialization": "default",
-            "dynamic_segmentation": False,
+            'segmentation_strategy': SEGMENTATION_STRATEGY,
         },
         resume=RESUME,
     )
@@ -90,7 +106,7 @@ def create_loaders():
         normalize=NORMALIZE,
         limit=DATASET_LIMIT,
         size=(224, 224),
-        dynamic_load=True)
+        dynamic_load=False)
     return train_loader, val_loader, test_loader
 
 
