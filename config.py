@@ -15,7 +15,7 @@ METADATA_TEST_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_test.csv')
 
 BATCH_SIZE = 128
 
-USE_WANDB = True
+USE_WANDB = False
 # Configurations
 INPUT_SIZE = 3
 NUM_CLASSES = 7

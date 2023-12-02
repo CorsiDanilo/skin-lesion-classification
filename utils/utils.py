@@ -7,7 +7,9 @@ import torchvision
 import cv2
 from PIL import Image
 from tqdm import tqdm
-import dataloaders
+import os
+import pandas as pd
+from torchvision import transforms
 
 
 def plot_image_grid(inp: torch.Tensor, title=None):
@@ -119,20 +121,6 @@ def zoom_out(image: torch.Tensor or np.ndarray, size=(700, 700)) -> torch.Tensor
     return new_image
 
 
-def get_mean_area_from_segmentations() -> float:
-    tr_loader, val_loader, te_loader = dataloaders.create_dataloaders(
-        normalize=False, batch_size=32, dynamic_load=True)
-    for images, _, segmentations in tqdm(tr_loader, desc="Calculating mean area"):
-        areas = []
-        for segmentation in segmentations:
-            bbox = get_bounding_boxes_from_segmentation(segmentation)[0]
-            area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
-            areas.append(area)
-    mean_area = sum(areas) / len(areas)
-    print(f"Mean area is {mean_area}")
-    return mean_area
-
-
 def get_bounding_boxes_from_segmentation(segmentation: torch.Tensor) -> torch.Tensor:
     segmentation_channel = segmentation.squeeze(0)
     # Find the indices of the white pixels
@@ -192,5 +180,23 @@ def crop_image_from_box(image, box):
     return resized_image
 
 
-if __name__ == "__main__":
-    get_mean_area_from_segmentations()
+def calculate_normalization_statistics(df: pd.DataFrame) -> Tuple[torch.Tensor, torch.Tensor]:
+    images_for_normalization = []
+
+    for _, img in tqdm(df[:100].iterrows(), desc=f'Calculating normalization statistics'):
+        if not os.path.exists(img['image_path']):
+            continue
+        image = transforms.ToTensor()(Image.open(img['image_path']))
+        images_for_normalization.append(image)
+
+    images_for_normalization = torch.stack(images_for_normalization)
+    mean = torch.tensor([torch.mean(images_for_normalization[:, channel, :, :])
+                        for channel in range(3)]).reshape(3, 1, 1)
+    std = torch.tensor([torch.std(images_for_normalization[:, channel, :, :])
+                       for channel in range(3)]).reshape(3, 1, 1)
+
+    print("---Normalization--- Normalization flag set to True: Images will be normalized with z-score normalization")
+    print(
+        f"---Normalization--- Statistics for normalization (per channel) -> Mean: {mean.view(-1)}, Variance: {std.view(-1)}, Epsilon (adjustment value): 0.01")
+
+    return mean, std

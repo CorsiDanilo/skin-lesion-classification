@@ -1,125 +1,11 @@
 import cv2
 from typing import Dict, List
 import torch
-import torch.nn as nn
 import numpy as np
-import random
-import os
-
-from dataloaders.detection_dataloaders import create_dataloaders
-from tqdm import tqdm
 
 from utils.utils import approximate_bounding_box_to_square, crop_image_from_box, get_bounding_boxes_from_segmentation, shift_boxes, zoom_out
 import numpy as np
 import matplotlib.pyplot as plt
-
-# Configurations
-DATASET_LIMIT = None
-NORMALIZE = False
-BALANCE_UNDERSAMPLING = 1
-BATCH_SIZE = 128
-
-# Device configuration
-# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-device = torch.device("cpu")
-# print('Using device: %s' % device)
-
-
-RESUME = False
-FROM_EPOCH = 0
-
-
-def update_lr(optimizer, lr):
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-
-
-RANDOM_SEED = 42
-resnet_mean = torch.tensor([0.485, 0.456, 0.406])
-resnet_std = torch.tensor([0.229, 0.224, 0.225])
-
-
-def set_seed(seed):
-    np.random.seed(seed)
-    random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    # When running on the CuDNN backend, two further options must be set
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    # Set a fixed value for the hash seed
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    # print(f"Random seed set as {seed}")
-
-
-def create_loaders():
-    # Load the dataset
-    resnet_mean = torch.tensor([0.485, 0.456, 0.406])
-    resnet_std = torch.tensor([0.229, 0.224, 0.225])
-
-    train_loader, val_loader, test_loader = create_dataloaders(
-        mean=resnet_mean,
-        std=resnet_std,
-        normalize=NORMALIZE,
-        limit=DATASET_LIMIT,
-        batch_size=BATCH_SIZE,
-        dynamic_load=True)
-    return train_loader, val_loader, test_loader
-
-
-def save_model(model, model_name, epoch):
-    torch.save(model.state_dict(), f"{model_name}_{epoch}.pt")
-
-
-def test_boxes():
-    train_loader, _, _ = create_loaders()
-    for tr_i, (tr_images, tr_labels, tr_segmentations) in enumerate(tqdm(train_loader, desc="Training", leave=False)):
-        tr_images = tr_images.to(torch.float32)
-        tr_images = tr_images.to(device)
-        # tr_images = torch.stack([zoom_out(img)
-        # for img in tr_images], dim=0)
-        # print(f"Tr_images shape is {tr_images.shape}")
-        tr_outputs = get_boxes(tr_images)
-        squared_boxes = []
-        for boxes in tr_outputs:
-            squared_boxes.append([approximate_bounding_box_to_square(
-                box) for box in boxes])
-        tr_outputs = select_best_box(squared_boxes)
-        gt_boxes = []
-        for segmentation in tr_segmentations:
-            gt_boxes.append(get_bounding_boxes_from_segmentation(
-                segmentation)[0])
-        # gt_boxes = shift_boxes(gt_boxes, w_shift=600 - 700, h_shift=450 - 700)
-        # plot_images_with_gt_and_pred(tr_images, gt_boxes, tr_outputs)
-
-        def calculate_iou(box1, box2):
-            x1, y1, w1, h1 = box1
-            x2, y2, w2, h2 = box2
-
-            # Calculate the (x, y)-coordinates of the intersection rectangle
-            xA = max(x1, x2)
-            yA = max(y1, y2)
-            xB = min(x1 + w1, x2 + w2)
-            yB = min(y1 + h1, y2 + h2)
-
-            # Compute the area of intersection rectangle
-            interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
-
-            # Compute the area of both the prediction and ground-truth rectangles
-            box1Area = w1 * h1
-            box2Area = w2 * h2
-
-            # Compute the intersection over union by taking the intersection area and dividing it by the sum of prediction + ground-truth areas - the intersection area
-            iou = interArea / float(box1Area + box2Area - interArea)
-
-            return iou
-
-        ious = []
-        for box, gt_box in tqdm(zip(tr_outputs, gt_boxes), desc="Calculating IoU between gt and preds"):
-            ious.append(calculate_iou(box, gt_box))
-        print(f"Mean IoU is {sum(ious) / len(ious)}")
-        if sum(ious) / len(ious) < 0.77:
-            plot_images_with_gt_and_pred(tr_images, gt_boxes, tr_outputs)
 
 
 def bounding_box_pipeline(images):
@@ -143,16 +29,16 @@ def bounding_box_pipeline(images):
     return cropped_images
 
 
-def parse_target(segmentation: torch.Tensor) -> Dict[torch.Tensor, torch.Tensor]:
-    target = {}
-    # Replace with your function to get the bounding boxes
-    target['boxes'] = get_bounding_boxes_from_segmentation(segmentation)
-    # Replace with your function to get the labels
-    target['labels'] = [0 for _ in range(len(target['boxes']))]
-    target["boxes"] = target["boxes"].to(device)
-    target["labels"] = torch.tensor(
-        target["labels"]).to(torch.int64).to(device)
-    return target
+# def parse_target(segmentation: torch.Tensor) -> Dict[torch.Tensor, torch.Tensor]:
+#     target = {}
+#     # Replace with your function to get the bounding boxes
+#     target['boxes'] = get_bounding_boxes_from_segmentation(segmentation)
+#     # Replace with your function to get the labels
+#     target['labels'] = [0 for _ in range(len(target['boxes']))]
+#     target["boxes"] = target["boxes"].to(device)
+#     target["labels"] = torch.tensor(
+#         target["labels"]).to(torch.int64).to(device)
+#     return target
 
 
 def get_boxes(batched_images):
@@ -372,30 +258,21 @@ def select_best_box(bounding_boxes, image_shape=(600, 450)):
     return closest_boxes
 
 
-def get_bbox_closer_to_mean_area(bounding_boxes):
-    MEAN_AREA = 119005
-    closest_boxes = []
-    for boxes in bounding_boxes:
-        # Calculate the area of each bounding box
-        areas = [abs((box[0] - box[2]) * (box[3] - box[1]))
-                 for box in boxes]
+# def get_bbox_closer_to_mean_area(bounding_boxes):
+#     MEAN_AREA = 119005
+#     closest_boxes = []
+#     for boxes in bounding_boxes:
+#         # Calculate the area of each bounding box
+#         areas = [abs((box[0] - box[2]) * (box[3] - box[1]))
+#                  for box in boxes]
 
-        # Find the index of the bounding box with the largest area
-        closest_index = np.argmin([abs(area - MEAN_AREA) for area in areas])
+#         # Find the index of the bounding box with the largest area
+#         closest_index = np.argmin([abs(area - MEAN_AREA) for area in areas])
 
-        # print(f"areas are {areas}")
-        # print(f"Largest indexes are {largest_index}")
+#         # print(f"areas are {areas}")
+#         # print(f"Largest indexes are {largest_index}")
 
-        # Return the largest bounding box
-        closest_box = boxes[closest_index]
-        closest_boxes.append(closest_box)
-    return closest_boxes
-
-
-def main():
-    set_seed(RANDOM_SEED)
-    test_boxes()
-
-
-if __name__ == "__main__":
-    main()
+#         # Return the largest bounding box
+#         closest_box = boxes[closest_index]
+#         closest_boxes.append(closest_box)
+#     return closest_boxes

@@ -3,3 +3,4 @@
 -   [ ] Test with 700 x 700 bbox segmentation, applying zoom out to the zi and to zs (zs_bbox is the only one that is already 700 x 700), and compare the results with the previous point, where you used the 450 x 600 zs_bbox.
 -   [ ] Fine tune SAM
 -   [ ] Get the segmentation mask dynamically with SAM
+-   [] Handle the normalization before or after the image loading with the different dataloaders
