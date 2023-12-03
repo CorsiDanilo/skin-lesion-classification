@@ -1,4 +1,5 @@
 import random
+from config import BATCH_SIZE, NORMALIZE
 from dataloaders.DataLoader import DataLoader
 from typing import Optional
 import torch
@@ -15,11 +16,25 @@ from utils.utils import crop_image_from_box, get_bounding_boxes_from_segmentatio
 
 
 class SegmentedImagesDataLoader(DataLoader):
+    """
+    This class is used to load the images and create the dataloaders.
+    The dataloder will output a tuple of (images, labels).
+    The images are already segmented.
+    """
+
     def __init__(self,
                  limit: Optional[int] = None,
                  transform: Optional[transforms.Compose] = None,
-                 dynamic_load: bool = False):
-        super().__init__(limit, transform, dynamic_load)
+                 dynamic_load: bool = False,
+                 upscale_train: bool = True,
+                 normalize: bool = NORMALIZE,
+                 batch_size: int = BATCH_SIZE):
+        super().__init__(limit=limit,
+                         transform=transform,
+                         dynamic_load=dynamic_load,
+                         upscale_train=upscale_train,
+                         normalize=normalize,
+                         batch_size=batch_size)
         print(f"Dynamic Load for Segmentation Dataloader: {self.dynamic_load}")
 
     def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int, transform: transforms.Compose = None):

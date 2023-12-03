@@ -2,9 +2,10 @@
 data/*
 checkpoints/*
 !checkpoints/.gitkeep
-!data/.gitkeep
 __pycache__/
 wandb
 *_ignore.*
 vast
 boxes_outputs
+plots/**
+!**.gitkeep

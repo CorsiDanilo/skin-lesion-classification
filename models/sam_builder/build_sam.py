@@ -4,6 +4,7 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
+# Source of this module: https://github.com/ByungKwanLee/Full-Segment-Anything
 import torch
 
 from functools import partial

@@ -11,6 +11,10 @@ import math
 
 
 class HAM10K(CustomDataset):
+    """
+    Class that defines the HAM10K dataset for the project.
+    """
+
     def __init__(self,
                  metadata: pd.DataFrame,
                  load_data_fn: Callable,

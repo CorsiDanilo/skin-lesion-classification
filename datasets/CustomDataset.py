@@ -1,13 +1,16 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Callable, Optional, Tuple
 import pandas as pd
 from torch.utils.data import Dataset
 from config import BALANCE_UNDERSAMPLING
 import torch
-from torchvision import transforms
 
 
 class CustomDataset(Dataset, ABC):
+    """
+    Abstract Class that defines the custom dataset for the project.
+    """
+
     def __init__(
             self,
             metadata: pd.DataFrame,
@@ -63,7 +66,7 @@ class CustomDataset(Dataset, ABC):
             else:
                 raise ValueError(
                     "load_data_fn must return a tuple of length 2 or 3.")
-            if "segmentation" in locals():
+            if self.normalize:
                 image = (image - self.mean) / self.std
             if "segmentation" in locals():
                 return image, label, segmentation

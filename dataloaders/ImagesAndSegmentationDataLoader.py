@@ -10,6 +10,7 @@ from tqdm import tqdm
 from torchvision import transforms
 import pandas as pd
 import torchvision.transforms.functional as TF
+from config import BATCH_SIZE, NORMALIZE
 
 
 class ImagesAndSegmentationDataLoader(DataLoader):
@@ -23,8 +24,16 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                  limit: Optional[int] = None,
                  transform: Optional[transforms.Compose] = None,
                  dynamic_load: bool = False,
-                 resize_dim: Optional[Tuple[int, int]] = (None, None)):
-        super().__init__(limit, transform, dynamic_load)
+                 resize_dim: Optional[Tuple[int, int]] = (None, None),
+                 upscale_train: bool = True,
+                 normalize: bool = NORMALIZE,
+                 batch_size: int = BATCH_SIZE):
+        super().__init__(limit=limit,
+                         transform=transform,
+                         dynamic_load=dynamic_load,
+                         upscale_train=upscale_train,
+                         normalize=normalize,
+                         batch_size=batch_size)
         self.stateful_transform = StatefulTransform(
             height=resize_dim[0], width=resize_dim[1])
 
@@ -32,13 +41,18 @@ class ImagesAndSegmentationDataLoader(DataLoader):
         img = metadata.iloc[idx]
         load_segmentations = "segmentation_path" in img
         label = img['label']
+        image = Image.open(img['image_path'])
         if load_segmentations:
             segmentation = Image.open(img['segmentation_path']).convert('1')
-            image = Image.open(img['image_path'])
-            image, segmentation = self.stateful_transform(image, segmentation)
+            if img["augmented"]:
+                image, segmentation = self.stateful_transform(
+                    image, segmentation)
+            else:
+                image = self.transform(image)
+                segmentation = self.transform(segmentation)
         # Only load images
         else:
-            image = self.transform(Image.open(img['image_path']))
+            image = self.transform(image)
         if load_segmentations:
             return image, label, segmentation
         return image, label

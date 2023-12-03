@@ -3,11 +3,12 @@ from .sam_builder.build_sam import sam_model_registry
 
 
 class SAM(nn.Module):
-    def __init__(self):
+    def __init__(self, img_size=64):
         super(SAM, self).__init__()
         # NOTE: checkpoint available at https://huggingface.co/ybelkada/segment-anything/tree/main/checkpoints
+        self.img_size = img_size
         self.model = sam_model_registry['vit_b'](
-            checkpoint='checkpoints/sam_vit_b_01ec64.pth', custom_img_size=64)
+            checkpoint='checkpoints/sam_vit_b_01ec64.pth', custom_img_size=img_size)
 
         # for param in self.model.parameters():
         #     param.requires_grad = False
@@ -17,6 +18,9 @@ class SAM(nn.Module):
 
     def forward(self, inputs):
         return self.model(inputs)
+
+    def get_img_size(self):
+        return self.img_size
 
     def initialize_weights(self):
         for m in self.modules():

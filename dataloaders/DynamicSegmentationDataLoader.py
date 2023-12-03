@@ -1,4 +1,5 @@
 from enum import Enum
+from config import BATCH_SIZE, NORMALIZE
 from dataloaders.DataLoader import DataLoader
 from typing import Optional
 import torch
@@ -31,8 +32,16 @@ class DynamicSegmentationDataLoader(DataLoader):
                  transform: Optional[transforms.Compose] = None,
                  dynamic_load: bool = False,
                  train: bool = True,
-                 segmentation_strategy: DynamicSegmentationStrategy = DynamicSegmentationStrategy.OPENCV):
-        super().__init__(limit, transform, dynamic_load)
+                 upscale_train: bool = True,
+                 segmentation_strategy: DynamicSegmentationStrategy = DynamicSegmentationStrategy.OPENCV,
+                 normalize: bool = NORMALIZE,
+                 batch_size: int = BATCH_SIZE):
+        super().__init__(limit=limit,
+                         transform=transform,
+                         dynamic_load=dynamic_load,
+                         upscale_train=upscale_train,
+                         normalize=normalize,
+                         batch_size=batch_size)
         self.train = train
         self.segmentation_strategy = segmentation_strategy
         self.segmentation_transform = transforms.Compose([
