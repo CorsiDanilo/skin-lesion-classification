@@ -6,3 +6,5 @@ tqdm
 wandb
 opencv-python
 matplotlib
+monai
+transformers

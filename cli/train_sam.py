@@ -2,6 +2,8 @@ from argparse import ArgumentParser
 import config
 import wandb
 
+# TODO: just a test, this doesn't work
+
 
 def main():
     parser = ArgumentParser()
