@@ -16,13 +16,13 @@ import monai
 
 # Configurations
 USE_WANDB = True
-N_EPOCHS = 100
-LR = 0.001
+N_EPOCHS = 10
+LR = 1e-5
 LR_DECAY = 0.85
 ARCHITECHTURE = "SAM"
 DATASET_LIMIT = None
-NORMALIZE = False
-BATCH_SIZE = 256
+NORMALIZE = False  # NOTE: the normalization is done by SAM
+BATCH_SIZE = 2
 MOMENTUM = 0.9
 
 # Device configuration
@@ -85,9 +85,8 @@ def train_eval_loop():
         upscale_train=False,
         batch_size=BATCH_SIZE)
     train_loader, val_loader = dataloader.get_train_val_dataloders()
-    model = get_model()
+    model = get_model().to(device)
     img_size = (model.get_img_size(), model.get_img_size())
-    model = (model.model).to(device)
 
     def intersection_over_union(pred, target):
         intersection = (pred * target).sum((1, 2))
@@ -103,12 +102,14 @@ def train_eval_loop():
     loss_function = monai.losses.DiceCELoss(
         sigmoid=True, squared_pred=True, reduction='mean')
 
+    # optimizer = torch.optim.Adam(
+    # [*model.model.mask_decoder.parameters(), *model.model.vision_encoder.parameters()], lr=LR)
     optimizer = torch.optim.Adam(
-        model.mask_decoder.parameters(), lr=LR, weight_decay=0)
+        model.model.mask_decoder.parameters(), lr=LR)
 
     best_eval_accuracy = -torch.inf
     for epoch in range(FROM_EPOCH if RESUME else 0, N_EPOCHS):
-        model.train()
+        model.model.train()
         pbar = tqdm(enumerate(train_loader), total=len(
             train_loader), desc=f"TRAINING | Epoch {epoch}")
         for tr_i, (tr_images, _, tr_segmentation) in enumerate(train_loader):
@@ -125,7 +126,6 @@ def train_eval_loop():
             def take_points_from_segmentations(segmentations):
                 import matplotlib.pyplot as plt
                 segmentations = segmentations.squeeze()
-                print(f"Segmentations shape is {segmentations.shape}")
                 points = []
                 labels = []
 
@@ -164,15 +164,10 @@ def train_eval_loop():
                 points = torch.stack(points).squeeze()
                 labels = torch.stack(labels)
 
-                # print(f"Points shape is {points.shape}")
-                # print(f"Labels shape is {labels.shape}")
-
-                # print(f"Points and labels are {points} and {labels}")
-
                 return points, labels
 
             with torch.no_grad():
-                tr_images = tr_images.to(torch.float32)
+                # tr_images = tr_images.to(torch.float32)
                 tr_images = resize_images(tr_images, new_size=img_size)
                 tr_segmentation = resize_segmentations(
                     tr_segmentation, new_size=(img_size))
@@ -184,38 +179,15 @@ def train_eval_loop():
                     box)[0] for box in tr_segmentation]).to(device)
 
                 tr_segmentation = normalize(threshold(
-                    tr_segmentation, 0.8, 0)).to(device)
+                    tr_segmentation, 0.0, 0)).to(device)
 
                 # points = take_points_from_segmentations(tr_segmentation)
                 # masks = tr_segmentation
-                points = None
-                masks = None
 
-                image_embedding = model.image_encoder(tr_images)
-                sparse_embeddings, dense_embeddings = model.prompt_encoder(
-                    points=points,
-                    boxes=box_torch,
-                    masks=masks,
-                )
-
-            low_res_masks, iou_predictions = model.mask_decoder(
-                image_embeddings=image_embedding,
-                image_pe=model.prompt_encoder.get_dense_pe(),
-                sparse_prompt_embeddings=sparse_embeddings,
-                dense_prompt_embeddings=dense_embeddings,
-                multimask_output=False,
-            )
-            # print(f"Low res masks shape is {low_res_masks.shape}")
-            # NOTE: this upscaling gives a strange gradient-like image, that's why I'm using the F.interpolate
-            # upscaled_masks = model.postprocess_masks(low_res_masks, (32, 32), img_size).to(device)
-            upscaled_masks = F.interpolate(
-                low_res_masks, scale_factor=4, mode='bicubic', align_corners=False)
-
-            # print(f"Upscaled masks shape is {upscaled_masks.shape}")
-            # print(f"Tr segmentation shape is {tr_segmentation.shape}")
+            upscaled_masks = model(tr_images, box_torch)
 
             binary_mask = normalize(
-                threshold(upscaled_masks, 0.8, 0)).to(device)
+                threshold(upscaled_masks, 0.0, 0)).to(device)
 
             assert binary_mask.shape == tr_segmentation.shape
 
@@ -241,7 +213,7 @@ def train_eval_loop():
         pbar.close()
         plot_segmentations_batch(
             epoch=epoch, tr_i=tr_i, pred_mask=binary_mask, gt_mask=tr_segmentation, name="binary_mask_vs_tr_segmentation")
-        # Evaluation
+        # Evaluation (ignored for now)
         continue
         model.eval()
         loss_sum = 0
@@ -305,8 +277,7 @@ def train_eval_loop():
 
 
 def get_model():
-    img_size = 64
-    model = SAM(img_size=img_size).to(device)
+    model = SAM().to(device)
 
     if RESUME:
         model.load_state_dict(torch.load(
