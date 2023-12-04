@@ -9,3 +9,4 @@ vast
 boxes_outputs
 plots/**
 !**.gitkeep
+results/

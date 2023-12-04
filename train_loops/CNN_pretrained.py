@@ -7,7 +7,8 @@ import random
 import os
 import wandb
 from enum import Enum
-from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, INPUT_SIZE, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, SEGMENT, CROP_ROI, ARCHITECHTURE, DATASET_LIMIT, DROPOUT_P, NORMALIZE, SEGMENTATION_BOUNDING_BOX, USE_WANDB
+from utils.utils import select_device, save_results, save_model
+from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, INPUT_SIZE, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, SEGMENT, CROP_ROI, ARCHITECTURE_CNN, DATASET_LIMIT, DROPOUT_P, NORMALIZE, SEGMENTATION_BOUNDING_BOX, USE_WANDB
 from dataloaders.DynamicSegmentationDataLoader import DynamicSegmentationDataLoader, DynamicSegmentationStrategy
 from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
 from dataloaders.SegmentedImagesDataLoader import SegmentedImagesDataLoader
@@ -46,9 +47,7 @@ else:
     raise NotImplementedError(
         f"Segmentation strategy {SEGMENTATION_STRATEGY} not implemented")
 
-# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-device = torch.device("mps")
-print('Using device: %s' % device)
+device = select_device()
 
 RESUME = False
 FROM_EPOCH = 0
@@ -64,7 +63,7 @@ if USE_WANDB:
         # track hyperparameters and run metadata
         config={
             "learning_rate": LR,
-            "architecture": ARCHITECHTURE,
+            "architecture": ARCHITECTURE_CNN,
             "epochs": N_EPOCHS,
             'reg': REG,
             'batch_size': BATCH_SIZE,
@@ -204,7 +203,7 @@ def train_eval_loop():
 
             # if val_accuracy > best_accuracy:
             #     best_accuracy = val_accuracy
-            #     save_model(model, ARCHITECHTURE, epoch)
+            #     save_model(model, ARCHITECTURE_CNN, epoch)
 
             val_accuracies.append(val_accuracy)
             if USE_WANDB:
@@ -223,20 +222,20 @@ def train_eval_loop():
 
 
 def get_model():
-    if ARCHITECHTURE == "resnet24":
+    if ARCHITECTURE_CNN == "resnet24":
         model = ResNet24Pretrained(
             INPUT_SIZE, HIDDEN_SIZE, NUM_CLASSES, norm_layer='BN').to(device)
-    elif ARCHITECHTURE == "densenet121":
+    elif ARCHITECTURE_CNN == "densenet121":
         model = DenseNetPretrained(
             INPUT_SIZE, HIDDEN_SIZE, NUM_CLASSES, norm_layer='BN').to(device)
-    elif ARCHITECHTURE == "inception_v3":
+    elif ARCHITECTURE_CNN == "inception_v3":
         model = InceptionV3Pretrained(NUM_CLASSES).to(device)
     else:
-        raise ValueError(f"Unknown architechture {ARCHITECHTURE}")
+        raise ValueError(f"Unknown architecture {ARCHITECTURE_CNN}")
 
     if RESUME:
         model.load_state_dict(torch.load(
-            f"{ARCHITECHTURE}_{FROM_EPOCH-1}.pt"))
+            f"{ARCHITECTURE_CNN}_{FROM_EPOCH-1}.pt"))
 
     for p in model.parameters():
         p.requires_grad = False
