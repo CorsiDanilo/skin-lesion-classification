@@ -6,4 +6,3 @@ tqdm
 wandb
 opencv-python
 matplotlib
-yolov5

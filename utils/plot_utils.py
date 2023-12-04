@@ -4,8 +4,8 @@ import os
 
 def plot_segmentations_single_sample(epoch, tr_i, pred_mask, gt_mask, name):
     # Convert tensors to numpy arrays
-    pred_mask = pred_mask.detach().numpy()
-    gt_mask = gt_mask.detach().numpy()
+    pred_mask = pred_mask.detach().cpu().numpy()
+    gt_mask = gt_mask.detach().cpu().numpy()
 
     # Plot the images side by side
     fig, axs = plt.subplots(1, 2, figsize=(10, 5))
@@ -26,8 +26,8 @@ def plot_segmentations_single_sample(epoch, tr_i, pred_mask, gt_mask, name):
 
 def plot_segmentations_batch(epoch, tr_i, pred_mask, gt_mask, name):
     # Convert tensors to numpy arrays
-    pred_mask = pred_mask.detach().numpy()
-    gt_mask = gt_mask.detach().numpy()
+    pred_mask = pred_mask.detach().cpu().numpy()
+    gt_mask = gt_mask.detach().cpu().numpy()
 
     # Get the batch size
     batch_size = pred_mask.shape[0]

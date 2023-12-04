@@ -10,9 +10,10 @@ class SAM(nn.Module):
         self.model = sam_model_registry['vit_b'](
             checkpoint='checkpoints/sam_vit_b_01ec64.pth', custom_img_size=img_size)
 
-        # for param in self.model.parameters():
-        #     param.requires_grad = False
-
+        for name, param in self.model.named_parameters():
+            # print(f"{name} requires grad: {param.requires_grad}")
+            if name.startswith("image_encoder") or name.startswith("prompt_encoder"):
+                param.requires_grad_(False)
         # in_features = self.model.roi_heads.box_predictor.cls_score.in_features
         # self.model.roi_heads.box_predictor = BoxOnlyPredictor(in_features)
 
@@ -22,13 +23,13 @@ class SAM(nn.Module):
     def get_img_size(self):
         return self.img_size
 
-    def initialize_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.kaiming_normal_(
-                    m.weight, mode='fan_out', nonlinearity='relu')
-                if m.bias:
-                    nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.BatchNorm1d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
+    # def initialize_weights(self):
+    #     for m in self.modules():
+    #         if isinstance(m, nn.Linear):
+    #             nn.init.kaiming_normal_(
+    #                 m.weight, mode='fan_out', nonlinearity='relu')
+    #             if m.bias:
+    #                 nn.init.constant_(m.bias, 0)
+    #         elif isinstance(m, nn.BatchNorm1d):
+    #             nn.init.constant_(m.weight, 1)
+    #             nn.init.constant_(m.bias, 0)

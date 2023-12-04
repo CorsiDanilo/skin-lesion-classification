@@ -1,6 +1,5 @@
 import cv2
 import torch
-import torch.nn as nn
 import numpy as np
 import random
 import os
@@ -8,23 +7,23 @@ import wandb
 from models.SAM import SAM
 from tqdm import tqdm
 from torch.nn.functional import threshold, normalize
-from sklearn.metrics import recall_score, accuracy_score
-from utils.plot_utils import plot_segmentations_batch, plot_segmentations_single_sample
+from utils.plot_utils import plot_segmentations_batch
 from utils.utils import get_bounding_boxes_from_segmentation
 from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
 import torch.nn.functional as F
+import torch.nn as nn
+import monai
 
 # Configurations
-USE_WANDB = False
+USE_WANDB = True
 N_EPOCHS = 100
-LR = 1e-3
+LR = 0.001
 LR_DECAY = 0.85
-REG = 0.01
-ARCHITECHTURE = "sam"
+ARCHITECHTURE = "SAM"
 DATASET_LIMIT = None
 NORMALIZE = False
-BALANCE_UNDERSAMPLING = 1
-BATCH_SIZE = 32
+BATCH_SIZE = 256
+MOMENTUM = 0.9
 
 # Device configuration
 # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -45,16 +44,16 @@ if USE_WANDB:
         config={
             "task": "segmentation",
             "learning_rate": LR,
+            "momentum": MOMENTUM,
             "architecture": ARCHITECHTURE,
             "epochs": N_EPOCHS,
-            'reg': REG,
             "dataset": "HAM10K",
-            "optimizer": "AdamW",
+            "optimizer": "Adam",
             "dataset_limit": DATASET_LIMIT,
             "normalize": NORMALIZE,
             "resumed": RESUME,
             "from_epoch": FROM_EPOCH,
-            "balance_undersampling": BALANCE_UNDERSAMPLING
+            "loss_type": "monai.DiceCELoss",
         },
         resume=RESUME,
     )
@@ -82,25 +81,30 @@ def save_model(model, model_name, epoch):
 def train_eval_loop():
     dataloader = ImagesAndSegmentationDataLoader(
         dynamic_load=True,
-        normalize=False,
+        normalize=NORMALIZE,
         upscale_train=False,
         batch_size=BATCH_SIZE)
     train_loader, val_loader = dataloader.get_train_val_dataloders()
     model = get_model()
     img_size = (model.get_img_size(), model.get_img_size())
-    model = model.model
+    model = (model.model).to(device)
 
-    def iou_loss(pred, target):
-        intersection = (pred * target).sum()
-        union = pred.sum() + target.sum() - intersection
+    def intersection_over_union(pred, target):
+        intersection = (pred * target).sum((1, 2))
+        union = pred.sum((1, 2)) + target.sum((1, 2)) - \
+            intersection
+
         iou = (intersection + 1e-6) / (union + 1e-6)
-        return 1 - iou
+        return iou.mean()
 
-    # loss_function = nn.MSELoss()
-    loss_function = iou_loss
-    # loss_function = nn.BCEWithLogitsLoss()
+    # def loss_function(pred, target):
+        # return 1 - intersection_over_union(pred, target)
+
+    loss_function = monai.losses.DiceCELoss(
+        sigmoid=True, squared_pred=True, reduction='mean')
+
     optimizer = torch.optim.Adam(
-        model.mask_decoder.parameters(), lr=LR, weight_decay=REG)
+        model.mask_decoder.parameters(), lr=LR, weight_decay=0)
 
     best_eval_accuracy = -torch.inf
     for epoch in range(FROM_EPOCH if RESUME else 0, N_EPOCHS):
@@ -108,7 +112,6 @@ def train_eval_loop():
         pbar = tqdm(enumerate(train_loader), total=len(
             train_loader), desc=f"TRAINING | Epoch {epoch}")
         for tr_i, (tr_images, _, tr_segmentation) in enumerate(train_loader):
-            tr_images = tr_images.to(torch.float32)
 
             # TODO: add these two functions to utils
             def resize_images(images, new_size=(800, 800)):
@@ -119,21 +122,82 @@ def train_eval_loop():
                 return torch.stack([torch.from_numpy(cv2.resize(
                     image.permute(1, 2, 0).numpy(), new_size)) for image in segmentation]).unsqueeze(0).permute(1, 0, 2, 3)
 
-            tr_images = resize_images(tr_images, new_size=img_size)
-            tr_segmentation = resize_segmentations(
-                tr_segmentation, new_size=(img_size))
-            # print(f"tr_semgnentation shape is {tr_segmentation.shape}")
-            tr_images = tr_images.to(device)
+            def take_points_from_segmentations(segmentations):
+                import matplotlib.pyplot as plt
+                segmentations = segmentations.squeeze()
+                print(f"Segmentations shape is {segmentations.shape}")
+                points = []
+                labels = []
+
+                # Loop over each image in the batch
+                for i in range(segmentations.shape[0]):
+                    segmentation = segmentations[i]
+
+                    # Get the indices of all white (1) and black (0) pixels
+                    white_indices = torch.nonzero(
+                        segmentation == 1, as_tuple=False)
+                    black_indices = torch.nonzero(
+                        segmentation == 0, as_tuple=False)
+
+                    center = torch.tensor(
+                        [segmentation.shape[0] // 2, segmentation.shape[1] // 2])
+
+                    # Calculate the Euclidean distance of each white point from the center
+                    distances = torch.sqrt(
+                        ((white_indices - center) ** 2).sum(dim=1))
+
+                    # Select the white point with the smallest distance from the center
+                    white_point = white_indices[distances.argmin()].flatten()
+                    black_point = black_indices[torch.randint(
+                        low=0, high=len(black_indices), size=(1,))].flatten()
+
+                    points.append(torch.stack([white_point, black_point]))
+                    labels.append(torch.tensor([1, 0]))
+
+                    # plt.subplot(segmentations.shape[0] // 2, 2, i + 1)
+                    # plt.imshow(segmentation, cmap='gray')
+                    # plt.scatter([white_point[1], black_point[1]], [
+                    #             white_point[0], black_point[0]], c=['g', 'r'])
+                    # plt.axis('off')
+
+                # plt.savefig(f"points_{epoch}_{tr_i}.png")
+                points = torch.stack(points).squeeze()
+                labels = torch.stack(labels)
+
+                # print(f"Points shape is {points.shape}")
+                # print(f"Labels shape is {labels.shape}")
+
+                # print(f"Points and labels are {points} and {labels}")
+
+                return points, labels
+
             with torch.no_grad():
-                image_embedding = model.image_encoder(tr_images)
+                tr_images = tr_images.to(torch.float32)
+                tr_images = resize_images(tr_images, new_size=img_size)
+                tr_segmentation = resize_segmentations(
+                    tr_segmentation, new_size=(img_size))
+
+                tr_images = tr_images.to(device)
+                tr_segmentation = tr_segmentation.to(device)
+
                 box_torch = torch.stack([get_bounding_boxes_from_segmentation(
                     box)[0] for box in tr_segmentation]).to(device)
-                # print(f"Box torch shape is {box_torch.shape}")
+
+                tr_segmentation = normalize(threshold(
+                    tr_segmentation, 0.8, 0)).to(device)
+
+                # points = take_points_from_segmentations(tr_segmentation)
+                # masks = tr_segmentation
+                points = None
+                masks = None
+
+                image_embedding = model.image_encoder(tr_images)
                 sparse_embeddings, dense_embeddings = model.prompt_encoder(
-                    points=None,
+                    points=points,
                     boxes=box_torch,
-                    masks=None,
+                    masks=masks,
                 )
+
             low_res_masks, iou_predictions = model.mask_decoder(
                 image_embeddings=image_embedding,
                 image_pe=model.prompt_encoder.get_dense_pe(),
@@ -148,25 +212,37 @@ def train_eval_loop():
                 low_res_masks, scale_factor=4, mode='bicubic', align_corners=False)
 
             # print(f"Upscaled masks shape is {upscaled_masks.shape}")
-            # print(f"tr_segmentation shape is {tr_segmentation.shape}")
+            # print(f"Tr segmentation shape is {tr_segmentation.shape}")
 
             binary_mask = normalize(
-                threshold(upscaled_masks, 0.0, 0)).to(device)
-            if tr_i % 10 == 0:
-                # plot_segmentations_batch(
-                # epoch=epoch, tr_i=tr_i, pred_mask=low_res_masks, gt_mask=upscaled_masks, name="low_res_masks_vs_upscaled_masks")
-                plot_segmentations_batch(
-                    epoch=epoch, tr_i=tr_i, pred_mask=binary_mask, gt_mask=tr_segmentation, name="binary_mask_vs_tr_segmentation")
+                threshold(upscaled_masks, 0.8, 0)).to(device)
 
-            loss: torch.Tensor = loss_function(binary_mask, tr_segmentation)
+            assert binary_mask.shape == tr_segmentation.shape
+
+            loss = loss_function(binary_mask, tr_segmentation)
+            iou = intersection_over_union(binary_mask, tr_segmentation)
+            if USE_WANDB:
+                wandb.log(
+                    {"train_loss": loss.item()})
+                wandb.log(
+                    {"train_iou": iou.item()})
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             pbar.set_description(
-                f"TRAINING | Epoch {epoch} | Loss {loss.item():.4f} | Iou {torch.mean(iou_predictions):.4f}")
+                f"TRAINING | Epoch {epoch} | Loss {loss.item():.4f} | Iou {iou:.4f}")
             pbar.update(1)
 
+            if tr_i % 10 == 0:
+                plot_segmentations_batch(
+                    epoch=epoch, tr_i=tr_i, pred_mask=upscaled_masks[:10], gt_mask=tr_segmentation[:10], name="upscaled_masks_vs_tr_segmentation")
+                plot_segmentations_batch(
+                    epoch=epoch, tr_i=tr_i, pred_mask=binary_mask[:10], gt_mask=tr_segmentation[:10], name="binary_mask_vs_tr_segmentation")
+        pbar.close()
+        plot_segmentations_batch(
+            epoch=epoch, tr_i=tr_i, pred_mask=binary_mask, gt_mask=tr_segmentation, name="binary_mask_vs_tr_segmentation")
         # Evaluation
+        continue
         model.eval()
         loss_sum = 0
         with torch.no_grad():
@@ -191,7 +267,7 @@ def train_eval_loop():
                 image_embedding = model.image_encoder(val_images)
                 box_torch = torch.stack([get_bounding_boxes_from_segmentation(
                     box)[0] for box in val_segmentations]).to(device)
-                # print(f"Box torch shape is {box_torch.shape}")
+
                 sparse_embeddings, dense_embeddings = model.prompt_encoder(
                     points=None,
                     boxes=box_torch,
@@ -214,14 +290,22 @@ def train_eval_loop():
                     plot_segmentations_batch(
                         epoch=epoch, tr_i=val_i, pred_mask=binary_mask, gt_mask=val_segmentations, name="eval_binary_mask_vs_val_segmentation")
 
+                val_segmentations = normalize(threshold(
+                    val_segmentations, 0.0, 0)).to(device)
                 loss = loss_function(binary_mask, val_segmentations)
+                iou = intersection_over_union(binary_mask, val_segmentations)
+                if USE_WANDB:
+                    wandb.log(
+                        {"val_loss": loss.item()})
+                    wandb.log(
+                        {"val_iou": iou.item()})
                 loss_sum += loss.item()
         mean_loss = loss_sum / len(val_loader)
         print(f"Validation avg loss at epoch {epoch}: {mean_loss}")
 
 
 def get_model():
-    img_size = 128
+    img_size = 64
     model = SAM(img_size=img_size).to(device)
 
     if RESUME:
