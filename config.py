@@ -17,6 +17,8 @@ BATCH_SIZE = 128
 
 USE_WANDB = False
 USE_DML = True #DirectML library for AMD gpu on Windows
+SAVE_RESULTS = True #Save results in JSON locally
+SAVE_MODELS = True #Save models locally
 
 # Configurations
 INPUT_SIZE = 3
@@ -28,16 +30,14 @@ LR_DECAY = 0.85
 REG = 0.01
 SEGMENT = True
 CROP_ROI = True
-ARCHITECHTURE = "resnet24"
+ARCHITECTURE_CNN = "resnet24"
+ARCHITECTURE_VIT = "pretrained"
 DATASET_LIMIT = None
 DROPOUT_P = 0.3
 NORMALIZE = True
-# If true, the segmentation is approximated by a squared bounding box.
-SEGMENTATION_BOUNDING_BOX = True
+SEGMENTATION_BOUNDING_BOX = True # If true, the segmentation is approximated by a squared bounding box.
 BALANCE_UNDERSAMPLING = 0.5
-USE_DOUBLE_LOSS = True
-SAVE_RESULTS = True
-SAVE_MODELS = True
+USE_DOUBLE_LOSS = True #Use binary loss (benign/malign) and multiclassification loss if true, otherwise use only the multiclassification one
 
 # Transformers configurations
 IMAGE_SIZE = (224, 224)

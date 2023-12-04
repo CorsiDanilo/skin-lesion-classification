@@ -10,6 +10,10 @@ from tqdm import tqdm
 import os
 import pandas as pd
 from torchvision import transforms
+from config import USE_DML
+
+if USE_DML:
+    import torch_directml
 
 
 def plot_image_grid(inp: torch.Tensor, title=None):
@@ -200,3 +204,11 @@ def calculate_normalization_statistics(df: pd.DataFrame) -> Tuple[torch.Tensor, 
         f"---Normalization--- Statistics for normalization (per channel) -> Mean: {mean.view(-1)}, Variance: {std.view(-1)}, Epsilon (adjustment value): 0.01")
 
     return mean, std
+
+def select_device():
+    if USE_DML:
+        device = torch_directml.device()
+    else:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print('Using device: %s' % device)
+    return device
