@@ -17,7 +17,7 @@ METADATA_TEST_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_test.csv')
 BATCH_SIZE = 64
 
 USE_WANDB = False
-USE_DML = False #DirectML library for AMD gpu on Windows (set to false if you want to use cpu or standard CUDA)
+USE_DML = True #DirectML library for AMD gpu on Windows (set to false if you want to use cpu or standard CUDA)
 SAVE_RESULTS = True #Save results in JSON locally
 SAVE_MODELS = True #Save models locally
 
@@ -33,7 +33,7 @@ SEGMENT = True
 CROP_ROI = True
 ARCHITECTURE_CNN = "resnet24"
 ARCHITECTURE_VIT = "efficient" #standard, pretrained, efficient
-DATASET_LIMIT = 200
+DATASET_LIMIT = None
 DROPOUT_P = 0.3
 NORMALIZE = True
 SEGMENTATION_BOUNDING_BOX = True # If true, the segmentation is approximated by a squared bounding box.
