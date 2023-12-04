@@ -10,7 +10,8 @@ from tqdm import tqdm
 import os
 import pandas as pd
 from torchvision import transforms
-from config import USE_DML
+import json
+from config import USE_DML, PATH_TO_SAVE_RESULTS
 
 if USE_DML:
     import torch_directml
@@ -212,3 +213,30 @@ def select_device():
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Using device: %s' % device)
     return device
+
+def save_results(data_name, results, test=False):
+    path = PATH_TO_SAVE_RESULTS + f"/{data_name}/results/"
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+    
+    results_file_path = path + 'test_results.json' if test else path + 'tr_val_results.json'
+    if os.path.exists(results_file_path):
+        final_results = None
+        with open(results_file_path, 'r') as json_file:
+            final_results = json.load(json_file)
+        final_results.append(results)
+        with open(results_file_path, 'w') as json_file:
+            json.dump(final_results, json_file, indent=2)
+    else:
+        final_results = [results]
+        with open(results_file_path, 'w') as json_file:
+            json.dump(final_results, json_file, indent=2)
+
+def save_model(data_name, model, epoch=None, is_best=False):
+    path = PATH_TO_SAVE_RESULTS + f"/{data_name}/models/"
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+    if is_best:
+        torch.save(model.state_dict(), f'{path}/melanoma_detection_best.pt')
+    else:
+        torch.save(model.state_dict(), f'{path}/melanoma_detection_ep{epoch+1}.pt')
