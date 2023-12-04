@@ -16,6 +16,8 @@ METADATA_TEST_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_test.csv')
 BATCH_SIZE = 128
 
 USE_WANDB = False
+USE_DML = True #DirectML library for AMD gpu on Windows
+
 # Configurations
 INPUT_SIZE = 3
 NUM_CLASSES = 7
@@ -33,3 +35,14 @@ NORMALIZE = True
 # If true, the segmentation is approximated by a squared bounding box.
 SEGMENTATION_BOUNDING_BOX = True
 BALANCE_UNDERSAMPLING = 0.5
+USE_DOUBLE_LOSS = True
+SAVE_RESULTS = True
+SAVE_MODELS = True
+
+# Transformers configurations
+IMAGE_SIZE = (224, 224)
+N_HEADS = 1
+N_LAYERS = 1
+PATCH_SIZE = 16
+EMB_SIZE = 800
+
