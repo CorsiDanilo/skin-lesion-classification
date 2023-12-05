@@ -10,7 +10,7 @@ from datetime import datetime
 from enum import Enum
 from sklearn.metrics import recall_score, accuracy_score
 from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, INPUT_SIZE, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, SEGMENT, CROP_ROI, ARCHITECTURE_VIT, DATASET_LIMIT, DROPOUT_P, NORMALIZE, SEGMENTATION_BOUNDING_BOX, USE_WANDB, USE_DOUBLE_LOSS, N_HEADS, N_LAYERS, PATCH_SIZE, EMB_SIZE, IMAGE_SIZE, SAVE_MODELS, SAVE_RESULTS, PATH_TO_SAVE_RESULTS
-from utils.utils import select_device, save_results, save_model
+from utils.utils import select_device, save_results, save_model, save_configurations
 from dataloaders.DynamicSegmentationDataLoader import DynamicSegmentationDataLoader, DynamicSegmentationStrategy
 from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
 from dataloaders.SegmentedImagesDataLoader import SegmentedImagesDataLoader
@@ -24,22 +24,22 @@ class SegmentationStrategy(Enum):
     NO_SEGMENTATION = "no_segmentation"
 
 
-SEGMENTATION_STRATEGY = SegmentationStrategy.SEGMENTATION
+SEGMENTATION_STRATEGY = SegmentationStrategy.SEGMENTATION.value
 DYNAMIC_SEGMENTATION_STRATEGY = DynamicSegmentationStrategy.OPENCV if SEGMENTATION_STRATEGY == SegmentationStrategy.DYNAMIC_SEGMENTATION else None
 dynamic_load = True
 
-if SEGMENTATION_STRATEGY == SegmentationStrategy.DYNAMIC_SEGMENTATION:
+if SEGMENTATION_STRATEGY == SegmentationStrategy.DYNAMIC_SEGMENTATION.value:
     dataloader = DynamicSegmentationDataLoader(
         limit=DATASET_LIMIT,
         dynamic_load=dynamic_load,
         segmentation_strategy=DYNAMIC_SEGMENTATION_STRATEGY
     )
-elif SEGMENTATION_STRATEGY == SegmentationStrategy.SEGMENTATION:
+elif SEGMENTATION_STRATEGY == SegmentationStrategy.SEGMENTATION.value:
     dataloader = SegmentedImagesDataLoader(
         limit=DATASET_LIMIT,
         dynamic_load=dynamic_load,
     )
-elif SEGMENTATION_STRATEGY == SegmentationStrategy.NO_SEGMENTATION:
+elif SEGMENTATION_STRATEGY == SegmentationStrategy.NO_SEGMENTATION.value:
     dataloader = ImagesAndSegmentationDataLoader(
         limit=DATASET_LIMIT,
         dynamic_load=dynamic_load,
@@ -57,39 +57,41 @@ FROM_EPOCH = 1
 if CROP_ROI:
     assert SEGMENT, f"Crop roi needs segment to be True"
 
+config = {
+    "learning_rate": LR,
+    "architecture": ARCHITECTURE_VIT,
+    "epochs": N_EPOCHS,
+    'reg': REG,
+    'batch_size': BATCH_SIZE,
+    "hidden_size": HIDDEN_SIZE,
+    "dataset": "HAM10K",
+    "optimizer": "AdamW",
+    "segmentation": SEGMENT,
+    "crop_roi": CROP_ROI,
+    "dataset_limit": DATASET_LIMIT,
+    "dropout_p": DROPOUT_P,
+    "normalize": NORMALIZE,
+    "resumed": RESUME,
+    "from_epoch": FROM_EPOCH,
+    "segmentation_bounding_box": SEGMENTATION_BOUNDING_BOX,
+    "balance_undersampling": BALANCE_UNDERSAMPLING,
+    "initialization": "default",
+    "segmentation_strategy": SEGMENTATION_STRATEGY,
+    "dynamic_segmentation_strategy": DYNAMIC_SEGMENTATION_STRATEGY,
+    "n_heads": N_HEADS,
+    "n_layers": N_LAYERS,
+    "patch_size": PATCH_SIZE,
+    "emb_size": EMB_SIZE,
+    "double_loss": USE_DOUBLE_LOSS
+}
+
 if USE_WANDB:
     # Start a new run
     wandb.init(
         project="melanoma",
 
         # track hyperparameters and run metadata
-        config={
-            "learning_rate": LR,
-            "architecture": ARCHITECTURE_VIT,
-            "epochs": N_EPOCHS,
-            'reg': REG,
-            'batch_size': BATCH_SIZE,
-            "hidden_size": HIDDEN_SIZE,
-            "dataset": "HAM10K",
-            "optimizer": "AdamW",
-            "segmentation": SEGMENT,
-            "crop_roi": CROP_ROI,
-            "dataset_limit": DATASET_LIMIT,
-            "dropout_p": DROPOUT_P,
-            "normalize": NORMALIZE,
-            "resumed": RESUME,
-            "from_epoch": FROM_EPOCH,
-            "segmentation_bounding_box": SEGMENTATION_BOUNDING_BOX,
-            "balance_undersampling": BALANCE_UNDERSAMPLING,
-            "initialization": "default",
-            "segmentation_strategy": SEGMENTATION_STRATEGY,
-            "dynamic_segmentation_strategy": DYNAMIC_SEGMENTATION_STRATEGY,
-            "n_heads": N_HEADS,
-            "n_layers": N_LAYERS,
-            "patch_size": PATCH_SIZE,
-            "emb_size": EMB_SIZE,
-            "double_loss": USE_DOUBLE_LOSS
-        },
+        config=config,
         resume=RESUME,
     )
 
@@ -127,6 +129,8 @@ def train_eval_loop():
         current_datetime = datetime.now()
         current_datetime_str = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
         data_name = f"ViT_{ARCHITECTURE_VIT}_{current_datetime_str}"
+
+        save_configurations(data_name, config) #Save configurations in JSON
 
     total_step = len(train_loader)
     train_losses = []

@@ -213,6 +213,15 @@ def select_device():
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Using device: %s' % device)
     return device
+    
+def save_configurations(data_name, configurations):
+    path = PATH_TO_SAVE_RESULTS + f"/{data_name}/"
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+    
+    results_file_path = path + 'configurations.json'
+    with open(results_file_path, 'w') as json_file:
+        json.dump(configurations, json_file, indent=2)
 
 def save_results(data_name, results, test=False):
     path = PATH_TO_SAVE_RESULTS + f"/{data_name}/results/"
