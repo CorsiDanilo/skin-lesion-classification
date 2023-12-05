@@ -4,7 +4,6 @@ from torchvision.models import Inception_V3_Weights
 from config import DROPOUT_P
 import numpy as np
 
-
 class InceptionV3Pretrained(nn.Module):
     def __init__(self, num_classes):
         super(InceptionV3Pretrained, self).__init__()
