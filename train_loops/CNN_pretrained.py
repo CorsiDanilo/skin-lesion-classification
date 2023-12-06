@@ -51,7 +51,7 @@ else:
 
 device = select_device()
 
-RESUME = True
+RESUME = False
 PATH_MODEL_TO_RESUME = f"CNN_resnet24_2023-12-04_17-26-22"
 FROM_EPOCH = 2
 
@@ -115,7 +115,7 @@ def train_eval_loop():
     if USE_DOUBLE_LOSS:
         loss_function_binary = nn.CrossEntropyLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=REG)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.1, patience=3, threshold=0.0001, threshold_mode='rel', cooldown=0, min_lr=0, eps=1e-08, verbose=True)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=N_EPOCHS, eta_min=1e-5)
 
     if RESUME:
         data_name = PATH_MODEL_TO_RESUME
@@ -188,10 +188,11 @@ def train_eval_loop():
 
         model.eval()
         with torch.no_grad():
-            val_loss_iter = 0
+            val_loss_iter = val_batch_iter = 0
             epoch_val_preds = torch.tensor([]).to(device)
             epoch_val_labels = torch.tensor([]).to(device)
             for val_i, (val_images, val_labels) in enumerate(val_loader):
+                val_batch_iter += 1
                 val_images = val_images.to(device)
                 val_labels = val_labels.to(device)
                 
@@ -219,8 +220,9 @@ def train_eval_loop():
                     val_epoch_loss += val_epoch_loss_binary
                     
                 val_loss_iter += val_epoch_loss.item()
-                avg_val_loss = val_epoch_loss / len(val_loader) #Calculate the average validation loss
-                scheduler.step(avg_val_loss) #Step the scheduler based on the validation loss
+                avg_val_loss = val_loss_iter / val_batch_iter #Calculate the average validation loss
+                #scheduler.step(avg_val_loss) #Step the scheduler based on the validation loss
+            scheduler.step() #Activate the scheduler
             if USE_WANDB:
                 wandb.log({"Validation Loss": val_epoch_loss.item()})
             val_loss = val_loss_iter/(len(val_loader)*BATCH_SIZE)
