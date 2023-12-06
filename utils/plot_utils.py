@@ -1,5 +1,28 @@
 import matplotlib.pyplot as plt
 import os
+import torchvision
+import torch
+import numpy as np
+
+
+def plot_image_grid(inp: torch.Tensor, title=None):
+    """Imshow for Tensor."""
+    inp = torchvision.utils.make_grid(inp)
+    inp = inp.numpy().transpose((1, 2, 0))
+    plt.imshow(inp)
+    if title is not None:
+        plt.title(title)
+    plt.pause(0.001)  # pause a bit so that plots are updated
+
+
+def plot_image(inp: torch.Tensor or np.ndarray, title=None):
+    """Imshow for Tensor."""
+    if isinstance(inp, torch.Tensor):
+        inp = inp.permute(1, 2, 0).numpy()
+    plt.imshow(inp)
+    if title is not None:
+        plt.title(title)
+    plt.pause(0.001)  # pause a bit so that plots are updated
 
 
 def plot_segmentations_single_sample(epoch, tr_i, pred_mask, gt_mask, name):

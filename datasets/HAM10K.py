@@ -39,7 +39,7 @@ class HAM10K(CustomDataset):
             self.balance_dataset()
 
         if not dynamic_load:
-            self.images, self.labels = self.load_images_and_labels()
+            self.load_images_and_labels()
 
     def balance_dataset(self):
         print(

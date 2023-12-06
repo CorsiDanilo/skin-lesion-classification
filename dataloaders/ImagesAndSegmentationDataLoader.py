@@ -10,7 +10,7 @@ from tqdm import tqdm
 from torchvision import transforms
 import pandas as pd
 import torchvision.transforms.functional as TF
-from config import BATCH_SIZE, NORMALIZE
+from config import BATCH_SIZE, IMAGE_SIZE, NORMALIZE
 
 
 class ImagesAndSegmentationDataLoader(DataLoader):
@@ -24,7 +24,8 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                  limit: Optional[int] = None,
                  transform: Optional[transforms.Compose] = None,
                  dynamic_load: bool = False,
-                 resize_dim: Optional[Tuple[int, int]] = (None, None),
+                 # If None, no resize is performed
+                 resize_dim: Optional[Tuple[int, int]] = IMAGE_SIZE,
                  upscale_train: bool = True,
                  normalize: bool = NORMALIZE,
                  batch_size: int = BATCH_SIZE):
@@ -34,8 +35,16 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                          upscale_train=upscale_train,
                          normalize=normalize,
                          batch_size=batch_size)
-        self.stateful_transform = StatefulTransform(
-            height=resize_dim[0], width=resize_dim[1])
+        self.resize_dim = resize_dim
+        if self.resize_dim is not None:
+            self.stateful_transform = StatefulTransform(
+                height=resize_dim[0], width=resize_dim[1])
+            self.transform = transforms.Compose([
+                transforms.Resize((resize_dim[0], resize_dim[1])),
+                transforms.ToTensor()
+            ])
+        else:
+            self.stateful_transform = StatefulTransform()
 
     def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int, transform: transforms.Compose = None):
         img = metadata.iloc[idx]
@@ -61,9 +70,9 @@ class ImagesAndSegmentationDataLoader(DataLoader):
         images = []
         segmentations = []
         labels = []
-        load_segmentations = "segmentation_path" in img
 
         for index, (row_index, img) in tqdm(enumerate(metadata.iterrows()), desc=f'Loading images'):
+            load_segmentations = "segmentation_path" in img
             if load_segmentations:
                 image, label, segmentation = self.load_images_and_labels_at_idx(
                     idx=index, metadata=metadata)
@@ -91,9 +100,13 @@ class StatefulTransform:
         self.width = width
 
     def __call__(self, img, seg):
-        # Resize
-        # img = transforms.Resize((self.height, self.width),
-        # interpolation=Image.BILINEAR)(img)
+
+        if self.height is not None and self.width is not None:
+            # Resize
+            img = transforms.Resize((self.height, self.width),
+                                    interpolation=Image.BILINEAR)(img)
+            seg = transforms.Resize((self.height, self.width),
+                                    interpolation=Image.BILINEAR)(seg)
 
         # Horizonal flip
         if random.random() > 0.5:

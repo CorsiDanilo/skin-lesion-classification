@@ -68,7 +68,7 @@ class CustomDataset(Dataset, ABC):
                     "load_data_fn must return a tuple of length 2 or 3.")
             if self.normalize:
                 image = (image - self.mean) / self.std
-            if "segmentation" in locals():
+            if len(result) == 3:
                 return image, label, segmentation
             return image, label
         else:
@@ -76,7 +76,11 @@ class CustomDataset(Dataset, ABC):
             label = self.labels[idx]
             if self.normalize:
                 image = (image - self.mean) / self.std
-            return image, label
+            try:
+                segmentation = self.segmentations[idx]
+                return image, label, segmentation
+            except:
+                return image, label
 
     def load_images_and_labels(self):
         result = self.load_data_fn(metadata=self.metadata)

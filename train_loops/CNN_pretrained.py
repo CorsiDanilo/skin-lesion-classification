@@ -1,15 +1,12 @@
 import torch
-import wandb
-from enum import Enum
-from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, INPUT_SIZE, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, SEGMENT, CROP_ROI, ARCHITECTURE_CNN, DATASET_LIMIT, DROPOUT_P, NORMALIZE, SEGMENTATION_BOUNDING_BOX, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED
+from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, ARCHITECTURE_CNN, DATASET_LIMIT, DROPOUT_P, NORMALIZE, SEGMENTATION_BOUNDING_BOX, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN
+from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device, set_seed
 from train_loops.train_loop import train_eval_loop
-from dataloaders.DynamicSegmentationDataLoader import DynamicSegmentationDataLoader, DynamicSegmentationStrategy
-from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
-from dataloaders.SegmentedImagesDataLoader import SegmentedImagesDataLoader
 from models.ResNet24Pretrained import ResNet24Pretrained
 from models.DenseNetPretrained import DenseNetPretrained
 from models.InceptionV3Pretrained import InceptionV3Pretrained
+
 
 def get_model(device):
     if ARCHITECTURE_CNN == "resnet24":
@@ -24,7 +21,8 @@ def get_model(device):
         raise ValueError(f"Unknown architechture {ARCHITECTURE_CNN}")
 
     if RESUME:
-        model.load_state_dict(torch.load(f"{PATH_TO_SAVE_RESULTS}/{PATH_MODEL_TO_RESUME}/models/melanoma_detection_ep{FROM_EPOCH}.pt"))
+        model.load_state_dict(torch.load(
+            f"{PATH_TO_SAVE_RESULTS}/{PATH_MODEL_TO_RESUME}/models/melanoma_detection_ep{RESUME_EPOCH}.pt"))
 
     for p in model.parameters():
         p.requires_grad = False
@@ -45,35 +43,6 @@ def get_model(device):
 def main():
     set_seed(RANDOM_SEED)
 
-    class SegmentationStrategy(Enum):
-        DYNAMIC_SEGMENTATION = "dynamic_segmentation"
-        SEGMENTATION = "segmentation"
-        NO_SEGMENTATION = "no_segmentation"
-
-    SEGMENTATION_STRATEGY = SegmentationStrategy.SEGMENTATION.value
-    DYNAMIC_SEGMENTATION_STRATEGY = DynamicSegmentationStrategy.OPENCV if SEGMENTATION_STRATEGY == SegmentationStrategy.DYNAMIC_SEGMENTATION else None
-    dynamic_load = True
-
-    if SEGMENTATION_STRATEGY == SegmentationStrategy.DYNAMIC_SEGMENTATION.value:
-        dataloader = DynamicSegmentationDataLoader(
-            limit=DATASET_LIMIT,
-            dynamic_load=dynamic_load,
-            segmentation_strategy=DYNAMIC_SEGMENTATION_STRATEGY
-        )
-    elif SEGMENTATION_STRATEGY == SegmentationStrategy.SEGMENTATION.value:
-        dataloader = SegmentedImagesDataLoader(
-            limit=DATASET_LIMIT,
-            dynamic_load=dynamic_load,
-        )
-    elif SEGMENTATION_STRATEGY == SegmentationStrategy.NO_SEGMENTATION.value:
-        dataloader = ImagesAndSegmentationDataLoader(
-            limit=DATASET_LIMIT,
-            dynamic_load=dynamic_load,
-        )
-    else:
-        raise NotImplementedError(
-            f"Segmentation strategy {SEGMENTATION_STRATEGY} not implemented")
-    
     device = select_device()
 
     config = {
@@ -85,8 +54,6 @@ def main():
         "hidden_size": HIDDEN_SIZE,
         "dataset": "HAM10K",
         "optimizer": "AdamW",
-        "segmentation": SEGMENT,
-        "crop_roi": CROP_ROI,
         "dataset_limit": DATASET_LIMIT,
         "dropout_p": DROPOUT_P,
         "normalize": NORMALIZE,
@@ -97,14 +64,25 @@ def main():
         "initialization": "default",
         'segmentation_strategy': SEGMENTATION_STRATEGY,
         'dynamic_segmentation_strategy': DYNAMIC_SEGMENTATION_STRATEGY,
+        "upsample_train": UPSAMPLE_TRAIN,
     }
-    
+
+    dataloader = get_dataloder_from_strategy(
+        strategy=SEGMENTATION_STRATEGY,
+        dynamic_segmentation_strategy=DYNAMIC_SEGMENTATION_STRATEGY,
+        limit=DATASET_LIMIT,
+        dynamic_load=True,
+        upsample_train=UPSAMPLE_TRAIN,
+        normalize=NORMALIZE,
+        batch_size=BATCH_SIZE)
     train_loader, val_loader = dataloader.get_train_val_dataloders()
     model = get_model(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=REG)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=N_EPOCHS, eta_min=1e-5)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=N_EPOCHS, eta_min=1e-5)
 
-    train_eval_loop(device, train_loader=train_loader, val_loader=val_loader, model=model, config=config, optimizer=optimizer, scheduler=scheduler, resume=RESUME)
+    train_eval_loop(device, train_loader=train_loader, val_loader=val_loader, model=model,
+                    config=config, optimizer=optimizer, scheduler=scheduler, resume=RESUME)
 
 
 if __name__ == "__main__":

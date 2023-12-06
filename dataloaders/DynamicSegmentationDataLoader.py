@@ -10,14 +10,10 @@ from PIL import Image
 from tqdm import tqdm
 from torchvision import transforms
 import pandas as pd
+from shared.enums import DynamicSegmentationStrategy
 from utils.opencv_segmentation import bounding_box_pipeline
 from torchvision.transforms import functional as TF
 from utils.utils import crop_image_from_box, get_bounding_boxes_from_segmentation, zoom_out
-
-
-class DynamicSegmentationStrategy(Enum):
-    OPENCV = "opencv"
-    SAM = "sam"
 
 
 class DynamicSegmentationDataLoader(DataLoader):
@@ -52,7 +48,7 @@ class DynamicSegmentationDataLoader(DataLoader):
         img = metadata.iloc[idx]
         # Augment the data if balance_data is true and load segmentations
         label = img['label']
-        if not self.train:
+        if not self.train:  # TODO: fix this. If you take the val from the test, just see if the segmentation path exists. Otherwise I don't know how to change this.
             image = Image.open(img['image_path'])
             image = TF.to_tensor(image)
             if self.segmentation_strategy == DynamicSegmentationStrategy.OPENCV:

@@ -17,26 +17,6 @@ if USE_DML:
     import torch_directml
 
 
-def plot_image_grid(inp: torch.Tensor, title=None):
-    """Imshow for Tensor."""
-    inp = torchvision.utils.make_grid(inp)
-    inp = inp.numpy().transpose((1, 2, 0))
-    plt.imshow(inp)
-    if title is not None:
-        plt.title(title)
-    plt.pause(0.001)  # pause a bit so that plots are updated
-
-
-def plot_image(inp: torch.Tensor or np.ndarray, title=None):
-    """Imshow for Tensor."""
-    if isinstance(inp, torch.Tensor):
-        inp = inp.permute(1, 2, 0).numpy()
-    plt.imshow(inp)
-    if title is not None:
-        plt.title(title)
-    plt.pause(0.001)  # pause a bit so that plots are updated
-
-
 # def center_crop(image: torch.Tensor, size: Tuple[int, int]) -> np.ndarray:
 #     if size[0] > image.shape[0] or size[1] > image.shape[1]:
 #         image = cv2.resize(image.numpy(), (size[0] * 3, size[1] * 3))
@@ -206,6 +186,7 @@ def calculate_normalization_statistics(df: pd.DataFrame) -> Tuple[torch.Tensor, 
 
     return mean, std
 
+
 def select_device():
     if USE_DML:
         device = torch_directml.device()
@@ -213,21 +194,23 @@ def select_device():
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Using device: %s' % device)
     return device
-    
+
+
 def save_configurations(data_name, configurations):
     path = PATH_TO_SAVE_RESULTS + f"/{data_name}/"
     if not os.path.exists(path):
         os.makedirs(path, exist_ok=True)
-    
+
     results_file_path = path + 'configurations.json'
     with open(results_file_path, 'w') as json_file:
         json.dump(configurations, json_file, indent=2)
+
 
 def save_results(data_name, results, test=False):
     path = PATH_TO_SAVE_RESULTS + f"/{data_name}/results/"
     if not os.path.exists(path):
         os.makedirs(path, exist_ok=True)
-    
+
     results_file_path = path + 'test_results.json' if test else path + 'tr_val_results.json'
     if os.path.exists(results_file_path):
         final_results = None
@@ -241,6 +224,7 @@ def save_results(data_name, results, test=False):
         with open(results_file_path, 'w') as json_file:
             json.dump(final_results, json_file, indent=2)
 
+
 def save_model(data_name, model, epoch=None, is_best=False):
     path = PATH_TO_SAVE_RESULTS + f"/{data_name}/models/"
     if not os.path.exists(path):
@@ -248,7 +232,9 @@ def save_model(data_name, model, epoch=None, is_best=False):
     if is_best:
         torch.save(model.state_dict(), f'{path}/melanoma_detection_best.pt')
     else:
-        torch.save(model.state_dict(), f'{path}/melanoma_detection_ep{epoch+1}.pt')
+        torch.save(model.state_dict(),
+                   f'{path}/melanoma_detection_ep{epoch+1}.pt')
+
 
 def set_seed(seed):
     np.random.seed(seed)
