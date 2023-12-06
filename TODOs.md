@@ -5,3 +5,6 @@
 -   [ ] Get the segmentation mask dynamically with SAM
 -   [x] Handle the normalization before or after the image loading with the different dataloaders
 -   [ ] Python CLI to train different models with different techniques via a shell script
+-   [ ] Sistema normalizzazione
+-   [ ] Controlla labels
+-   [ ] Fixa test e testa la robba del tutto training
