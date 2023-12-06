@@ -13,15 +13,19 @@ class DenseNetPretrained(nn.Module):
         self.classifier = nn.Sequential(
             nn.Dropout(p=DROPOUT_P),
 
-            nn.Linear(self.model.classifier.in_features, 256, bias=False),
+            nn.Linear(self.model.classifier.in_features, 1024, bias=False),
+            nn.ReLU(),
+            nn.BatchNorm1d(1024),
+
+            nn.Linear(1024, 256, bias=False),
             nn.ReLU(),
             nn.BatchNorm1d(256),
 
-            nn.Linear(256, 128, bias=False),
+            nn.Linear(256, 64, bias=False),
             nn.ReLU(),
-            nn.BatchNorm1d(128),
+            nn.BatchNorm1d(64),
 
-            nn.Linear(128, num_classes, bias=False),
+            nn.Linear(64, num_classes, bias=False),
             nn.BatchNorm1d(num_classes),
         )
 

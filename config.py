@@ -22,6 +22,7 @@ SAVE_RESULTS = True #Save results in JSON locally
 SAVE_MODELS = True #Save models locally
 
 # Configurations
+RANDOM_SEED = 42
 INPUT_SIZE = 3
 NUM_CLASSES = 7
 HIDDEN_SIZE = [32, 64, 128, 256]
@@ -40,10 +41,19 @@ SEGMENTATION_BOUNDING_BOX = True # If true, the segmentation is approximated by 
 BALANCE_UNDERSAMPLING = 0.5
 USE_DOUBLE_LOSS = True #Use binary loss (benign/malign) and multiclassification loss if true, otherwise use only the multiclassification one
 
+if ARCHITECTURE_CNN == "inception_v3":
+    IMAGE_SIZE = (299, 299) # for inception_v3
+else:
+    IMAGE_SIZE = (224, 224) # for the others
+
 # Transformers configurations
-IMAGE_SIZE = (224, 224)
 N_HEADS = 1
 N_LAYERS = 1
 PATCH_SIZE = 16
 EMB_SIZE = 800
+
+# Resume
+RESUME = False
+PATH_MODEL_TO_RESUME = f"CNN_resnet24_2023-12-04_17-26-22"
+RESUME_EPOCH = 2
 

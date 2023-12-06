@@ -1,5 +1,4 @@
 from typing import Tuple
-import PIL
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -11,6 +10,7 @@ import os
 import pandas as pd
 from torchvision import transforms
 import json
+import random
 from config import USE_DML, PATH_TO_SAVE_RESULTS
 
 if USE_DML:
@@ -213,6 +213,15 @@ def select_device():
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Using device: %s' % device)
     return device
+    
+def save_configurations(data_name, configurations):
+    path = PATH_TO_SAVE_RESULTS + f"/{data_name}/"
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+    
+    results_file_path = path + 'configurations.json'
+    with open(results_file_path, 'w') as json_file:
+        json.dump(configurations, json_file, indent=2)
 
 def save_results(data_name, results, test=False):
     path = PATH_TO_SAVE_RESULTS + f"/{data_name}/results/"
@@ -240,3 +249,15 @@ def save_model(data_name, model, epoch=None, is_best=False):
         torch.save(model.state_dict(), f'{path}/melanoma_detection_best.pt')
     else:
         torch.save(model.state_dict(), f'{path}/melanoma_detection_ep{epoch+1}.pt')
+
+def set_seed(seed):
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    # When running on the CuDNN backend, two further options must be set
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    # Set a fixed value for the hash seed
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    print(f"Random seed set as {seed}")
