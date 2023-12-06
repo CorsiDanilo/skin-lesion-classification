@@ -195,7 +195,6 @@ def train_eval_loop():
             epoch_val_preds = torch.tensor([]).to(device)
             epoch_val_labels = torch.tensor([]).to(device)
             for val_i, (val_images, val_labels) in enumerate(val_loader):
-                val_batch_iter += 1
                 val_images = val_images.to(device)
                 val_labels = val_labels.to(device)
                 

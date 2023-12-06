@@ -188,11 +188,10 @@ def train_eval_loop():
 
         model.eval()
         with torch.no_grad():
-            val_loss_iter = val_batch_iter = 0
+            val_loss_iter = 0
             epoch_val_preds = torch.tensor([]).to(device)
             epoch_val_labels = torch.tensor([]).to(device)
             for val_i, (val_images, val_labels) in enumerate(val_loader):
-                val_batch_iter += 1
                 val_images = val_images.to(device)
                 val_labels = val_labels.to(device)
                 
@@ -220,8 +219,6 @@ def train_eval_loop():
                     val_epoch_loss += val_epoch_loss_binary
                     
                 val_loss_iter += val_epoch_loss.item()
-                avg_val_loss = val_loss_iter / val_batch_iter #Calculate the average validation loss
-                #scheduler.step(avg_val_loss) #Step the scheduler based on the validation loss
             scheduler.step() #Activate the scheduler
             if USE_WANDB:
                 wandb.log({"Validation Loss": val_epoch_loss.item()})
