@@ -48,11 +48,10 @@ class DataLoader(ABC):
     def load_metadata(self,
                       train: bool = True,
                       limit: Optional[int] = None) -> Tuple[pd.DataFrame, pd.DataFrame] or pd.DataFrame:
-        # TODO: BE AWARE: the test set (not train and val) labels may be different from the train and val labels with this implementation
         metadata = pd.read_csv(
             METADATA_NO_DUPLICATES_DIR if train else METADATA_TEST_DIR)
-        unique_labels = metadata['dx'].unique()
-        label_dict = {label: idx for idx, label in enumerate(unique_labels)}
+        label_dict = {'nv': 0, 'bkl': 1, 'mel': 2,
+                      'akiec': 3, 'bcc': 4, 'df': 5, 'vasc': 6}
         labels_encoded = metadata['dx'].map(label_dict)
         assert len(
             label_dict) == 7, "There should be 7 unique labels, increase the limit"
