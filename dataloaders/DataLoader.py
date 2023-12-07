@@ -140,9 +140,12 @@ class DataLoader(ABC):
         return train_dataloader, val_dataloader
 
     def get_test_dataloader(self):
-        if self.normalization_statistics is None:
-            print("--Normalization-- Normalization statistics not defined during test. Using default ones.")
-            self.normalization_statistics = DEFAULT_STATISTICS
+        if NORMALIZE:
+            if self.normalization_statistics is None:
+                print("--Normalization-- Normalization statistics not defined during test. Using default ones.")
+                self.normalization_statistics = DEFAULT_STATISTICS
+            print(
+                f"--Normalization-- Statistics for normalization (per channel) -> Mean: {self.normalization_statistics[0].view(-1)}, Variance: {self.normalization_statistics[1].view(-1)}, Epsilon (adjustment value): 0.01")
         self.df_test = self.load_metadata(limit=self.limit, train=False)
         test_dataset = HAM10K(
             self.df_test,
