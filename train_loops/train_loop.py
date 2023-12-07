@@ -63,15 +63,15 @@ def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, 
             if USE_DOUBLE_LOSS:
                 tr_labels_binary = torch.zeros_like(
                     tr_labels, dtype=torch.long).to(device)
-                # Set ground-truth to 1 for classes 0, 1, and 6 (the malignant classes)
-                tr_labels_binary[(tr_labels == 0) | (
-                    tr_labels == 1) | (tr_labels == 6)] = 1
+                # Set ground-truth to 1 for classes 2, 3, and 4 (the malignant classes)
+                tr_labels_binary[(tr_labels == 2) | (
+                    tr_labels == 3) | (tr_labels == 4)] = 1
 
                 # Second loss: Binary loss considering only benign/malignant classes
                 tr_outputs_binary = torch.zeros_like(
                     tr_outputs[:, :2]).to(device)
                 tr_outputs_binary[:, 1] = torch.sum(
-                    tr_outputs[:, [0, 1, 6]], dim=1)
+                    tr_outputs[:, [2, 3, 4]], dim=1)
                 tr_outputs_binary[:, 0] = 1 - tr_outputs_binary[:, 1]
 
                 tr_epoch_loss_binary = loss_function_binary(
@@ -133,15 +133,15 @@ def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, 
                 if USE_DOUBLE_LOSS:
                     val_labels_binary = torch.zeros_like(
                         val_labels, dtype=torch.long).to(device)
-                    # Set ground-truth to 1 for classes 0, 1, and 6 (the malignant classes)
-                    val_labels_binary[(val_labels == 0) | (
-                        val_labels == 1) | (val_labels == 6)] = 1
+                    # Set ground-truth to 1 for classes 2, 3, and 4 (the malignant classes)
+                    val_labels_binary[(val_labels == 2) | (
+                        val_labels == 3) | (val_labels == 4)] = 1
 
                     # Second loss: Binary loss considering only benign/malignant classes
                     val_outputs_binary = torch.zeros_like(
                         val_outputs[:, :2]).to(device)
                     val_outputs_binary[:, 1] = torch.sum(
-                        val_outputs[:, [0, 1, 6]], dim=1)
+                        val_outputs[:, [2, 3, 4]], dim=1)
                     val_outputs_binary[:, 0] = 1 - val_outputs_binary[:, 1]
 
                     val_epoch_loss_binary = loss_function_binary(

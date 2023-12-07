@@ -51,7 +51,7 @@ class DataLoader(ABC):
         metadata = pd.read_csv(
             METADATA_NO_DUPLICATES_DIR if train else METADATA_TEST_DIR)
         label_dict = {'nv': 0, 'bkl': 1, 'mel': 2,
-                      'akiec': 3, 'bcc': 4, 'df': 5, 'vasc': 6}
+                      'akiec': 3, 'bcc': 4, 'df': 5, 'vasc': 6} #2, 3, 4 malignant, otherwise begign 
         labels_encoded = metadata['dx'].map(label_dict)
         assert len(
             label_dict) == 7, "There should be 7 unique labels, increase the limit"
