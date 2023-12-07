@@ -42,7 +42,7 @@ def set_seed(seed):
 def eval_boxes():
     dataloader = DynamicSegmentationDataLoader(
         dynamic_load=True, train=False, segmentation_strategy=DynamicSegmentationStrategy.OPENCV)
-    train_loader, _ = dataloader.get_train_val_dataloders()
+    train_loader = dataloader.get_train_dataloder()
     for tr_i, (tr_images, tr_labels, tr_segmentations) in enumerate(tqdm(train_loader, desc="Training", leave=False)):
         tr_images = tr_images.to(torch.float32)
         tr_images = tr_images.to(device)

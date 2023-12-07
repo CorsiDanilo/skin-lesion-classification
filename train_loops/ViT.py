@@ -5,9 +5,6 @@ from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRAT
 from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device, set_seed
 from train_loops.train_loop import train_eval_loop
-from dataloaders.DynamicSegmentationDataLoader import DynamicSegmentationDataLoader, DynamicSegmentationStrategy
-from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
-from dataloaders.SegmentedImagesDataLoader import SegmentedImagesDataLoader
 from models.ViTStandard import ViT_standard
 from models.ViTPretrained import ViT_pretrained
 from models.ViTEfficient import EfficientViT
@@ -73,7 +70,8 @@ def main():
         upsample_train=UPSAMPLE_TRAIN,
         normalize=NORMALIZE,
         batch_size=BATCH_SIZE)
-    train_loader, val_loader = dataloader.get_train_val_dataloders()
+    train_loader = dataloader.get_train_dataloder()
+    val_loader, _ = dataloader.get_val_test_dataloader()
     model = get_model(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=REG)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(

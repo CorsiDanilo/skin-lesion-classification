@@ -75,7 +75,8 @@ def main():
         upsample_train=UPSAMPLE_TRAIN,
         normalize=NORMALIZE,
         batch_size=BATCH_SIZE)
-    train_loader, val_loader = dataloader.get_train_val_dataloders()
+    train_loader = dataloader.get_train_dataloder()
+    val_loader, _ = dataloader.get_val_test_dataloader()
     model = get_model(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=REG)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(

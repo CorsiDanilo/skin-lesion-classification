@@ -18,9 +18,11 @@ METADATA_TEST_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_test.csv')
 
 BATCH_SIZE = 64
 
-USE_WANDB = False
+
+USE_WANDB = True  # Use wandb for logging
 # DirectML library for AMD gpu on Windows (set to false if you want to use cpu or standard CUDA)
 USE_DML = False
+USE_MPS = True  # Use MPS gpu for MacOS
 SAVE_RESULTS = True  # Save results in JSON locally
 SAVE_MODELS = True  # Save models locally
 
@@ -40,7 +42,7 @@ DROPOUT_P = 0.3
 NORMALIZE = True
 # If true, the segmentation is approximated by a squared bounding box.
 SEGMENTATION_BOUNDING_BOX = True
-BALANCE_UNDERSAMPLING = 0.5
+BALANCE_UNDERSAMPLING = 1
 UPSAMPLE_TRAIN = True  # Decide if upsample with data augmentation the train set or not
 # Use binary loss (benign/malign) and multiclassification loss if true, otherwise use only the multiclassification one
 USE_DOUBLE_LOSS = True
@@ -48,7 +50,7 @@ USE_DOUBLE_LOSS = True
 SEGMENTATION_STRATEGY = SegmentationStrategy.NO_SEGMENTATION.value
 DYNAMIC_SEGMENTATION_STRATEGY = DynamicSegmentationStrategy.OPENCV.value
 # If true, the background is kept in the segmentation, otherwise it is removed
-KEEP_BACKGROUND = False
+KEEP_BACKGROUND = True
 
 if ARCHITECTURE_CNN == "inception_v3":
     IMAGE_SIZE = (299, 299)  # for inception_v3

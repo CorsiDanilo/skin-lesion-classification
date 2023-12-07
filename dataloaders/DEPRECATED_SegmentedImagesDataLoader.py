@@ -15,7 +15,7 @@ from torchvision import transforms
 from utils.utils import crop_image_from_box, get_bounding_boxes_from_segmentation
 
 
-class SegmentedImagesDataLoader(DataLoader):
+class DEPRECTED_SegmentedImagesDataLoader(DataLoader):
     """
     This class is used to load the images and create the dataloaders.
     The dataloder will output a tuple of (images, labels).

@@ -1,3 +1,4 @@
+from typing import Optional
 import matplotlib.pyplot as plt
 import os
 import torchvision
@@ -25,47 +26,47 @@ def plot_image(inp: torch.Tensor or np.ndarray, title=None):
     plt.pause(0.001)  # pause a bit so that plots are updated
 
 
-def plot_segmentations_single_sample(epoch, tr_i, pred_mask, gt_mask, name):
+def plot_segmentations_batch(epoch: int,
+                             tr_i: int,
+                             images: torch.Tensor,
+                             upscaled_mask: torch.Tensor,
+                             pred_bin_mask: torch.Tensor,
+                             gt_mask: torch.Tensor,
+                             boxes: Optional[torch.Tensor],
+                             name: str):
     # Convert tensors to numpy arrays
-    pred_mask = pred_mask.detach().cpu().numpy()
+    upscaled_mask = upscaled_mask.detach().cpu().numpy()
+    pred_bin_mask = pred_bin_mask.detach().cpu().numpy()
     gt_mask = gt_mask.detach().cpu().numpy()
-
-    # Plot the images side by side
-    fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-    axs[0].imshow(pred_mask[0][0], cmap='gray')
-    axs[0].set_title('Upscaled Masks')
-    axs[1].imshow(gt_mask[0][0], cmap='gray')
-    axs[1].set_title('tr_segmentation Masks')
-
-    plot_dir = os.path.join('plots', 'sam_comparison_masks_plots')
-    # if os.path.exists(plot_dir):
-    #     shutil.rmtree(plot_dir)
-    os.makedirs(plot_dir, exist_ok=True)
-    # Save the plot
-    plt.savefig(os.path.join(
-        plot_dir, f'{name}_epoch_{epoch}_step_{tr_i}_comparison.png'))
-    plt.close(fig)
-
-
-def plot_segmentations_batch(epoch, tr_i, pred_mask, gt_mask, name):
-    # Convert tensors to numpy arrays
-    pred_mask = pred_mask.detach().cpu().numpy()
-    gt_mask = gt_mask.detach().cpu().numpy()
-
+    images = images.detach().cpu().numpy()
+    if boxes is not None:
+        boxes = boxes.detach().cpu().numpy()
     # Get the batch size
-    batch_size = pred_mask.shape[0]
+    batch_size = upscaled_mask.shape[0]
 
     # Create a grid of subplots
     fig, axs = plt.subplots(
-        batch_size, 2, figsize=(10, 5 * batch_size))
+        batch_size, 4, figsize=(10, 5 * batch_size))
 
     # Iterate over each sample in the batch
     for i in range(batch_size):
-        axs[i][0].imshow(pred_mask[i][0], cmap='gray')
-        axs[i][0].set_title(f'Upscaled Masks - Sample {i+1}')
-        axs[i][1].imshow(gt_mask[i][0], cmap='gray')
+        axs[i][0].imshow(upscaled_mask[i][0], cmap='gray')
+        axs[i][0].set_title(f'Upscaled Masks')
+        axs[i][1].imshow(pred_bin_mask[i][0], cmap='gray')
         axs[i][1].set_title(
-            f'tr_segmentation Masks - Sample {i+1}')
+            f'Pred Bin Masks')
+        axs[i][2].imshow(gt_mask[i][0], cmap='gray')
+        axs[i][2].set_title(
+            f'GT Bin Masks')
+        axs[i][3].imshow(images[i][0])
+        if boxes is not None:
+            box = boxes[i]
+            rect = plt.Rectangle(
+                (box[0], box[1]), box[2] - box[0], box[3] - box[1], fill=False, color='red')
+            axs[i][3].add_patch(rect)
+            plt.axis('off')
+            axs[i][3].set_title(
+                f'Image w/ box')
 
     plot_dir = os.path.join('plots', 'sam_comparison_masks_plots')
     os.makedirs(plot_dir, exist_ok=True)

@@ -1,10 +1,11 @@
-from dataloaders.SegmentedImagesDataLoader import SegmentedImagesDataLoader
+from dataloaders.DEPRECATED_SegmentedImagesDataLoader import DEPRECTED_SegmentedImagesDataLoader
 from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
 
 
 def test_segmeneted_images_dataloader():
-    dataloder = SegmentedImagesDataLoader(dynamic_load=True)
-    train_dataloder, val_dataloder = dataloder.get_train_val_dataloders()
+    dataloder = DEPRECTED_SegmentedImagesDataLoader(dynamic_load=True)
+    train_dataloder = dataloder.get_train_dataloder()
+    val_dataloder, _ = dataloder.get_val_test_dataloader()
     assert len(train_dataloder) > 0
     assert len(val_dataloder) > 0
     train_batch = next(iter(train_dataloder))
@@ -19,7 +20,8 @@ def test_segmeneted_images_dataloader():
 
 def test_images_and_segmentation_dataloader():
     dataloder = ImagesAndSegmentationDataLoader(dynamic_load=True)
-    train_dataloder, val_dataloder = dataloder.get_train_val_dataloders()
+    train_dataloder = dataloder.get_train_dataloder()
+    val_dataloder, _ = dataloder.get_val_test_dataloader()
     assert len(train_dataloder) > 0
     assert len(val_dataloder) > 0
     train_batch = next(iter(train_dataloder))

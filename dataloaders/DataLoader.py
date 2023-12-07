@@ -11,6 +11,7 @@ from sklearn.model_selection import train_test_split
 from torchvision import transforms
 
 from datasets.HAM10K import HAM10K
+from utils.utils import select_device
 
 
 class DataLoader(ABC):
@@ -36,6 +37,7 @@ class DataLoader(ABC):
                 # transforms.RandomAffine(0, scale=(0.8, 1.2)),
                 transforms.ToTensor()
             ])
+        self.device = select_device()
 
     @abstractmethod
     def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int, transform: transforms.Compose = None):
@@ -76,27 +78,26 @@ class DataLoader(ABC):
 
             print(f"Metadata before split has length {len(metadata)}")
             # Assuming `df` is your DataFrame
-            df_train, df_val = train_test_split(
-                metadata,
-                test_size=0.2,
-                random_state=42,
-                stratify=metadata['label'])
 
-            print(f"DF_TRAIN LENGTH: {len(df_train)}")
-            print(f"DF_VAL LENGTH: {len(df_val)}")
-            return df_train, df_val
+            return metadata
 
-        return metadata
+        df_test, df_val = train_test_split(
+            metadata,
+            test_size=0.2,
+            random_state=42,
+            stratify=metadata['label'])
+
+        return df_val, df_test
 
     def load_data(self, metadata: pd.DataFrame, idx: Optional[int] = None):
         if idx is not None:
             return self.load_images_and_labels_at_idx(metadata, idx)
         return self.load_images_and_labels(metadata)
 
-    def get_train_val_dataloders(self) -> Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader]:
+    def get_train_dataloder(self) -> Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader]:
         resnet_mean, resnet_std = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1), torch.tensor([
             0.229, 0.224, 0.225]).view(3, 1, 1)
-        self.df_train, self.df_val = self.load_metadata(limit=self.limit)
+        self.df_train = self.load_metadata(limit=self.limit, train=True)
         train_dataset = HAM10K(
             self.df_train,
             load_data_fn=self.load_data,
@@ -104,7 +105,7 @@ class DataLoader(ABC):
             mean=resnet_mean,
             std=resnet_std,
             balance_data=self.upscale_train,
-            resize_dims=(224, 224),  # TODO: make dynamic
+            resize_dims=(224, 224),
             dynamic_load=self.dynamic_load)
         train_dataloader = torch.utils.data.DataLoader(
             train_dataset,
@@ -112,6 +113,13 @@ class DataLoader(ABC):
             shuffle=True,
             pin_memory=True,
         )
+        return train_dataloader
+
+    def get_val_test_dataloader(self):
+        resnet_mean, resnet_std = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1), torch.tensor([
+            0.229, 0.224, 0.225]).view(3, 1, 1)
+        self.df_val, self.df_test = self.load_metadata(
+            limit=self.limit, train=False)
         val_dataset = HAM10K(
             self.df_val,
             load_data_fn=self.load_data,
@@ -127,12 +135,6 @@ class DataLoader(ABC):
             shuffle=False,
             pin_memory=True,
         )
-        return train_dataloader, val_dataloader
-
-    def get_test_dataloader(self):
-        resnet_mean, resnet_std = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1), torch.tensor([
-            0.229, 0.224, 0.225]).view(3, 1, 1)
-        self.df_test = self.load_metadata(limit=self.limit, train=False)
         test_dataset = HAM10K(
             self.df_test,
             load_data_fn=self.load_data,
@@ -148,4 +150,4 @@ class DataLoader(ABC):
             shuffle=False,
             pin_memory=True,
         )
-        return test_dataloader
+        return val_dataloader, test_dataloader

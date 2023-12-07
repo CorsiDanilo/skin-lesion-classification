@@ -11,7 +11,7 @@ import pandas as pd
 from torchvision import transforms
 import json
 import random
-from config import USE_DML, PATH_TO_SAVE_RESULTS
+from config import USE_DML, PATH_TO_SAVE_RESULTS, USE_MPS
 
 if USE_DML:
     import torch_directml
@@ -165,6 +165,16 @@ def crop_image_from_box(image, box):
     return resized_image
 
 
+def resize_images(images, new_size=(800, 800)):
+    return torch.stack([torch.from_numpy(cv2.resize(
+        image.permute(1, 2, 0).numpy(), new_size)) for image in images]).permute(0, 3, 1, 2)
+
+
+def resize_segmentations(segmentation, new_size=(800, 800)):
+    return torch.stack([torch.from_numpy(cv2.resize(
+        image.permute(1, 2, 0).numpy(), new_size)) for image in segmentation]).unsqueeze(0).permute(1, 0, 2, 3)
+
+
 def calculate_normalization_statistics(df: pd.DataFrame) -> Tuple[torch.Tensor, torch.Tensor]:
     images_for_normalization = []
 
@@ -190,6 +200,8 @@ def calculate_normalization_statistics(df: pd.DataFrame) -> Tuple[torch.Tensor, 
 def select_device():
     if USE_DML:
         device = torch_directml.device()
+    elif USE_MPS:
+        device = torch.device('mps')
     else:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Using device: %s' % device)
