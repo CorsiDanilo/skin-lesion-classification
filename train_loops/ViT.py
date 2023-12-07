@@ -1,13 +1,9 @@
 import torch
-import wandb
-from enum import Enum
 from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, ARCHITECTURE_VIT, DATASET_LIMIT, DROPOUT_P, NORMALIZE, SEGMENTATION_BOUNDING_BOX, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN, USE_DOUBLE_LOSS, N_HEADS, N_LAYERS, PATCH_SIZE, EMB_SIZE, IMAGE_SIZE, RANDOM_SEED, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, PATH_TO_SAVE_RESULTS
+from constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
 from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device, set_seed
 from train_loops.train_loop import train_eval_loop
-from dataloaders.DynamicSegmentationDataLoader import DynamicSegmentationDataLoader, DynamicSegmentationStrategy
-from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
-from dataloaders.SegmentedImagesDataLoader import SegmentedImagesDataLoader
 from models.ViTStandard import ViT_standard
 from models.ViTPretrained import ViT_pretrained
 from models.ViTEfficient import EfficientViT
@@ -31,6 +27,13 @@ def get_model(device):
 
     print(f"--Model-- Using ViT_{ARCHITECTURE_VIT} model")
     return model
+
+def get_normalization_statistics():
+    image_net_pretrained_models = ["pretrained"]
+    if ARCHITECTURE_VIT in image_net_pretrained_models:
+        return IMAGENET_STATISTICS
+    else:
+        return DEFAULT_STATISTICS
 
 
 def main():
@@ -72,6 +75,7 @@ def main():
         dynamic_load=True,
         upsample_train=UPSAMPLE_TRAIN,
         normalize=NORMALIZE,
+        normalization_statistics=get_normalization_statistics(),
         batch_size=BATCH_SIZE)
     train_loader, val_loader = dataloader.get_train_val_dataloders()
     model = get_model(device)

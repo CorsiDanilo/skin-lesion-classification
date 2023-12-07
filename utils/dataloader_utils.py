@@ -13,6 +13,7 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
                                 dynamic_load: bool = True,
                                 upsample_train: bool = True,
                                 normalize: bool = NORMALIZE,
+                                normalization_statistics: tuple = None,
                                 batch_size: int = BATCH_SIZE,
                                 keep_background: Optional[bool] = KEEP_BACKGROUND) -> DataLoader:
 
@@ -25,6 +26,7 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
             upscale_train=upsample_train,
             segmentation_strategy=dynamic_segmentation_strategy,
             normalize=normalize,
+            normalization_statistics=normalization_statistics,
             batch_size=batch_size,
         )
     elif strategy == SegmentationStrategy.SEGMENTATION.value:
@@ -33,6 +35,7 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
             dynamic_load=dynamic_load,
             upscale_train=upsample_train,
             normalize=normalize,
+            normalization_statistics=normalization_statistics,
             batch_size=batch_size,
             keep_background=keep_background,
         )
@@ -42,6 +45,7 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
             dynamic_load=dynamic_load,
             upscale_train=upsample_train,
             normalize=normalize,
+            normalization_statistics=normalization_statistics,
             batch_size=batch_size,
         )
     else:

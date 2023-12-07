@@ -28,6 +28,7 @@ class SegmentedImagesDataLoader(DataLoader):
                  dynamic_load: bool = False,
                  upscale_train: bool = True,
                  normalize: bool = NORMALIZE,
+                 normalization_statistics: tuple = None,
                  batch_size: int = BATCH_SIZE,
                  keep_background: bool = KEEP_BACKGROUND):
         super().__init__(limit=limit,
@@ -35,6 +36,7 @@ class SegmentedImagesDataLoader(DataLoader):
                          dynamic_load=dynamic_load,
                          upscale_train=upscale_train,
                          normalize=normalize,
+                         normalization_statistics=normalization_statistics,
                          batch_size=batch_size)
         self.keep_background = keep_background
         print(f"Dynamic Load for Segmentation Dataloader: {self.dynamic_load}")

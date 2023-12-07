@@ -28,12 +28,14 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                  resize_dim: Optional[Tuple[int, int]] = IMAGE_SIZE,
                  upscale_train: bool = True,
                  normalize: bool = NORMALIZE,
+                 normalization_statistics: tuple = None,
                  batch_size: int = BATCH_SIZE):
         super().__init__(limit=limit,
                          transform=transform,
                          dynamic_load=dynamic_load,
                          upscale_train=upscale_train,
                          normalize=normalize,
+                         normalization_statistics=normalization_statistics,
                          batch_size=batch_size)
         self.resize_dim = resize_dim
         if self.resize_dim is not None:

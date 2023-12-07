@@ -1,8 +1,6 @@
 from typing import Tuple
 import numpy as np
-import matplotlib.pyplot as plt
 import torch
-import torchvision
 import cv2
 from PIL import Image
 from tqdm import tqdm
@@ -168,7 +166,7 @@ def crop_image_from_box(image, box):
 def calculate_normalization_statistics(df: pd.DataFrame) -> Tuple[torch.Tensor, torch.Tensor]:
     images_for_normalization = []
 
-    for _, img in tqdm(df[:100].iterrows(), desc=f'Calculating normalization statistics'):
+    for _, img in tqdm(df.iterrows(), desc=f'Calculating normalization statistics'):
         if not os.path.exists(img['image_path']):
             continue
         image = transforms.ToTensor()(Image.open(img['image_path']))
@@ -180,11 +178,7 @@ def calculate_normalization_statistics(df: pd.DataFrame) -> Tuple[torch.Tensor, 
     std = torch.tensor([torch.std(images_for_normalization[:, channel, :, :])
                        for channel in range(3)]).reshape(3, 1, 1)
 
-    print("---Normalization--- Normalization flag set to True: Images will be normalized with z-score normalization")
-    print(
-        f"---Normalization--- Statistics for normalization (per channel) -> Mean: {mean.view(-1)}, Variance: {std.view(-1)}, Epsilon (adjustment value): 0.01")
-
-    return mean, std
+    return tuple((mean, std))
 
 
 def select_device():

@@ -1,5 +1,6 @@
 import torch
 from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, ARCHITECTURE_CNN, DATASET_LIMIT, DROPOUT_P, NORMALIZE, SEGMENTATION_BOUNDING_BOX, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN
+from constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
 from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device, set_seed
 from train_loops.train_loop import train_eval_loop
@@ -39,6 +40,13 @@ def get_model(device):
 
     return model
 
+def get_normalization_statistics():
+    image_net_pretrained_models = ["resnet24", "densenet121", "inception_v3"]
+    if ARCHITECTURE_CNN in image_net_pretrained_models:
+        return IMAGENET_STATISTICS
+    else:
+        return DEFAULT_STATISTICS
+
 
 def main():
     set_seed(RANDOM_SEED)
@@ -74,6 +82,7 @@ def main():
         dynamic_load=True,
         upsample_train=UPSAMPLE_TRAIN,
         normalize=NORMALIZE,
+        normalization_statistics=get_normalization_statistics(),
         batch_size=BATCH_SIZE)
     train_loader, val_loader = dataloader.get_train_val_dataloders()
     model = get_model(device)

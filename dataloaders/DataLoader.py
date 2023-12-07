@@ -5,9 +5,11 @@ from typing import Optional
 import os
 import pandas as pd
 import torch
-from config import DATASET_LIMIT, DATASET_TEST_DIR, DATASET_TRAIN_DIR, METADATA_TEST_DIR, METADATA_NO_DUPLICATES_DIR, NORMALIZE, SEGMENTATION_DIR, BATCH_SIZE, SEGMENTATION_WITH_BOUNDING_BOX_DIR, SEGMENTATION_BOUNDING_BOX, BALANCE_UNDERSAMPLING
+from config import IMAGE_SIZE, DATASET_TEST_DIR, DATASET_TRAIN_DIR, METADATA_TEST_DIR, METADATA_NO_DUPLICATES_DIR, NORMALIZE, SEGMENTATION_DIR, BATCH_SIZE, SEGMENTATION_WITH_BOUNDING_BOX_DIR, SEGMENTATION_BOUNDING_BOX, BALANCE_UNDERSAMPLING
+from constants import DEFAULT_STATISTICS
 from typing import Optional, Tuple
 from sklearn.model_selection import train_test_split
+from utils.utils import calculate_normalization_statistics
 from torchvision import transforms
 
 from datasets.HAM10K import HAM10K
@@ -20,6 +22,7 @@ class DataLoader(ABC):
                  dynamic_load: bool = False,
                  upscale_train: bool = True,
                  normalize: bool = NORMALIZE,
+                 normalization_statistics: tuple = None,
                  batch_size: int = BATCH_SIZE):
         super().__init__()
         self.limit = limit
@@ -27,6 +30,7 @@ class DataLoader(ABC):
         self.dynamic_load = dynamic_load
         self.upscale_train = upscale_train
         self.normalize = normalize
+        self.normalization_statistics = normalization_statistics
         self.batch_size = batch_size
         if self.transform is None:
             self.transform = transforms.Compose([
@@ -94,17 +98,23 @@ class DataLoader(ABC):
         return self.load_images_and_labels(metadata)
 
     def get_train_val_dataloders(self) -> Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader]:
-        resnet_mean, resnet_std = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1), torch.tensor([
-            0.229, 0.224, 0.225]).view(3, 1, 1)
         self.df_train, self.df_val = self.load_metadata(limit=self.limit)
+        if NORMALIZE:
+            print("--Normalization-- Normalization flag set to True: Images will be normalized with z-score normalization")
+            if self.normalization_statistics is None:
+                self.normalization_statistics = calculate_normalization_statistics(self.df_train)
+                print("--Normalization-- Statistics not provided. They will be computed on the training set.")
+            print(
+                f"--Normalization-- Statistics for normalization (per channel) -> Mean: {self.normalization_statistics[0].view(-1)}, Variance: {self.normalization_statistics[1].view(-1)}, Epsilon (adjustment value): 0.01")
+        
         train_dataset = HAM10K(
             self.df_train,
             load_data_fn=self.load_data,
             normalize=self.normalize,
-            mean=resnet_mean,
-            std=resnet_std,
+            mean=self.normalization_statistics[0],
+            std=self.normalization_statistics[1],
             balance_data=self.upscale_train,
-            resize_dims=(224, 224),  # TODO: make dynamic
+            resize_dims=IMAGE_SIZE,
             dynamic_load=self.dynamic_load)
         train_dataloader = torch.utils.data.DataLoader(
             train_dataset,
@@ -116,10 +126,10 @@ class DataLoader(ABC):
             self.df_val,
             load_data_fn=self.load_data,
             normalize=self.normalize,
-            mean=resnet_mean,
-            std=resnet_std,
+            mean=self.normalization_statistics[0],
+            std=self.normalization_statistics[1],
             balance_data=False,
-            resize_dims=(224, 224),
+            resize_dims=IMAGE_SIZE,
             dynamic_load=self.dynamic_load)
         val_dataloader = torch.utils.data.DataLoader(
             val_dataset,
@@ -130,17 +140,18 @@ class DataLoader(ABC):
         return train_dataloader, val_dataloader
 
     def get_test_dataloader(self):
-        resnet_mean, resnet_std = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1), torch.tensor([
-            0.229, 0.224, 0.225]).view(3, 1, 1)
+        if self.normalization_statistics is None:
+            print("--Normalization-- Normalization statistics not defined during test. Using default ones.")
+            self.normalization_statistics = DEFAULT_STATISTICS
         self.df_test = self.load_metadata(limit=self.limit, train=False)
         test_dataset = HAM10K(
             self.df_test,
             load_data_fn=self.load_data,
             normalize=self.normalize,
-            mean=resnet_mean,
-            std=resnet_std,
+            mean=self.normalization_statistics[0],
+            std=self.normalization_statistics[1],
             balance_data=False,
-            resize_dims=(224, 224),
+            resize_dims=IMAGE_SIZE,
             dynamic_load=self.dynamic_load)
         test_dataloader = torch.utils.data.DataLoader(
             test_dataset,
