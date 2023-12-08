@@ -3,3 +3,9 @@ torchvision
 pandas
 scikit-learn
 tqdm
+wandb
+opencv-python
+matplotlib
+monai
+transformers
+timm

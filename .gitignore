@@ -1,4 +1,12 @@
 .DS_Store
 data/*
-!data/.gitkeep
+checkpoints/*
+!checkpoints/.gitkeep
 __pycache__/
+wandb
+*_ignore.*
+vast
+boxes_outputs
+plots/**
+results/**
+!**.gitkeep
