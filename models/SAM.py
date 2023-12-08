@@ -2,8 +2,10 @@ from typing import Optional
 from torch import nn
 import torch
 from transformers import SamProcessor, SamModel, SamConfig, SamImageProcessor
+from utils.utils import select_device
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+device = select_device()
 
 
 class SAM(nn.Module):
@@ -78,9 +80,13 @@ class SAM(nn.Module):
                                        torch.float32).to(device) if bboxes is not None else None,
                                    multimask_output=False)
         upscaled_masks = self.processor.post_process_masks(
-            low_res_masks.pred_masks, original_sizes, reshaped_input_sizes, binarize=False)  # TODO: Maybe there is an error here
+            low_res_masks.pred_masks, original_sizes, reshaped_input_sizes, binarize=False)
 
         return torch.stack(upscaled_masks, dim=0).squeeze(1).to(device)
 
     def get_img_size(self):
         return self.img_size
+
+    def eval(self):
+        self.eval()
+        self.model.eval()

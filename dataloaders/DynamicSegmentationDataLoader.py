@@ -31,13 +31,15 @@ class DynamicSegmentationDataLoader(DataLoader):
                  upscale_train: bool = True,
                  segmentation_strategy: DynamicSegmentationStrategy = DynamicSegmentationStrategy.OPENCV,
                  normalize: bool = NORMALIZE,
-                 batch_size: int = BATCH_SIZE,
-                 keep_background: Optional[bool] = KEEP_BACKGROUND):
+                 keep_background: Optional[bool] = KEEP_BACKGROUND,
+                 normalization_statistics: tuple = None,
+                 batch_size: int = BATCH_SIZE):
         super().__init__(limit=limit,
                          transform=transform,
                          dynamic_load=dynamic_load,
                          upscale_train=upscale_train,
                          normalize=normalize,
+                         normalization_statistics=normalization_statistics,
                          batch_size=batch_size)
         self.segmentation_strategy = segmentation_strategy
         self.segmentation_transform = transforms.Compose([
