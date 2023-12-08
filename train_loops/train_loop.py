@@ -6,7 +6,7 @@ import torch.nn as nn
 import wandb
 from datetime import datetime
 import copy
-from config import BATCH_SIZE, N_EPOCHS, ARCHITECTURE_CNN, USE_WANDB, SAVE_MODELS, SAVE_RESULTS, USE_DOUBLE_LOSS, PATH_MODEL_TO_RESUME, RESUME_EPOCH
+from config import N_EPOCHS, ARCHITECTURE_CNN, USE_WANDB, SAVE_MODELS, SAVE_RESULTS, USE_DOUBLE_LOSS, PATH_MODEL_TO_RESUME, RESUME_EPOCH
 
 
 def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, scheduler, resume=False):
@@ -32,17 +32,10 @@ def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, 
         save_configurations(data_name, config)  # Save configurations in JSON
 
     total_step = len(train_loader)
-    train_losses = []
-    val_losses = []
-    train_accuracies = []
-    val_accuracies = []
-    train_recalls = []
-    val_recalls = []
     best_model = None
-    best_loss = None
+    best_accuracy = None
     for epoch in range(RESUME_EPOCH if resume else 0, N_EPOCHS):
         model.train()
-        tr_loss_iter = 0
         epoch_tr_preds = torch.tensor([]).to(device)
         epoch_tr_labels = torch.tensor([]).to(device)
         for tr_i, tr_batch in enumerate(tqdm(train_loader, desc="Training", leave=False)):
@@ -87,29 +80,24 @@ def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, 
             optimizer.step()
 
             with torch.no_grad():
-                training_preds = torch.argmax(tr_outputs, -1).detach()
-                epoch_tr_preds = torch.cat((epoch_tr_preds, training_preds), 0)
+                tr_preds = torch.argmax(tr_outputs, -1).detach()
+                epoch_tr_preds = torch.cat((epoch_tr_preds, tr_preds), 0)
                 epoch_tr_labels = torch.cat((epoch_tr_labels, tr_labels), 0)
 
-                tr_loss_iter += tr_epoch_loss.item()
-                tr_accuracy = accuracy_score(
-                    epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy()) * 100
-                train_accuracies.append(tr_accuracy)
-                tr_recall = recall_score(epoch_tr_labels.cpu().numpy(
-                ), epoch_tr_preds.cpu().numpy(), average='macro', zero_division=0) * 100
-                train_recalls.append(tr_recall)
-                tr_loss = tr_loss_iter/(len(train_loader)*BATCH_SIZE)
-                train_losses.append(tr_loss)
-                if USE_WANDB:
-                    wandb.log({"Training Accuracy": tr_accuracy})
-                    wandb.log({"Training Recall": tr_recall})
-                if (tr_i+1) % 50 == 0:
-                    print('Training -> Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%, Recall: {:.4f}%'
-                          .format(epoch+1, N_EPOCHS, tr_i+1, total_step, tr_loss, tr_accuracy, tr_recall))
+        with torch.no_grad():
+            tr_accuracy = accuracy_score(
+                epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy()) * 100
+            tr_recall = recall_score(
+                epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy(), average='macro', zero_division=0) * 100
 
+            if USE_WANDB:
+                wandb.log({"Training Accuracy": tr_accuracy})
+                wandb.log({"Training Recall": tr_recall})
+            if (tr_i+1) % 50 == 0:
+                print('Training -> Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%, Recall: {:.4f}%'
+                      .format(epoch+1, N_EPOCHS, tr_i+1, total_step, tr_epoch_loss, tr_accuracy, tr_recall))
         model.eval()
         with torch.no_grad():
-            val_loss_iter = 0
             epoch_val_preds = torch.tensor([]).to(device)
             epoch_val_labels = torch.tensor([]).to(device)
             for val_i, val_batch in enumerate(val_loader):
@@ -150,31 +138,24 @@ def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, 
                     # Sum of the losses
                     val_epoch_loss += val_epoch_loss_binary
 
-                val_loss_iter += val_epoch_loss.item()
-            scheduler.step()  # Step the scheduler
-            if USE_WANDB:
-                wandb.log({"Validation Loss": val_epoch_loss.item()})
-            val_loss = val_loss_iter/(len(val_loader)*BATCH_SIZE)
-            val_losses.append(val_loss)
             val_accuracy = accuracy_score(
                 epoch_val_labels.cpu().numpy(), epoch_val_preds.cpu().numpy()) * 100
-            val_accuracies.append(val_accuracy)
             val_recall = recall_score(epoch_val_labels.cpu().numpy(
             ), epoch_val_preds.cpu().numpy(), average='macro', zero_division=0) * 100
-            val_recalls.append(val_recall)
             if USE_WANDB:
+                wandb.log({"Validation Loss": val_epoch_loss.item()})
                 wandb.log({"Validation Accuracy": val_accuracy})
                 wandb.log({"Validation Recall": val_recall})
             print('Validation -> Epoch [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%, Recall: {:.4f}%'
-                  .format(epoch+1, N_EPOCHS, val_loss, val_accuracy, val_recall))
+                  .format(epoch+1, N_EPOCHS, val_epoch_loss, val_accuracy, val_recall))
 
-            if best_loss is None or val_loss < best_loss:
-                best_loss = val_loss
+            if best_accuracy is None or val_accuracy < best_accuracy:
+                best_accuracy = val_accuracy
                 best_model = copy.deepcopy(model)
             current_results = {
                 'epoch': epoch+1,
-                'validation_loss': val_loss,
-                'training_loss': tr_loss,
+                'validation_loss': val_epoch_loss.item(),
+                'training_loss': tr_epoch_loss.item(),
                 'validation_accuracy': val_accuracy,
                 'training_accuracy': tr_accuracy,
                 'validation_recall': val_recall,
@@ -186,3 +167,5 @@ def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, 
                 save_model(data_name, model, epoch)
             if epoch == N_EPOCHS-1 and SAVE_MODELS:
                 save_model(data_name, best_model, epoch=None, is_best=True)
+
+        # scheduler.step()  # Step the scheduler #TODO: just to try for now

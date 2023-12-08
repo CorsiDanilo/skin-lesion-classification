@@ -83,7 +83,7 @@ class DataLoader(ABC):
 
         df_test, df_val = train_test_split(
             metadata,
-            test_size=0.2,
+            test_size=0.5,
             random_state=42,
             stratify=metadata['label'])
 
