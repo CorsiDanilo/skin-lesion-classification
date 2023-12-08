@@ -80,7 +80,7 @@ def main():
     model = get_model(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=REG)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=N_EPOCHS, eta_min=1e-5)
+        optimizer, T_max=N_EPOCHS, eta_min=1e-5, verbose=True)
 
     train_eval_loop(device, train_loader=train_loader, val_loader=val_loader, model=model,
                     config=config, optimizer=optimizer, scheduler=scheduler, resume=RESUME)
