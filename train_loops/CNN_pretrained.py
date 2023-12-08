@@ -1,5 +1,5 @@
 import torch
-from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, ARCHITECTURE_CNN, DATASET_LIMIT, DROPOUT_P, NORMALIZE, SEGMENTATION_BOUNDING_BOX, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN
+from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, ARCHITECTURE_CNN, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN, USE_DOUBLE_LOSS
 from constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
 from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device, set_seed
@@ -40,6 +40,7 @@ def get_model(device):
 
     return model
 
+
 def get_normalization_statistics():
     image_net_pretrained_models = ["resnet24", "densenet121", "inception_v3"]
     if ARCHITECTURE_CNN in image_net_pretrained_models:
@@ -67,12 +68,12 @@ def main():
         "normalize": NORMALIZE,
         "resumed": RESUME,
         "from_epoch": RESUME_EPOCH,
-        "segmentation_bounding_box": SEGMENTATION_BOUNDING_BOX,
         "balance_undersampling": BALANCE_UNDERSAMPLING,
         "initialization": "default",
         'segmentation_strategy': SEGMENTATION_STRATEGY,
         'dynamic_segmentation_strategy': DYNAMIC_SEGMENTATION_STRATEGY,
         "upsample_train": UPSAMPLE_TRAIN,
+        "double_loss": USE_DOUBLE_LOSS,
     }
 
     dataloader = get_dataloder_from_strategy(

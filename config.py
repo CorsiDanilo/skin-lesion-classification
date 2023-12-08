@@ -40,8 +40,6 @@ ARCHITECTURE_VIT = "pretrained"  # standard, pretrained, efficient
 DATASET_LIMIT = None
 DROPOUT_P = 0.3
 NORMALIZE = True
-# If true, the segmentation is approximated by a squared bounding box.
-SEGMENTATION_BOUNDING_BOX = True
 BALANCE_UNDERSAMPLING = 1
 UPSAMPLE_TRAIN = True  # Decide if upsample with data augmentation the train set or not
 # Use binary loss (benign/malign) and multiclassification loss if true, otherwise use only the multiclassification one
