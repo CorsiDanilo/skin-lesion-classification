@@ -5,6 +5,8 @@ from torch.utils.data import Dataset
 from config import BALANCE_UNDERSAMPLING
 import torch
 
+from utils.utils import select_device
+
 
 class CustomDataset(Dataset, ABC):
     """
@@ -32,13 +34,14 @@ class CustomDataset(Dataset, ABC):
         self.metadata = metadata
         self.dynamic_load = dynamic_load
         self.load_data_fn = load_data_fn
+        self.device = select_device()
 
         self.metadata['augmented'] = False
         self.metadata = self.metadata
         self.balance_data = balance_data
         self.normalize = normalize
-        self.mean = mean
-        self.std = std
+        self.mean = mean.to(self.device)
+        self.std = std.to(self.device)
         self.resize_dims = resize_dims
         if std_epsilon <= 0:
             raise ValueError("std_epsilon must be a positive number.")
@@ -66,18 +69,21 @@ class CustomDataset(Dataset, ABC):
             else:
                 raise ValueError(
                     "load_data_fn must return a tuple of length 2 or 3.")
+
+            image = image.to(self.device)
+
             if self.normalize:
                 image = (image - self.mean) / self.std
             if len(result) == 3:
                 return image, label, segmentation
             return image, label
         else:
-            image = self.images[idx]
+            image = self.images[idx].to(self.device)
             label = self.labels[idx]
             if self.normalize:
                 image = (image - self.mean) / self.std
             try:
-                segmentation = self.segmentations[idx]
+                segmentation = self.segmentations[idx].to(self.device)
                 return image, label, segmentation
             except:
                 return image, label

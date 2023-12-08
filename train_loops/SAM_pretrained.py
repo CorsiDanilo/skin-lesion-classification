@@ -31,7 +31,7 @@ def preprocess_images(images: torch.Tensor, params: Dict[str, float]):
     preprocessed_images = []
     for image in images:
         image = Image.fromarray((image * 255).permute(
-            1, 2, 0).numpy().astype(np.uint8))
+            1, 2, 0).cpu().numpy().astype(np.uint8))
         if adjust_contrast is not None:
             image = TF.adjust_contrast(image, adjust_contrast)
         if adjust_brightness is not None:

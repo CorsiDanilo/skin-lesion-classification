@@ -121,11 +121,11 @@ class DynamicSegmentationDataLoader(DataLoader):
             images = images.unsqueeze(0)
         THRESHOLD = 0.5
         images = resize_images(images, new_size=(
-            self.sam_model.get_img_size(), self.sam_model.get_img_size()))
+            self.sam_model.get_img_size(), self.sam_model.get_img_size())).to(self.device)
 
         upscaled_masks = self.sam_model(images)
         binary_masks = torch.sigmoid(upscaled_masks)
-        binary_masks = (binary_masks > THRESHOLD).float()
+        binary_masks = (binary_masks > THRESHOLD).float().to(self.device)
 
         if not self.keep_background:
             images = binary_masks * images
@@ -143,4 +143,5 @@ class DynamicSegmentationDataLoader(DataLoader):
         cropped_images = torch.stack(cropped_images)
         cropped_image = resize_images(
             cropped_images, new_size=IMAGE_SIZE)
+        cropped_images = cropped_images.to(self.device)
         return cropped_images

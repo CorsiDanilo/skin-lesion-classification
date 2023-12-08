@@ -89,7 +89,7 @@ def zoom_out(image: torch.Tensor or np.ndarray, size=(700, 700)) -> torch.Tensor
     # Create a new black image
     if image.shape[-1] != 3:
         # image = image.permute(2, 0, 1)
-        image = image.permute(1, 2, 0).numpy()
+        image = image.permute(1, 2, 0).cpu().numpy()
     new_image = np.zeros((size[0], size[1], 3))
 
     # Calculate the position to paste the original image
@@ -158,19 +158,19 @@ def crop_image_from_box(image, box):
     # print(f"Box is {box}")
     cropped_image = image[:, box[0]:box[2], box[1]:box[3]]
     # print(f"Cropped image shape is {cropped_image.shape}")
-    cropped_image = cropped_image.permute(1, 2, 0).numpy()
+    cropped_image = cropped_image.permute(1, 2, 0).cpu().numpy()
     resized_image = cv2.resize(cropped_image, (224, 224))
     return resized_image
 
 
 def resize_images(images, new_size=(800, 800)):
     return torch.stack([torch.from_numpy(cv2.resize(
-        image.permute(1, 2, 0).numpy(), new_size)) for image in images]).permute(0, 3, 1, 2)
+        image.permute(1, 2, 0).cpu().numpy(), new_size)) for image in images]).permute(0, 3, 1, 2)
 
 
 def resize_segmentations(segmentation, new_size=(800, 800)):
     return torch.stack([torch.from_numpy(cv2.resize(
-        image.permute(1, 2, 0).numpy(), new_size)) for image in segmentation]).unsqueeze(0).permute(1, 0, 2, 3)
+        image.permute(1, 2, 0).cpu().numpy(), new_size)) for image in segmentation]).unsqueeze(0).permute(1, 0, 2, 3)
 
 
 def calculate_normalization_statistics(df: pd.DataFrame) -> Tuple[torch.Tensor, torch.Tensor]:

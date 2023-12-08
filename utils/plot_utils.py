@@ -9,7 +9,7 @@ import numpy as np
 def plot_image_grid(inp: torch.Tensor, title=None):
     """Imshow for Tensor."""
     inp = torchvision.utils.make_grid(inp)
-    inp = inp.numpy().transpose((1, 2, 0))
+    inp = inp.cpu().numpy().transpose((1, 2, 0))
     plt.imshow(inp)
     if title is not None:
         plt.title(title)
@@ -19,7 +19,7 @@ def plot_image_grid(inp: torch.Tensor, title=None):
 def plot_image(inp: torch.Tensor or np.ndarray, title=None):
     """Imshow for Tensor."""
     if isinstance(inp, torch.Tensor):
-        inp = inp.permute(1, 2, 0).numpy()
+        inp = inp.permute(1, 2, 0).cpu().numpy()
     plt.imshow(inp)
     if title is not None:
         plt.title(title)

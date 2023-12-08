@@ -44,7 +44,7 @@ def bounding_box_pipeline(images):
 def get_boxes(batched_images):
     bounding_boxes = []
     for i, image in enumerate(batched_images):
-        image = (image.permute(2, 1, 0) * 255).numpy().astype(np.uint8)
+        image = (image.permute(2, 1, 0) * 255).cpu().numpy().astype(np.uint8)
         # Convert the image to grayscale
 
         def increase_contrast(image):
@@ -113,7 +113,8 @@ def plot_images_with_boxes(images, boxes):
     # print(f"Boxes are {boxes}")
     for image, box in zip(images, boxes):
         image = zoom_out(image)
-        image = (image.permute(2, 1, 0) * 255).numpy().astype(np.uint8).copy()
+        image = (image.permute(2, 1, 0) *
+                 255).cpu().numpy().astype(np.uint8).copy()
         # print(f"Box is {box}")
         box_0 = box[0]
         box_1 = box[1]
@@ -137,7 +138,8 @@ def plot_images_with_gt_and_pred(images, gt_boxes, pred_boxes):
 
     for image, gt_box, pred_box in zip(images, gt_boxes, pred_boxes):
         image = zoom_out(image)
-        image = (image.permute(2, 1, 0) * 255).numpy().astype(np.uint8).copy()
+        image = (image.permute(2, 1, 0) *
+                 255).cpu().numpy().astype(np.uint8).copy()
 
         # Plot ground truth (gt) box
         gt_box_0 = gt_box[0]
@@ -201,7 +203,7 @@ def plot_cropped_images(images, boxes):
 #     return largest_boxes
 
 def crop_black_borders(image):
-    cs_image = (image.permute(2, 1, 0) * 255).numpy().astype(np.uint8)
+    cs_image = (image.permute(2, 1, 0) * 255).cpu().numpy().astype(np.uint8)
     # Convert the image to grayscale
     gray_image = cv2.cvtColor(cs_image, cv2.COLOR_RGB2GRAY)
 
