@@ -33,14 +33,16 @@ class DynamicSegmentationDataLoader(DataLoader):
                  normalize: bool = NORMALIZE,
                  keep_background: Optional[bool] = KEEP_BACKGROUND,
                  normalization_statistics: tuple = None,
-                 batch_size: int = BATCH_SIZE):
+                 batch_size: int = BATCH_SIZE,
+                 take_val_from_test: bool = True):
         super().__init__(limit=limit,
                          transform=transform,
                          dynamic_load=dynamic_load,
                          upscale_train=upscale_train,
                          normalize=normalize,
                          normalization_statistics=normalization_statistics,
-                         batch_size=batch_size)
+                         batch_size=batch_size,
+                         take_val_from_test=take_val_from_test)
         self.segmentation_strategy = segmentation_strategy
         self.segmentation_transform = transforms.Compose([
             transforms.ToTensor()
@@ -67,7 +69,7 @@ class DynamicSegmentationDataLoader(DataLoader):
     def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int, transform: transforms.Compose = None):
         img = metadata.iloc[idx]
         label = img['label']
-        segmentation_available = "segmentation_path" in img
+        segmentation_available = "train" in img
 
         if not segmentation_available:
             image = Image.open(img['image_path'])

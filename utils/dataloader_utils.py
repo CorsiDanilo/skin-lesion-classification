@@ -15,7 +15,8 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
                                 normalize: bool = NORMALIZE,
                                 normalization_statistics: tuple = None,
                                 batch_size: int = BATCH_SIZE,
-                                keep_background: Optional[bool] = KEEP_BACKGROUND) -> DataLoader:
+                                keep_background: Optional[bool] = KEEP_BACKGROUND,
+                                take_val_from_test: bool = False) -> DataLoader:
 
     if strategy == SegmentationStrategy.DYNAMIC_SEGMENTATION.value:
         dataloader = DynamicSegmentationDataLoader(
@@ -27,6 +28,7 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
             normalization_statistics=normalization_statistics,
             batch_size=batch_size,
             keep_background=keep_background,
+            take_val_from_test=take_val_from_test,
         )
     elif strategy == SegmentationStrategy.SEGMENTATION.value:
         print(f"!------WARNING-----!: SegmentationStrategy doesn't work if the validation set is taken from the test set, since it doesn't have the segmentation!!! ಥ_ಥ")
@@ -38,6 +40,8 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
             normalization_statistics=normalization_statistics,
             batch_size=batch_size,
             keep_background=keep_background,
+            take_val_from_test=take_val_from_test,
+
         )
     elif strategy == SegmentationStrategy.NO_SEGMENTATION.value:
         dataloader = ImagesAndSegmentationDataLoader(
@@ -47,6 +51,8 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
             normalize=normalize,
             normalization_statistics=normalization_statistics,
             batch_size=batch_size,
+            take_val_from_test=take_val_from_test,
+
         )
     else:
         raise NotImplementedError(

@@ -76,6 +76,7 @@ def main():
         "double_loss": USE_DOUBLE_LOSS,
     }
 
+    TAKE_VAL_FROM_TEST = False
     dataloader = get_dataloder_from_strategy(
         strategy=SEGMENTATION_STRATEGY,
         dynamic_segmentation_strategy=DYNAMIC_SEGMENTATION_STRATEGY,
@@ -85,9 +86,13 @@ def main():
         normalize=NORMALIZE,
         normalization_statistics=get_normalization_statistics(),
         batch_size=BATCH_SIZE,
-        keep_background=KEEP_BACKGROUND,)
-    train_loader = dataloader.get_train_dataloder()
-    val_loader, _ = dataloader.get_val_test_dataloader()
+        keep_background=KEEP_BACKGROUND,
+        take_val_from_test=TAKE_VAL_FROM_TEST,)
+    if not TAKE_VAL_FROM_TEST:
+        train_loader, val_loader = dataloader.get_train_dataloder()
+    else:
+        train_loader = dataloader.get_train_dataloder()
+        val_loader, _ = dataloader.get_val_test_dataloader()
     model = get_model(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=REG)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
