@@ -58,8 +58,6 @@ class DataLoader(ABC):
         assert len(
             label_dict) == 7, "There should be 7 unique labels, increase the limit"
         metadata['label'] = labels_encoded
-        # df_count = metadata.groupby('label').count()
-        # print(df_count)
         print(f"LOADED METADATA HAS LENGTH {len(metadata)}")
         if limit is not None and limit > len(metadata):
             print(
@@ -119,7 +117,7 @@ class DataLoader(ABC):
             train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
-            pin_memory=True,
+            pin_memory=False,
         )
         return train_dataloader
 
@@ -146,7 +144,7 @@ class DataLoader(ABC):
             val_dataset,
             batch_size=self.batch_size,
             shuffle=False,
-            pin_memory=True,
+            pin_memory=False,
         )
         test_dataset = HAM10K(
             self.df_test,
@@ -161,6 +159,6 @@ class DataLoader(ABC):
             test_dataset,
             batch_size=self.batch_size,
             shuffle=False,
-            pin_memory=True,
+            pin_memory=False,
         )
         return val_dataloader, test_dataloader

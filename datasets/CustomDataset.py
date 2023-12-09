@@ -40,8 +40,9 @@ class CustomDataset(Dataset, ABC):
         self.metadata = self.metadata
         self.balance_data = balance_data
         self.normalize = normalize
-        self.mean = mean.to(self.device)
-        self.std = std.to(self.device)
+        if self.normalize:
+            self.mean = mean.to(self.device)
+            self.std = std.to(self.device)
         self.resize_dims = resize_dims
         if std_epsilon <= 0:
             raise ValueError("std_epsilon must be a positive number.")

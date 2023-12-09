@@ -29,7 +29,7 @@ class SAM(nn.Module):
                 "facebook/sam-vit-base", config=config, ignore_mismatched_sizes=True).to(device)
 
         sam_image_processor = SamImageProcessor(
-            do_resize=True, do_normalize=True, size={"longest_edge": img_size if custom_size else 1024}, pad_size={
+            do_resize=not custom_size, do_normalize=True, size={"longest_edge": img_size if custom_size else 1024}, pad_size={
                 "height": img_size if custom_size else 1024,
                 "width": img_size if custom_size else 1024
             }, do_rescale=False, do_pad=not custom_size)

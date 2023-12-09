@@ -1,4 +1,3 @@
-from enum import Enum
 from config import BATCH_SIZE, IMAGE_SIZE, KEEP_BACKGROUND, NORMALIZE
 from dataloaders.DataLoader import DataLoader
 from typing import Optional
@@ -12,9 +11,10 @@ from torchvision import transforms
 import pandas as pd
 from models.SAM import SAM
 from shared.enums import DynamicSegmentationStrategy
+from train_loops.SAM_pretrained import preprocess_images
 from utils.opencv_segmentation import bounding_box_pipeline
 from torchvision.transforms import functional as TF
-from utils.utils import approximate_bounding_box_to_square, crop_image_from_box, get_bounding_boxes_from_segmentation, resize_images, zoom_out
+from utils.utils import approximate_bounding_box_to_square, crop_image_from_box, get_bounding_boxes_from_segmentation, resize_images, resize_segmentations
 
 
 class DynamicSegmentationDataLoader(DataLoader):
@@ -57,9 +57,15 @@ class DynamicSegmentationDataLoader(DataLoader):
                 checkpoint_path=sam_checkpoint_path).to(self.device)
             self.sam_model.model.eval()
 
+            self.preprocess_params = {
+                'adjust_contrast': 1.5,
+                'adjust_brightness': 1.2,
+                'adjust_saturation': 2,
+                'adjust_gamma': 1.5,
+                'gaussian_blur': 5}
+
     def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int, transform: transforms.Compose = None):
         img = metadata.iloc[idx]
-        # Augment the data if balance_data is true and load segmentations
         label = img['label']
         segmentation_available = "segmentation_path" in img
 
@@ -67,6 +73,7 @@ class DynamicSegmentationDataLoader(DataLoader):
             image = Image.open(img['image_path'])
             image = TF.to_tensor(image)
             if self.segmentation_strategy == DynamicSegmentationStrategy.OPENCV.value:
+                # NOTE: This is deprecated, use SAM instead
                 segmented_image = bounding_box_pipeline(
                     image.unsqueeze(0)).squeeze(0)
             elif self.segmentation_strategy == DynamicSegmentationStrategy.SAM.value:
@@ -75,27 +82,31 @@ class DynamicSegmentationDataLoader(DataLoader):
             else:
                 raise NotImplementedError(
                     f"Dynamic segmentation strategy {self.segmentation_strategy} not implemented")
+
+            assert segmented_image.shape[-2:
+                                         ] == IMAGE_SIZE, f"Image shape is {segmented_image.shape}, expected last two dimensions to be {IMAGE_SIZE}"
+
             return segmented_image, label
 
-        ti, ts, ts_bbox = Image.open(img['image_path']), Image.open(
-            img['segmentation_path']).convert('1'), Image.open(img['segmentation_bbox_path']).convert('1')
-        ti, ts, ts_bbox = TF.to_tensor(ti), TF.to_tensor(ts), TF.to_tensor(
-            ts_bbox)
+        ti, ts = Image.open(img['image_path']), Image.open(
+            img['segmentation_path']).convert('1')
+        ti, ts = TF.to_tensor(ti), TF.to_tensor(ts)
         if img["augmented"]:
             if not self.keep_background:
-                ti = ti * ts
+                ti *= ts
             pil_image = TF.to_pil_image(ti)
             image = self.transform(pil_image)
-            image = image * ts_bbox
         else:
             image = ti
             if not self.keep_background:
-                image = ti * ts
-            image = image * ts_bbox
+                image *= ts
 
-        bbox = get_bounding_boxes_from_segmentation(ts_bbox)[0]
-        image = crop_image_from_box(image, bbox)
-        image = torch.from_numpy(image).permute(2, 0, 1)
+        image = self.crop_to_background(
+            image.unsqueeze(0), ts.unsqueeze(0)).squeeze(0)
+
+        assert image.shape[-2:
+                           ] == IMAGE_SIZE, f"Image shape is {image.shape[-2:]}, expected {IMAGE_SIZE}"
+
         return image, label
 
     def load_images_and_labels(self, metadata: pd.DataFrame):
@@ -116,32 +127,44 @@ class DynamicSegmentationDataLoader(DataLoader):
             f"Loading complete, some files ({len(not_found_files)}) were not found: {not_found_files}")
         return images, labels
 
-    def sam_segmentation_pipeline(self, images: torch.Tensor):
-        if len(images.shape) == 3:
-            images = images.unsqueeze(0)
-        THRESHOLD = 0.5
-        images = resize_images(images, new_size=(
-            self.sam_model.get_img_size(), self.sam_model.get_img_size())).to(self.device)
-
-        upscaled_masks = self.sam_model(images)
-        binary_masks = torch.sigmoid(upscaled_masks)
-        binary_masks = (binary_masks > THRESHOLD).float().to(self.device)
-
-        if not self.keep_background:
-            images = binary_masks * images
-
+    def crop_to_background(self, images: torch.Tensor,
+                           segmentations: torch.Tensor,
+                           resize: bool = True):
         bboxes = [get_bounding_boxes_from_segmentation(
-            mask)[0] for mask in binary_masks]
+            mask)[0] for mask in segmentations]
 
         cropped_images = []
         for image, bbox in zip(images, bboxes):
             bbox = approximate_bounding_box_to_square(bbox)
-            cropped_image = crop_image_from_box(image, bbox)
+            cropped_image = crop_image_from_box(
+                image, bbox, size=IMAGE_SIZE if resize else None)
             cropped_image = torch.from_numpy(cropped_image).permute(2, 0, 1)
             cropped_images.append(cropped_image)
 
         cropped_images = torch.stack(cropped_images)
-        cropped_image = resize_images(
-            cropped_images, new_size=IMAGE_SIZE)
+
+        return cropped_images
+
+    def sam_segmentation_pipeline(self, images: torch.Tensor):
+        if len(images.shape) == 3:
+            images = images.unsqueeze(0)
+        THRESHOLD = 0.5
+        resized_images = resize_images(images, new_size=(
+            self.sam_model.get_img_size(), self.sam_model.get_img_size())).to(self.device)
+
+        resized_images = preprocess_images(
+            resized_images, params=self.preprocess_params)
+
+        upscaled_masks = self.sam_model(resized_images)
+        binary_masks = torch.sigmoid(upscaled_masks)
+        binary_masks = (binary_masks > THRESHOLD).float()
+        binary_masks = resize_segmentations(
+            binary_masks, new_size=(450, 450)).to(self.device)
+
+        images = resize_images(images, new_size=(450, 450)).to(self.device)
+        if not self.keep_background:
+            images = binary_masks * images
+
+        cropped_images = self.crop_to_background(images, binary_masks)
         cropped_images = cropped_images.to(self.device)
         return cropped_images

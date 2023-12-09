@@ -40,9 +40,10 @@ class ImagesAndSegmentationDataLoader(DataLoader):
         self.resize_dim = resize_dim
         if self.resize_dim is not None:
             self.stateful_transform = StatefulTransform(
-                height=resize_dim[0], width=resize_dim[1])
+                height=resize_dim[0], width=resize_dim[1])  # TODO: check if this is needed
             self.transform = transforms.Compose([
-                transforms.Resize((resize_dim[0], resize_dim[1])),
+                # TODO: check if this is needed
+                transforms.Resize((resize_dim[0], resize_dim[1]),),
                 transforms.ToTensor()
             ])
         else:

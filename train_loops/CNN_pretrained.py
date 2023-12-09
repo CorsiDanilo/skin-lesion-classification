@@ -1,5 +1,5 @@
 import torch
-from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, ARCHITECTURE_CNN, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN, USE_DOUBLE_LOSS
+from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, ARCHITECTURE_CNN, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN, USE_DOUBLE_LOSS
 from constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
 from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device, set_seed
@@ -84,7 +84,8 @@ def main():
         upsample_train=UPSAMPLE_TRAIN,
         normalize=NORMALIZE,
         normalization_statistics=get_normalization_statistics(),
-        batch_size=BATCH_SIZE)
+        batch_size=BATCH_SIZE,
+        keep_background=KEEP_BACKGROUND,)
     train_loader = dataloader.get_train_dataloder()
     val_loader, _ = dataloader.get_val_test_dataloader()
     model = get_model(device)

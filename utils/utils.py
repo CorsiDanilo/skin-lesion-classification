@@ -9,7 +9,7 @@ import pandas as pd
 from torchvision import transforms
 import json
 import random
-from config import USE_DML, PATH_TO_SAVE_RESULTS, USE_MPS
+from config import IMAGE_SIZE, USE_DML, PATH_TO_SAVE_RESULTS, USE_MPS
 
 if USE_DML:
     import torch_directml
@@ -119,20 +119,20 @@ def get_bounding_boxes_from_segmentation(segmentation: torch.Tensor) -> torch.Te
     return bbox
 
 
-def approximate_bounding_box_to_square(box):
-    # TODO: copy the code from crop_roi to approximate in the same way the ROI
-    # Calculate the width and height of the box
-    MAX_WIDTH = 700
-    MAX_HEIGHT = 700
+def approximate_bounding_box_to_square(box, min_size=None):
+    MAX_WIDTH = 1000
+    MAX_HEIGHT = 1000
     width = (box[2] - box[0]).item()
     height = (box[3] - box[1]).item()
 
-    # Calculate the center of the box
     center_x = ((box[0] + box[2]) // 2).item()
     center_y = ((box[1] + box[3]) // 2).item()
 
-    # Calculate the side length of the square
-    side_length = max(width, height)
+    # print(f"Computed width is {width} and height is {height}")
+    if min_size is None:
+        side_length = max(width, height, 0, 0)
+    else:
+        side_length = max(min_size)
 
     # Calculate the new coordinates of the square
     new_box = [
@@ -154,23 +154,40 @@ def shift_boxes(boxes, h_shift, w_shift):
     return shifted_boxes
 
 
-def crop_image_from_box(image, box):
+def get_resize_interpolation(image, size):
+    if len(image.shape) == 2:
+        image = image.unsqueeze(0)
+    if image.shape[1:] > size:
+        interpolation = cv2.INTER_AREA
+    else:
+        interpolation = cv2.INTER_CUBIC
+    return interpolation
+
+
+def crop_image_from_box(image, box, size):
     # print(f"Box is {box}")
     cropped_image = image[:, box[0]:box[2], box[1]:box[3]]
     # print(f"Cropped image shape is {cropped_image.shape}")
     cropped_image = cropped_image.permute(1, 2, 0).cpu().numpy()
-    resized_image = cv2.resize(cropped_image, (224, 224))
+
+    if size is None:
+        return cropped_image
+    interpolation = get_resize_interpolation(cropped_image, size)
+    resized_image = cv2.resize(
+        cropped_image, size, interpolation=interpolation)
     return resized_image
 
 
 def resize_images(images, new_size=(800, 800)):
+    interpolation = get_resize_interpolation(images, new_size)
     return torch.stack([torch.from_numpy(cv2.resize(
-        image.permute(1, 2, 0).cpu().numpy(), new_size)) for image in images]).permute(0, 3, 1, 2)
+        image.permute(1, 2, 0).cpu().numpy(), new_size, interpolation=interpolation)) for image in images]).permute(0, 3, 1, 2)
 
 
 def resize_segmentations(segmentation, new_size=(800, 800)):
+    interpolation = get_resize_interpolation(segmentation, new_size)
     return torch.stack([torch.from_numpy(cv2.resize(
-        image.permute(1, 2, 0).cpu().numpy(), new_size)) for image in segmentation]).unsqueeze(0).permute(1, 0, 2, 3)
+        image.permute(1, 2, 0).cpu().numpy(), new_size, interpolation=interpolation)) for image in segmentation]).unsqueeze(0).permute(1, 0, 2, 3)
 
 
 def calculate_normalization_statistics(df: pd.DataFrame) -> Tuple[torch.Tensor, torch.Tensor]:
