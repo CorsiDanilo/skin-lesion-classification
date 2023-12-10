@@ -23,7 +23,7 @@ def get_model(device):
 
     if RESUME:
         model.load_state_dict(torch.load(
-            f"{PATH_TO_SAVE_RESULTS}/{PATH_MODEL_TO_RESUME}/models/melanoma_detection_ep{RESUME_EPOCH}.pt"))
+            f"{PATH_TO_SAVE_RESULTS}/{PATH_MODEL_TO_RESUME}/models/melanoma_detection_{RESUME_EPOCH}.pt"))
 
     for p in model.parameters():
         p.requires_grad = False

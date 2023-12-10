@@ -97,15 +97,17 @@ def get_model(type, device):
     return model, normalization_stats
 
 def load_test_model(model, model_path, epoch):
-    test_model = model.load_state_dict(torch.load(
-                f"{PATH_TO_SAVE_RESULTS}/{model_path}/models/melanoma_detection_ep{epoch}.pt"))
-    return test_model
+    state_dict = torch.load(
+                f"{PATH_TO_SAVE_RESULTS}/{model_path}/models/melanoma_detection_{epoch}.pt")
+    model.load_state_dict(state_dict)
+    model.eval()
+    return model
 
 def main(model_path, type, epoch):
     set_seed(RANDOM_SEED)
     device = select_device()
-    model_type, normalization_stats = get_model(type, device)
-    test_model = load_test_model(model_type, model_path, epoch)
+    model, normalization_stats = get_model(type, device)
+    model = load_test_model(model, model_path, epoch)
 
     dataloader = get_dataloder_from_strategy(
         strategy=SegmentationStrategy.NO_SEGMENTATION.value,
@@ -115,13 +117,12 @@ def main(model_path, type, epoch):
         normalization_statistics=normalization_stats,
         batch_size=BATCH_SIZE)
     test_dataloader = dataloader.get_test_dataloader()
-    print(test_model)
-    test(test_model, test_dataloader, device, model_path)
+    test(model, test_dataloader, device, model_path)
 
 
 if __name__ == "__main__":
-    model_path = "resnet24_2023-12-07_17-13-18"
+    model_path = "resnet24_2023-12-10_11-42-26"
     type = "resnet24"
-    epoch = 2
+    epoch = 1 #Specify the epoch number (e.g. 2) or "best" to get best model
 
     main(model_path, type, epoch)

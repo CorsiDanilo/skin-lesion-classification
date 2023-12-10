@@ -227,7 +227,7 @@ def save_model(data_name, model, epoch=None, is_best=False):
         torch.save(model.state_dict(), f'{path}/melanoma_detection_best.pt')
     else:
         torch.save(model.state_dict(),
-                   f'{path}/melanoma_detection_ep{epoch+1}.pt')
+                   f'{path}/melanoma_detection_{epoch+1}.pt')
 
 
 def set_seed(seed):

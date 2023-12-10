@@ -21,6 +21,7 @@ def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, 
     loss_function_multiclass = nn.CrossEntropyLoss()
     if USE_DOUBLE_LOSS:
         loss_function_binary = nn.CrossEntropyLoss()
+        
     if resume:
         data_name = PATH_MODEL_TO_RESUME
     else:
