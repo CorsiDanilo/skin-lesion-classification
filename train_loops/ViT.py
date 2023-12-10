@@ -40,35 +40,91 @@ def main():
     set_seed(RANDOM_SEED)
 
     device = select_device()
+    model = get_model(device)
 
-    config = {
-        "learning_rate": LR,
-        "architecture": ARCHITECTURE,
-        "epochs": N_EPOCHS,
-        'reg': REG,
-        'batch_size': BATCH_SIZE,
-        "input_size": INPUT_SIZE,
-        "hidden_size": HIDDEN_SIZE,
-        "num_classes": NUM_CLASSES,
-        "dataset": "HAM10K",
-        "optimizer": "AdamW",
-        "dataset_limit": DATASET_LIMIT,
-        "dropout_p": DROPOUT_P,
-        "normalize": NORMALIZE,
-        "resumed": RESUME,
-        "from_epoch": RESUME_EPOCH,
-        "segmentation_bounding_box": SEGMENTATION_BOUNDING_BOX,
-        "balance_undersampling": BALANCE_UNDERSAMPLING,
-        "initialization": "default",
-        "segmentation_strategy": SEGMENTATION_STRATEGY,
-        "dynamic_segmentation_strategy": DYNAMIC_SEGMENTATION_STRATEGY,
-        "upsample_train": UPSAMPLE_TRAIN,
-        "n_heads": N_HEADS,
-        "n_layers": N_LAYERS,
-        "patch_size": PATCH_SIZE,
-        "emb_size": EMB_SIZE,
-        "double_loss": USE_DOUBLE_LOSS
-    }
+    if ARCHITECTURE == "pretrained":
+            config = {
+            "learning_rate": LR,
+            "architecture": ARCHITECTURE,
+            "epochs": N_EPOCHS,
+            'reg': REG,
+            'batch_size': BATCH_SIZE,
+            "input_size": INPUT_SIZE,
+            "hidden_size": HIDDEN_SIZE,
+            "num_classes": NUM_CLASSES,
+            "dataset": "HAM10K",
+            "optimizer": "AdamW",
+            "dataset_limit": DATASET_LIMIT,
+            "dropout_p": DROPOUT_P,
+            "normalize": NORMALIZE,
+            "resumed": RESUME,
+            "from_epoch": RESUME_EPOCH,
+            "segmentation_bounding_box": SEGMENTATION_BOUNDING_BOX,
+            "balance_undersampling": BALANCE_UNDERSAMPLING,
+            "initialization": "default",
+            "segmentation_strategy": SEGMENTATION_STRATEGY,
+            "dynamic_segmentation_strategy": DYNAMIC_SEGMENTATION_STRATEGY,
+            "upsample_train": UPSAMPLE_TRAIN,
+            "double_loss": USE_DOUBLE_LOSS
+        }
+    elif config == "standard":
+        config = {
+            "learning_rate": LR,
+            "architecture": ARCHITECTURE,
+            "epochs": N_EPOCHS,
+            'reg': REG,
+            'batch_size': BATCH_SIZE,
+            "input_size": INPUT_SIZE,
+            "hidden_size": HIDDEN_SIZE,
+            "num_classes": NUM_CLASSES,
+            "dataset": "HAM10K",
+            "optimizer": "AdamW",
+            "dataset_limit": DATASET_LIMIT,
+            "dropout_p": DROPOUT_P,
+            "normalize": NORMALIZE,
+            "resumed": RESUME,
+            "from_epoch": RESUME_EPOCH,
+            "segmentation_bounding_box": SEGMENTATION_BOUNDING_BOX,
+            "balance_undersampling": BALANCE_UNDERSAMPLING,
+            "initialization": "default",
+            "segmentation_strategy": SEGMENTATION_STRATEGY,
+            "dynamic_segmentation_strategy": DYNAMIC_SEGMENTATION_STRATEGY,
+            "upsample_train": UPSAMPLE_TRAIN,
+            "n_heads": N_HEADS,
+            "n_layers": N_LAYERS,
+            "patch_size": PATCH_SIZE,
+            "emb_size": EMB_SIZE,
+            "double_loss": USE_DOUBLE_LOSS
+        }
+    else:
+        config = {
+            "learning_rate": LR,
+            "architecture": ARCHITECTURE,
+            "epochs": N_EPOCHS,
+            'reg': REG,
+            'batch_size': BATCH_SIZE,
+            "input_size": INPUT_SIZE,
+            "num_classes": NUM_CLASSES,
+            "dataset": "HAM10K",
+            "optimizer": "AdamW",
+            "dataset_limit": DATASET_LIMIT,
+            "dropout_p": DROPOUT_P,
+            "normalize": NORMALIZE,
+            "resumed": RESUME,
+            "from_epoch": RESUME_EPOCH,
+            "segmentation_bounding_box": SEGMENTATION_BOUNDING_BOX,
+            "balance_undersampling": BALANCE_UNDERSAMPLING,
+            "initialization": "default",
+            "segmentation_strategy": SEGMENTATION_STRATEGY,
+            "dynamic_segmentation_strategy": DYNAMIC_SEGMENTATION_STRATEGY,
+            "upsample_train": UPSAMPLE_TRAIN,
+            "n_heads": N_HEADS,
+            "n_layers": N_LAYERS,
+            "patch_size": PATCH_SIZE,
+            "emb_size": EMB_SIZE,
+            "double_loss": USE_DOUBLE_LOSS
+        }
+
 
     dataloader = get_dataloder_from_strategy(
         strategy=SEGMENTATION_STRATEGY,
@@ -80,7 +136,7 @@ def main():
         normalization_statistics=get_normalization_statistics(),
         batch_size=BATCH_SIZE)
     train_loader, val_loader = dataloader.get_train_val_dataloders()
-    model = get_model(device)
+    
     optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=REG)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=N_EPOCHS, eta_min=1e-5)
