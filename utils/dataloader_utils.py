@@ -15,8 +15,7 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
                                 normalize: bool = NORMALIZE,
                                 normalization_statistics: tuple = None,
                                 batch_size: int = BATCH_SIZE,
-                                keep_background: Optional[bool] = KEEP_BACKGROUND,
-                                take_val_from_test: bool = False) -> DataLoader:
+                                keep_background: Optional[bool] = KEEP_BACKGROUND) -> DataLoader:
 
     if strategy == SegmentationStrategy.DYNAMIC_SEGMENTATION.value:
         dataloader = DynamicSegmentationDataLoader(
