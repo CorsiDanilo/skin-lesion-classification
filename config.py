@@ -33,8 +33,7 @@ N_EPOCHS = 5
 LR = 1e-3
 LR_DECAY = 0.85
 REG = 0.01
-ARCHITECTURE_CNN = "resnet24"
-ARCHITECTURE_VIT = "pretrained"  # standard, pretrained, efficient
+ARCHITECTURE = "pretrained" # resnet24, densenet121, inception_v3, standard, pretrained, efficient
 DATASET_LIMIT = None
 DROPOUT_P = 0.3
 NORMALIZE = True
@@ -50,7 +49,7 @@ DYNAMIC_SEGMENTATION_STRATEGY = DynamicSegmentationStrategy.OPENCV.value
 # If true, the background is kept in the segmentation, otherwise it is removed
 KEEP_BACKGROUND = False
 
-if ARCHITECTURE_CNN == "inception_v3":
+if ARCHITECTURE == "inception_v3":
     IMAGE_SIZE = (299, 299)  # for inception_v3
 else:
     IMAGE_SIZE = (224, 224)  # for the others
@@ -63,5 +62,5 @@ EMB_SIZE = 800
 
 # Resume
 RESUME = False
-PATH_MODEL_TO_RESUME = f"CNN_resnet24_2023-12-04_17-26-22"
+PATH_MODEL_TO_RESUME = f"resnet24_2023-12-04_17-26-22"
 RESUME_EPOCH = 2

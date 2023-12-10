@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+import os
+import json
 from sklearn.metrics import recall_score, accuracy_score
 from utils.utils import save_results, set_seed, select_device
 from utils.dataloader_utils import get_dataloder_from_strategy
@@ -68,28 +70,44 @@ def test(test_model, test_loader, device, data_name):
             save_results(data_name, test_results, test=True)
         #return test_loss, test_accuracy, test_recall
 
-def get_model(type, device):
+def get_model(model_path, device):
+    #Load configuration
+    conf_path = PATH_TO_SAVE_RESULTS + f"/{model_path}/configurations.json"
+    configurations = None
+    if os.path.exists(conf_path):
+        print("--Model-- Old configurations found. Using those configurations for the test.")
+        with open(conf_path, 'r') as json_file:
+            configurations = json.load(json_file)
+    else:
+        print("--Model-- Old configurations NOT found. Using configurations in the config for test.")
+    
+    type = model_path.split('_')[0]
     if type == "resnet24":
         model = ResNet24Pretrained(
-            INPUT_SIZE, HIDDEN_SIZE, NUM_CLASSES, norm_layer='BN').to(device)
+            INPUT_SIZE if configurations is None else configurations["input_size"], HIDDEN_SIZE if configurations is None else configurations["hidden_size"], NUM_CLASSES if configurations is None else configurations["num_classes"], norm_layer='BN').to(device)
         normalization_stats = IMAGENET_STATISTICS
     elif type == "densenet121":
         model = DenseNetPretrained(
-            INPUT_SIZE, HIDDEN_SIZE, NUM_CLASSES, norm_layer='BN').to(device)
+            INPUT_SIZE if configurations is None else configurations["input_size"], HIDDEN_SIZE if configurations is None else configurations["hidden_size"], NUM_CLASSES if configurations is None else configurations["num_classes"], norm_layer='BN').to(device)
         normalization_stats = IMAGENET_STATISTICS
     elif type == "inception_v3":
-        model = InceptionV3Pretrained(NUM_CLASSES).to(device)
+        model = InceptionV3Pretrained(NUM_CLASSES if configurations is None else configurations["num_classes"]).to(device)
         normalization_stats = IMAGENET_STATISTICS
     elif type == "standard":
-        model = ViT_pretrained(NUM_CLASSES, pretrained=True).to(device)
+        model = ViT_standard(in_channels=INPUT_SIZE if configurations is None else configurations["input_size"],
+                             patch_size=PATCH_SIZE if configurations is None else configurations["patch_size"],
+                             d_model=EMB_SIZE if configurations is None else configurations["emb_size"],
+                             img_size=IMAGE_SIZE if configurations is None else configurations["image_size"],
+                             n_classes=NUM_CLASSES if configurations is None else configurations["num_classes"],
+                             n_head=N_HEADS if configurations is None else configurations["n_heads"],
+                             n_layers=N_LAYERS if configurations is None else configurations["n_layers"]).to(device)
         normalization_stats = None
     elif type == "pretrained":
-        model = ViT_standard(in_channels=INPUT_SIZE, patch_size=PATCH_SIZE, d_model=EMB_SIZE,
-                             img_size=IMAGE_SIZE, n_classes=NUM_CLASSES, n_head=N_HEADS, n_layers=N_LAYERS).to(device)
+        model = ViT_pretrained(NUM_CLASSES if configurations is None else configurations["num_classes"], pretrained=True).to(device)
         normalization_stats = IMAGENET_STATISTICS
     elif type == "efficient":
-        model = EfficientViT(img_size=224, patch_size=16, in_chans=INPUT_SIZE, stages=['s', 's', 's'], embed_dim=[
-                             64, 128, 192], key_dim=[16, 16, 16], depth=[1, 2, 3], window_size=[7, 7, 7], kernels=[5, 5, 5, 5])
+        model = EfficientViT(img_size=224, patch_size=16, in_chans=INPUT_SIZE if configurations is None else configurations["input_size"], stages=['s', 's', 's'],
+                             embed_dim=[64, 128, 192], key_dim=[16, 16, 16], depth=[1, 2, 3], window_size=[7, 7, 7], kernels=[5, 5, 5, 5])
         normalization_stats = None
     else:
         raise ValueError(f"Unknown architecture {type}")
@@ -103,10 +121,10 @@ def load_test_model(model, model_path, epoch):
     model.eval()
     return model
 
-def main(model_path, type, epoch):
+def main(model_path, epoch):
     set_seed(RANDOM_SEED)
     device = select_device()
-    model, normalization_stats = get_model(type, device)
+    model, normalization_stats = get_model(model_path, device)
     model = load_test_model(model, model_path, epoch)
 
     dataloader = get_dataloder_from_strategy(
@@ -121,8 +139,7 @@ def main(model_path, type, epoch):
 
 
 if __name__ == "__main__":
-    model_path = "resnet24_2023-12-10_11-42-26"
-    type = "resnet24"
+    model_path = "resnet24_2023-12-10_12-29-49" # Name of the sub-folder into "results" folder in which to find the model to test (e.g. "resnet24_2023-12-10_12-29-49")
     epoch = 1 #Specify the epoch number (e.g. 2) or "best" to get best model
 
-    main(model_path, type, epoch)
+    main(model_path, epoch)
