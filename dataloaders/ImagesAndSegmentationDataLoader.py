@@ -29,16 +29,14 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                  upscale_train: bool = True,
                  normalize: bool = NORMALIZE,
                  normalization_statistics: tuple = None,
-                 batch_size: int = BATCH_SIZE,
-                 take_val_from_test: bool = True):
+                 batch_size: int = BATCH_SIZE):
         super().__init__(limit=limit,
                          transform=transform,
                          dynamic_load=dynamic_load,
                          upscale_train=upscale_train,
                          normalize=normalize,
                          normalization_statistics=normalization_statistics,
-                         batch_size=batch_size,
-                         take_val_from_test=take_val_from_test)
+                         batch_size=batch_size)
         self.resize_dim = resize_dim
         if self.resize_dim is not None:
             self.stateful_transform = StatefulTransform(

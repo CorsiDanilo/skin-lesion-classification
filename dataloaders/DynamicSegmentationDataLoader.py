@@ -33,16 +33,14 @@ class DynamicSegmentationDataLoader(DataLoader):
                  normalize: bool = NORMALIZE,
                  keep_background: Optional[bool] = KEEP_BACKGROUND,
                  normalization_statistics: tuple = None,
-                 batch_size: int = BATCH_SIZE,
-                 take_val_from_test: bool = True):
+                 batch_size: int = BATCH_SIZE):
         super().__init__(limit=limit,
                          transform=transform,
                          dynamic_load=dynamic_load,
                          upscale_train=upscale_train,
                          normalize=normalize,
                          normalization_statistics=normalization_statistics,
-                         batch_size=batch_size,
-                         take_val_from_test=take_val_from_test)
+                         batch_size=batch_size)
         self.segmentation_strategy = segmentation_strategy
         self.segmentation_transform = transforms.Compose([
             transforms.ToTensor()
