@@ -1,5 +1,5 @@
 import torch
-from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, ARCHITECTURE_CNN, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN, USE_DOUBLE_LOSS
+from config import ARCHITECTURE, BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN, USE_DOUBLE_LOSS
 from constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
 from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device, set_seed
@@ -10,20 +10,20 @@ from models.InceptionV3Pretrained import InceptionV3Pretrained
 
 
 def get_model(device):
-    if ARCHITECTURE_CNN == "resnet24":
+    if ARCHITECTURE == "resnet24":
         model = ResNet24Pretrained(
             INPUT_SIZE, HIDDEN_SIZE, NUM_CLASSES, norm_layer='BN').to(device)
-    elif ARCHITECTURE_CNN == "densenet121":
+    elif ARCHITECTURE == "densenet121":
         model = DenseNetPretrained(
             INPUT_SIZE, HIDDEN_SIZE, NUM_CLASSES, norm_layer='BN').to(device)
-    elif ARCHITECTURE_CNN == "inception_v3":
+    elif ARCHITECTURE == "inception_v3":
         model = InceptionV3Pretrained(NUM_CLASSES).to(device)
     else:
-        raise ValueError(f"Unknown architechture {ARCHITECTURE_CNN}")
+        raise ValueError(f"Unknown architechture {ARCHITECTURE}")
 
     if RESUME:
         model.load_state_dict(torch.load(
-            f"{PATH_TO_SAVE_RESULTS}/{PATH_MODEL_TO_RESUME}/models/melanoma_detection_ep{RESUME_EPOCH}.pt"))
+            f"{PATH_TO_SAVE_RESULTS}/{PATH_MODEL_TO_RESUME}/models/melanoma_detection_{RESUME_EPOCH}.pt"))
 
     for p in model.parameters():
         p.requires_grad = False
@@ -33,7 +33,7 @@ def get_model(device):
     # for p in parameters[-LAYERS_TO_FINE_TUNE:]:
     #     p.requires_grad=True
 
-    print(f"--Model-- Using {ARCHITECTURE_CNN} pretrained model")
+    print(f"--Model-- Using {ARCHITECTURE} pretrained model")
 
     for p in model.classifier.parameters():
         p.requires_grad = True
@@ -43,7 +43,7 @@ def get_model(device):
 
 def get_normalization_statistics():
     image_net_pretrained_models = ["resnet24", "densenet121", "inception_v3"]
-    if ARCHITECTURE_CNN in image_net_pretrained_models:
+    if ARCHITECTURE in image_net_pretrained_models:
         return IMAGENET_STATISTICS
     else:
         return DEFAULT_STATISTICS
@@ -56,11 +56,13 @@ def main():
 
     config = {
         "learning_rate": LR,
-        "architecture": ARCHITECTURE_CNN,
+        "architecture": ARCHITECTURE,
         "epochs": N_EPOCHS,
         'reg': REG,
         'batch_size': BATCH_SIZE,
+        "input_size": INPUT_SIZE,
         "hidden_size": HIDDEN_SIZE,
+        "num_classes": NUM_CLASSES,
         "dataset": "HAM10K",
         "optimizer": "AdamW",
         "dataset_limit": DATASET_LIMIT,

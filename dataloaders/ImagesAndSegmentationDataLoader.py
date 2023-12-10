@@ -1,4 +1,3 @@
-import random
 from dataloaders.DataLoader import DataLoader
 from typing import Optional, Tuple
 import torch
@@ -10,7 +9,9 @@ from tqdm import tqdm
 from torchvision import transforms
 import pandas as pd
 import torchvision.transforms.functional as TF
-from config import BATCH_SIZE, IMAGE_SIZE, NORMALIZE
+from config import BATCH_SIZE, IMAGE_SIZE, NORMALIZE, RANDOM_SEED
+import random
+random.seed(RANDOM_SEED)
 
 
 class ImagesAndSegmentationDataLoader(DataLoader):

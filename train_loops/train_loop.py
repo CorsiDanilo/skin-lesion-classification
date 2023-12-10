@@ -6,7 +6,7 @@ import torch.nn as nn
 import wandb
 from datetime import datetime
 import copy
-from config import N_EPOCHS, ARCHITECTURE_CNN, USE_WANDB, SAVE_MODELS, SAVE_RESULTS, USE_DOUBLE_LOSS, PATH_MODEL_TO_RESUME, RESUME_EPOCH
+from config import BATCH_SIZE, N_EPOCHS, ARCHITECTURE, USE_WANDB, SAVE_MODELS, SAVE_RESULTS, USE_DOUBLE_LOSS, PATH_MODEL_TO_RESUME, RESUME_EPOCH
 
 
 def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, scheduler, resume=False):
@@ -21,15 +21,18 @@ def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, 
     loss_function_multiclass = nn.CrossEntropyLoss()
     if USE_DOUBLE_LOSS:
         loss_function_binary = nn.CrossEntropyLoss()
+
     if resume:
         data_name = PATH_MODEL_TO_RESUME
     else:
         # Creation of folders where to save data (plots and models)
         current_datetime = datetime.now()
         current_datetime_str = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
-        data_name = f"{ARCHITECTURE_CNN}_{current_datetime_str}"
+        data_name = f"{ARCHITECTURE}_{current_datetime_str}"
 
-        save_configurations(data_name, config)  # Save configurations in JSON
+        if SAVE_RESULTS:
+            # Save configurations in JSON
+            save_configurations(data_name, config)
 
     total_step = len(train_loader)
     best_model = None

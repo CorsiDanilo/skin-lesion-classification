@@ -19,10 +19,10 @@ METADATA_TRAIN_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_train.csv')
 BATCH_SIZE = 128
 
 
-USE_WANDB = True  # Use wandb for logging
+USE_WANDB = False  # Use wandb for logging
 # DirectML library for AMD gpu on Windows (set to false if you want to use cpu or standard CUDA)
 USE_DML = False
-USE_MPS = True  # Use MPS gpu for MacOS
+USE_MPS = False  # Use MPS gpu for MacOS
 SAVE_RESULTS = True  # Save results in JSON locally
 SAVE_MODELS = True  # Save models locally
 
@@ -35,8 +35,8 @@ N_EPOCHS = 50
 LR = 1e-3
 LR_DECAY = 0.85
 REG = 0.01
-ARCHITECTURE_CNN = "resnet24"
-ARCHITECTURE_VIT = "pretrained"  # standard, pretrained, efficient
+# resnet24, densenet121, inception_v3, standard, pretrained, efficient
+ARCHITECTURE = "resnet24"
 DATASET_LIMIT = None
 DROPOUT_P = 0.3
 NORMALIZE = True
@@ -50,7 +50,7 @@ DYNAMIC_SEGMENTATION_STRATEGY = DynamicSegmentationStrategy.SAM.value
 # If true, the background is kept in the segmentation, otherwise it is removed
 KEEP_BACKGROUND = True
 
-if ARCHITECTURE_CNN == "inception_v3":
+if ARCHITECTURE == "inception_v3":
     IMAGE_SIZE = (299, 299)  # for inception_v3
 else:
     IMAGE_SIZE = (224, 224)  # for the others
@@ -64,5 +64,5 @@ EMB_SIZE = 800
 
 # Resume
 RESUME = False
-PATH_MODEL_TO_RESUME = f"CNN_resnet24_2023-12-04_17-26-22"
-RESUME_EPOCH = 0
+PATH_MODEL_TO_RESUME = f"resnet24_2023-12-09_09-09-54"
+RESUME_EPOCH = 2
