@@ -55,13 +55,16 @@ def main():
 
     device = select_device()
 
+    model = get_model(device)
+    if PRINT_MODEL_ARCHITECTURE:
+        print(f"--Model-- Architecture: {model}")
+
     config = {
         "learning_rate": LR,
         "architecture": ARCHITECTURE,
         "epochs": N_EPOCHS,
         'reg': REG,
         'batch_size': BATCH_SIZE,
-        "input_size": INPUT_SIZE,
         "hidden_size": HIDDEN_SIZE,
         "num_classes": NUM_CLASSES,
         "dataset": "HAM10K",
@@ -91,9 +94,7 @@ def main():
         keep_background=KEEP_BACKGROUND,)
     train_loader = dataloader.get_train_dataloder()
     val_loader = dataloader.get_val_dataloader()
-    model = get_model(device)
-    if PRINT_MODEL_ARCHITECTURE:
-        print(f"--Model-- Architecture: {model}")
+    
     optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=REG)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=N_EPOCHS, eta_min=1e-5, verbose=True)

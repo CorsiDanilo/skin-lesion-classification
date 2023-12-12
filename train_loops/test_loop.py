@@ -6,7 +6,6 @@ from sklearn.metrics import recall_score, accuracy_score
 from tqdm import tqdm
 from utils.utils import save_results, set_seed, select_device
 from utils.dataloader_utils import get_dataloder_from_strategy
-from dataloaders.DataLoader import DataLoader
 from config import USE_DOUBLE_LOSS, BATCH_SIZE, SAVE_RESULTS, DATASET_LIMIT, NORMALIZE, RANDOM_SEED, PATH_TO_SAVE_RESULTS, NUM_CLASSES, HIDDEN_SIZE, INPUT_SIZE, IMAGE_SIZE, PATCH_SIZE, EMB_SIZE, N_HEADS, N_LAYERS
 from constants import DEFAULT_STATISTICS, IMAGENET_STATISTICS
 from shared.enums import DynamicSegmentationStrategy, SegmentationStrategy
@@ -98,15 +97,15 @@ def get_model(model_path, device):
     type = model_path.split('_')[0]
     if type == "resnet24":
         model = ResNet24Pretrained(
-            INPUT_SIZE if configurations is None else configurations["input_size"], HIDDEN_SIZE if configurations is None else configurations["hidden_size"], NUM_CLASSES if configurations is None else configurations["num_classes"], norm_layer='BN').to(device)
+            HIDDEN_SIZE if configurations is None else configurations["hidden_size"], NUM_CLASSES if configurations is None else configurations["num_classes"]).to(device)
         normalization_stats = IMAGENET_STATISTICS
     elif type == "densenet121":
         model = DenseNetPretrained(
-            INPUT_SIZE if configurations is None else configurations["input_size"], HIDDEN_SIZE if configurations is None else configurations["hidden_size"], NUM_CLASSES if configurations is None else configurations["num_classes"], norm_layer='BN').to(device)
+            HIDDEN_SIZE if configurations is None else configurations["hidden_size"], NUM_CLASSES if configurations is None else configurations["num_classes"]).to(device)
         normalization_stats = IMAGENET_STATISTICS
     elif type == "inception_v3":
         model = InceptionV3Pretrained(
-            NUM_CLASSES if configurations is None else configurations["num_classes"]).to(device)
+            HIDDEN_SIZE if configurations is None else configurations["hidden_size"], NUM_CLASSES if configurations is None else configurations["num_classes"]).to(device)
         normalization_stats = IMAGENET_STATISTICS
     elif type == "standard":
         model = ViT_standard(in_channels=INPUT_SIZE if configurations is None else configurations["input_size"],
