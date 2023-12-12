@@ -6,30 +6,32 @@ import numpy as np
 
 
 class InceptionV3Pretrained(nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, hidden_layers, num_classes):
         super(InceptionV3Pretrained, self).__init__()
         self.model = models.inception_v3(weights=Inception_V3_Weights.DEFAULT)
 
-        print(f"In features are: {self.model.fc.in_features}")
-        self.classifier = nn.Sequential(
-            nn.Dropout(p=DROPOUT_P),
+        self.dropout = nn.Dropout(p=DROPOUT_P)
+        self.relu = nn.ReLU()
 
-            nn.Linear(self.model.fc.in_features, 1024, bias=False),
-            nn.ReLU(),
-            nn.BatchNorm1d(1024),
-
-            nn.Linear(1024, 256, bias=False),
-            nn.ReLU(),
-            nn.BatchNorm1d(256),
-
-            nn.Linear(256, 64, bias=False),
-            nn.ReLU(),
-            nn.BatchNorm1d(64),
-
-            nn.Linear(64, num_classes, bias=False),
-            nn.BatchNorm1d(num_classes),
-        )
-
+        self.layers = []
+        if len(hidden_layers) == 0:
+            self.layers.append(self.dropout)
+            self.layers.append(nn.Linear(self.model.fc.in_features, num_classes, bias=False))
+        else:
+            self.layers.append(self.dropout)
+            for i in range(len(hidden_layers)):
+                if i == 0:
+                    self.layers.append(nn.Linear(self.model.fc.in_features, hidden_layers[i], bias=False))
+                    self.layers.append(self.relu)
+                    self.layers.append(nn.BatchNorm1d(hidden_layers[i]))
+                else:
+                    self.layers.append(nn.Linear(hidden_layers[i-1], hidden_layers[i], bias=False))
+                    self.layers.append(self.relu)
+                    self.layers.append(nn.BatchNorm1d(hidden_layers[i]))
+            self.layers.append(nn.Linear(hidden_layers[-1], num_classes, bias=False))
+            self.layers.append(nn.BatchNorm1d(num_classes))
+        
+        self.classifier = nn.Sequential(*self.layers)
         self.model.fc = self.classifier
 
         model_parameters = filter(

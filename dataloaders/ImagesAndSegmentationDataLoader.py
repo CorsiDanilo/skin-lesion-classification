@@ -4,7 +4,7 @@ import torch
 
 from typing import Optional
 
-from PIL import Image
+from PIL import Image, ImageDraw
 from tqdm import tqdm
 from torchvision import transforms
 import pandas as pd
@@ -50,7 +50,7 @@ class ImagesAndSegmentationDataLoader(DataLoader):
         else:
             self.stateful_transform = StatefulTransform()
 
-    def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int, transform: transforms.Compose = None):
+    def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int):
         img = metadata.iloc[idx]
         load_segmentations = "segmentation_path" in img
         label = img['label']
@@ -102,6 +102,16 @@ class StatefulTransform:
     def __init__(self, height: Optional[int] = None, width: Optional[int] = None):
         self.height = height
         self.width = width
+    
+    def cutout(self, img, seg):
+        size = min(self.height, self.width) // 2
+        x = random.randint(0, self.width - size)
+        y = random.randint(0, self.height - size)
+
+        draw_img = ImageDraw.Draw(img)
+        draw_img.rectangle([x, y, x + size, y + size], fill=0)
+        draw_seg = ImageDraw.Draw(seg)
+        draw_seg.rectangle([x, y, x + size, y + size], fill=0)
 
     def __call__(self, img, seg):
 
@@ -111,6 +121,9 @@ class StatefulTransform:
                                     interpolation=Image.BILINEAR)(img)
             seg = transforms.Resize((self.height, self.width),
                                     interpolation=Image.BILINEAR)(seg)
+        #Cutout
+        if random.random() > 0.5:
+            img, seg = self.cutout(img, seg)
 
         # Horizonal flip
         if random.random() > 0.5:

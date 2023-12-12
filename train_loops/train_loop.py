@@ -171,4 +171,4 @@ def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, 
             if epoch == N_EPOCHS-1 and SAVE_MODELS:
                 save_model(data_name, best_model, epoch=None, is_best=True)
 
-        # scheduler.step()  # Step the scheduler #TODO: just to try for now
+        scheduler.step()

@@ -1,5 +1,5 @@
 import torch
-from config import ARCHITECTURE, BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN, USE_DOUBLE_LOSS
+from config import ARCHITECTURE, PRINT_MODEL_ARCHITECTURE, BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN, USE_DOUBLE_LOSS
 from constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
 from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device, set_seed
@@ -12,12 +12,13 @@ from models.InceptionV3Pretrained import InceptionV3Pretrained
 def get_model(device):
     if ARCHITECTURE == "resnet24":
         model = ResNet24Pretrained(
-            INPUT_SIZE, HIDDEN_SIZE, NUM_CLASSES, norm_layer='BN').to(device)
+            HIDDEN_SIZE, NUM_CLASSES).to(device)
     elif ARCHITECTURE == "densenet121":
         model = DenseNetPretrained(
-            INPUT_SIZE, HIDDEN_SIZE, NUM_CLASSES, norm_layer='BN').to(device)
+            HIDDEN_SIZE, NUM_CLASSES).to(device)
     elif ARCHITECTURE == "inception_v3":
-        model = InceptionV3Pretrained(NUM_CLASSES).to(device)
+        model = InceptionV3Pretrained(
+            HIDDEN_SIZE, NUM_CLASSES).to(device)
     else:
         raise ValueError(f"Unknown architechture {ARCHITECTURE}")
 
@@ -91,6 +92,8 @@ def main():
     train_loader = dataloader.get_train_dataloder()
     val_loader = dataloader.get_val_dataloader()
     model = get_model(device)
+    if PRINT_MODEL_ARCHITECTURE:
+        print(f"--Model-- Architecture: {model}")
     optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=REG)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=N_EPOCHS, eta_min=1e-5, verbose=True)

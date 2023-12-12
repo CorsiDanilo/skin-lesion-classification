@@ -25,18 +25,24 @@ USE_DML = False
 USE_MPS = False  # Use MPS gpu for MacOS
 SAVE_RESULTS = True  # Save results in JSON locally
 SAVE_MODELS = True  # Save models locally
+PRINT_MODEL_ARCHITECTURE = True # Print the architecture of the model
 
 # Configurations
 RANDOM_SEED = 42
 INPUT_SIZE = 3
 NUM_CLASSES = 7
-HIDDEN_SIZE = [32, 64, 128, 256]
+'''
+ResNet HIDDEN_SIZE = [256, 128]
+DenseNet HIDDEN_SIZE = [512, 256, 128]
+Inception HIDDEN_SIZE = [512, 256, 128]
+'''
+HIDDEN_SIZE = [512, 256, 128]
 N_EPOCHS = 50
 LR = 1e-3
 LR_DECAY = 0.85
 REG = 0.01
 # resnet24, densenet121, inception_v3, standard, pretrained, efficient
-ARCHITECTURE = "resnet24"
+ARCHITECTURE = "inception_v3"
 DATASET_LIMIT = None
 DROPOUT_P = 0.3
 NORMALIZE = True

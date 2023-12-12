@@ -6,23 +6,32 @@ import numpy as np
 
 
 class ResNet24Pretrained(nn.Module):
-    def __init__(self, input_size, hidden_layers, num_classes, norm_layer=None):
+    def __init__(self, hidden_layers, num_classes):
         super(ResNet24Pretrained, self).__init__()
         self.model = models.resnet34(weights=ResNet34_Weights.DEFAULT)
-        self.classifier = nn.Sequential(
-            nn.Dropout(p=DROPOUT_P),
-            nn.Linear(self.model.fc.in_features, 256, bias=False),
-            nn.ReLU(),
-            nn.BatchNorm1d(256),
 
-            nn.Linear(256, 128, bias=False),
-            nn.ReLU(),
-            nn.BatchNorm1d(128),
+        self.dropout = nn.Dropout(p=DROPOUT_P)
+        self.relu = nn.ReLU()
 
-            nn.Linear(128, num_classes, bias=False),
-            nn.BatchNorm1d(num_classes),
-
-        )
+        self.layers = []
+        if len(hidden_layers) == 0:
+            self.layers.append(self.dropout)
+            self.layers.append(nn.Linear(self.model.fc.in_features, num_classes, bias=False))
+        else:
+            self.layers.append(self.dropout)
+            for i in range(len(hidden_layers)):
+                if i == 0:
+                    self.layers.append(nn.Linear(self.model.fc.in_features, hidden_layers[i], bias=False))
+                    self.layers.append(self.relu)
+                    self.layers.append(nn.BatchNorm1d(hidden_layers[i]))
+                else:
+                    self.layers.append(nn.Linear(hidden_layers[i-1], hidden_layers[i], bias=False))
+                    self.layers.append(self.relu)
+                    self.layers.append(nn.BatchNorm1d(hidden_layers[i]))
+            self.layers.append(nn.Linear(hidden_layers[-1], num_classes, bias=False))
+            self.layers.append(nn.BatchNorm1d(num_classes))
+        
+        self.classifier = nn.Sequential(*self.layers)
         self.model.fc = self.classifier
 
         model_parameters = filter(
