@@ -1,5 +1,4 @@
 from typing import Dict
-import cv2
 import torch
 import numpy as np
 import random
@@ -237,9 +236,9 @@ def train_eval_loop():
         normalize=NORMALIZE,
         upscale_train=UPSCALE_TRAIN,
         batch_size=BATCH_SIZE)
+    # TODO: split the train in train and val, in order to not use the other validation set and maybe introduce a bias
     train_loader = dataloader.get_train_dataloder()
-    # TODO: you need gt masks for the evaluation, so in this case you need to take the validation set from the train
-    val_loader, _ = dataloader.get_val_test_dataloader()
+    val_loader = dataloader.get_val_dataloader()
     model = get_model().to(device)
     img_size = (model.get_img_size(), model.get_img_size())
 
@@ -360,6 +359,12 @@ def train_eval_loop():
                     wandb.log(
                         {"val_iou": iou.item()})
                 loss_sum += loss.item()
+
+                if iou > best_eval_accuracy:
+                    best_eval_accuracy = iou
+                    save_model(model.model, f"{ARCHITECHTURE}_best", epoch)
+                    print(
+                        f"New best iou is {best_eval_accuracy:.4f} at epoch {epoch}")
             mean_loss = loss_sum / len(val_loader)
             print(f"Validation avg loss at epoch {epoch}: {mean_loss}")
             binary_mask = torch.sigmoid(upscaled_masks)

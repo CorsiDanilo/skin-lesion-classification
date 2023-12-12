@@ -9,6 +9,7 @@ from PIL import Image
 from tqdm import tqdm
 from torchvision import transforms
 import pandas as pd
+from dataloaders.ImagesAndSegmentationDataLoader import StatefulTransform
 from models.SAM import SAM
 from shared.enums import DynamicSegmentationStrategy
 from train_loops.SAM_pretrained import preprocess_images
@@ -45,6 +46,13 @@ class DynamicSegmentationDataLoader(DataLoader):
         self.segmentation_transform = transforms.Compose([
             transforms.ToTensor()
         ])
+        self.stateful_transform = StatefulTransform()
+        # self.transform = transforms.Compose([
+        #     transforms.RandomVerticalFlip(),
+        #     transforms.RandomHorizontalFlip(),
+        #     transforms.RandomRotation(90),
+        #     transforms.ToTensor()
+        # ])
         if self.segmentation_strategy == DynamicSegmentationStrategy.OPENCV.value:
             print(f"NOOOOOO, DON'T USE OPEN_CV AS A STRATEGY, IT'S DEPRECATED!! ò_ó")
         self.keep_background = keep_background
@@ -90,12 +98,12 @@ class DynamicSegmentationDataLoader(DataLoader):
 
         ti, ts = Image.open(img['image_path']), Image.open(
             img['segmentation_path']).convert('1')
-        ti, ts = TF.to_tensor(ti), TF.to_tensor(ts)
+        # ti, ts = TF.to_tensor(ti), TF.to_tensor(ts)
+        ti, ts = self.stateful_transform(ti, ts)
         if img["augmented"]:
             if not self.keep_background:
                 ti *= ts
-            pil_image = TF.to_pil_image(ti)
-            image = self.transform(pil_image)
+            image = ti
         else:
             image = ti
             if not self.keep_background:
