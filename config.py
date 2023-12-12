@@ -19,13 +19,13 @@ METADATA_TRAIN_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_train.csv')
 BATCH_SIZE = 128
 
 
-USE_WANDB = False  # Use wandb for logging
+USE_WANDB = True  # Use wandb for logging
 # DirectML library for AMD gpu on Windows (set to false if you want to use cpu or standard CUDA)
 USE_DML = False
-USE_MPS = False  # Use MPS gpu for MacOS
+USE_MPS = True  # Use MPS gpu for MacOS
 SAVE_RESULTS = True  # Save results in JSON locally
 SAVE_MODELS = True  # Save models locally
-PRINT_MODEL_ARCHITECTURE = True # Print the architecture of the model
+PRINT_MODEL_ARCHITECTURE = True  # Print the architecture of the model
 
 # Configurations
 RANDOM_SEED = 42
@@ -38,6 +38,7 @@ Inception HIDDEN_SIZE = [512, 256, 128]
 '''
 HIDDEN_SIZE = [512, 256, 128]
 N_EPOCHS = 50
+
 LR = 1e-3
 LR_DECAY = 0.85
 REG = 0.01
@@ -46,10 +47,10 @@ ARCHITECTURE = "inception_v3"
 DATASET_LIMIT = None
 DROPOUT_P = 0.3
 NORMALIZE = True
-BALANCE_UNDERSAMPLING = 0.5
+BALANCE_UNDERSAMPLING = 1
 UPSAMPLE_TRAIN = True  # Decide if upsample with data augmentation the train set or not
 # Use binary loss (benign/malign) and multiclassification loss if true, otherwise use only the multiclassification one
-USE_DOUBLE_LOSS = False
+USE_DOUBLE_LOSS = True
 
 SEGMENTATION_STRATEGY = SegmentationStrategy.DYNAMIC_SEGMENTATION.value
 DYNAMIC_SEGMENTATION_STRATEGY = DynamicSegmentationStrategy.SAM.value

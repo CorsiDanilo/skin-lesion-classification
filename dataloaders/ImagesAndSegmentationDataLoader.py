@@ -102,7 +102,7 @@ class StatefulTransform:
     def __init__(self, height: Optional[int] = None, width: Optional[int] = None):
         self.height = height
         self.width = width
-    
+
     def cutout(self, img, seg):
         size = min(self.height, self.width) // 2
         x = random.randint(0, self.width - size)
@@ -121,9 +121,9 @@ class StatefulTransform:
                                     interpolation=Image.BILINEAR)(img)
             seg = transforms.Resize((self.height, self.width),
                                     interpolation=Image.BILINEAR)(seg)
-        #Cutout
-        if random.random() > 0.5:
-            img, seg = self.cutout(img, seg)
+            # Cutout
+            if random.random() > 0.5:
+                img, seg = self.cutout(img, seg)
 
         # Horizonal flip
         if random.random() > 0.5:
