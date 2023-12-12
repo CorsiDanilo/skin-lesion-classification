@@ -38,7 +38,8 @@ class DataLoader(ABC):
                 transforms.ToTensor()
             ])
         self.device = select_device()
-        self.train_df, self.val_df, self.test_df = self._init_metadata()
+        self.train_df, self.val_df, self.test_df = self._init_metadata(
+            limit=limit)
 
     @abstractmethod
     def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int, transform: transforms.Compose = None):

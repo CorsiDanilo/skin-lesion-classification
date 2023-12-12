@@ -136,10 +136,10 @@ class StatefulTransform:
             seg = TF.vflip(seg)
 
         # Random rotation
-        if random.random() > 0.5:
-            angle = random.randint(1, 360)
-            img = TF.rotate(img, angle)
-            seg = TF.rotate(seg, angle)
+        # if random.random() > 0.5:
+        angle = random.randint(1, 360)
+        img = TF.rotate(img, angle)
+        seg = TF.rotate(seg, angle)
 
         img = transforms.ToTensor()(img)
         seg = transforms.ToTensor()(seg)
