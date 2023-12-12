@@ -161,10 +161,10 @@ class DataLoader(ABC):
         if self.normalize:
             if self.normalization_statistics is None:
                 print(
-                    "--Normalization-- Normalization statistics not defined during test. Using default ones.")
+                    "--Normalization (Test)-- Normalization statistics not defined during test. Using default ones.")
                 self.normalization_statistics = DEFAULT_STATISTICS
             print(
-                f"--Normalization-- Statistics for normalization (per channel) -> Mean: {self.normalization_statistics[0].view(-1)}, Variance: {self.normalization_statistics[1].view(-1)}, Epsilon (adjustment value): 0.01")
+                f"--Normalization (Test)-- Statistics for normalization (per channel) -> Mean: {self.normalization_statistics[0].view(-1)}, Variance: {self.normalization_statistics[1].view(-1)}, Epsilon (adjustment value): 0.01")
         test_dataset = HAM10K(
             self.test_df,
             load_data_fn=self.load_data,
