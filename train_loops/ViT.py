@@ -1,5 +1,5 @@
 import torch
-from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, ARCHITECTURE, DATASET_LIMIT, DROPOUT_P, NORMALIZE, SEGMENTATION_BOUNDING_BOX, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN, USE_DOUBLE_LOSS, N_HEADS, N_LAYERS, PATCH_SIZE, EMB_SIZE, IMAGE_SIZE, RANDOM_SEED, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, PATH_TO_SAVE_RESULTS
+from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, ARCHITECTURE, DATASET_LIMIT, DROPOUT_P, NORMALIZE, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN, USE_DOUBLE_LOSS, N_HEADS, N_LAYERS, PATCH_SIZE, EMB_SIZE, IMAGE_SIZE, RANDOM_SEED, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, PATH_TO_SAVE_RESULTS
 from constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
 from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device, set_seed
@@ -60,7 +60,6 @@ def main():
             "normalize": NORMALIZE,
             "resumed": RESUME,
             "from_epoch": RESUME_EPOCH,
-            "segmentation_bounding_box": SEGMENTATION_BOUNDING_BOX,
             "balance_undersampling": BALANCE_UNDERSAMPLING,
             "initialization": "default",
             "segmentation_strategy": SEGMENTATION_STRATEGY,
@@ -85,7 +84,6 @@ def main():
             "normalize": NORMALIZE,
             "resumed": RESUME,
             "from_epoch": RESUME_EPOCH,
-            "segmentation_bounding_box": SEGMENTATION_BOUNDING_BOX,
             "balance_undersampling": BALANCE_UNDERSAMPLING,
             "initialization": "default",
             "segmentation_strategy": SEGMENTATION_STRATEGY,
@@ -113,7 +111,6 @@ def main():
             "normalize": NORMALIZE,
             "resumed": RESUME,
             "from_epoch": RESUME_EPOCH,
-            "segmentation_bounding_box": SEGMENTATION_BOUNDING_BOX,
             "balance_undersampling": BALANCE_UNDERSAMPLING,
             "initialization": "default",
             "segmentation_strategy": SEGMENTATION_STRATEGY,

@@ -113,17 +113,21 @@ class StatefulTransform:
         draw_seg = ImageDraw.Draw(seg)
         draw_seg.rectangle([x, y, x + size, y + size], fill=0)
 
-    def __call__(self, img, seg):
+        return img, seg
 
+    def __call__(self, img, seg):
         if self.height is not None and self.width is not None:
             # Resize
             img = transforms.Resize((self.height, self.width),
                                     interpolation=Image.BILINEAR)(img)
             seg = transforms.Resize((self.height, self.width),
                                     interpolation=Image.BILINEAR)(seg)
+        else:
+            self.width, self.height = img.size
+
         #Cutout
-        if random.random() > 0.5:
-            img, seg = self.cutout(img, seg)
+        #if random.random() > 0.5:
+        #    img, seg = self.cutout(img, seg)
 
         # Horizonal flip
         if random.random() > 0.5:

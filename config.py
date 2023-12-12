@@ -25,7 +25,7 @@ USE_DML = False
 USE_MPS = False  # Use MPS gpu for MacOS
 SAVE_RESULTS = True  # Save results in JSON locally
 SAVE_MODELS = True  # Save models locally
-PRINT_MODEL_ARCHITECTURE = True # Print the architecture of the model
+PRINT_MODEL_ARCHITECTURE = False # Print the architecture of the model
 
 # Configurations
 RANDOM_SEED = 42
@@ -42,7 +42,7 @@ LR = 1e-3
 LR_DECAY = 0.85
 REG = 0.01
 # resnet24, densenet121, inception_v3, standard, pretrained, efficient
-ARCHITECTURE = "inception_v3"
+ARCHITECTURE = "pretrained"
 DATASET_LIMIT = None
 DROPOUT_P = 0.3
 NORMALIZE = True
