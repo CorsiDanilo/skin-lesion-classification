@@ -10,14 +10,6 @@ from config import BATCH_SIZE, N_EPOCHS, ARCHITECTURE, USE_WANDB, SAVE_MODELS, S
 
 
 def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, scheduler, resume=False):
-    if USE_WANDB:
-        # Start a new run
-        wandb.init(
-            project="melanoma",
-            config=config,  # Track hyperparameters and run metadata
-            resume=resume,
-        )
-
     loss_function_multiclass = nn.CrossEntropyLoss()
     if USE_DOUBLE_LOSS:
         loss_function_binary = nn.CrossEntropyLoss()
@@ -33,6 +25,15 @@ def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, 
         if SAVE_RESULTS:
             # Save configurations in JSON
             save_configurations(data_name, config)
+    
+    if USE_WANDB:
+        # Start a new run
+        wandb.init(
+            project="melanoma",
+            config=config,  # Track hyperparameters and run metadata
+            resume=resume,
+            name=data_name
+        )
 
     total_step = len(train_loader)
     best_model = None

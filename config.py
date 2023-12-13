@@ -19,7 +19,7 @@ METADATA_TRAIN_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_train.csv')
 BATCH_SIZE = 128
 
 
-USE_WANDB = False  # Use wandb for logging
+USE_WANDB = True  # Use wandb for logging
 # DirectML library for AMD gpu on Windows (set to false if you want to use cpu or standard CUDA)
 USE_DML = True
 USE_MPS = False  # Use MPS gpu for MacOS
