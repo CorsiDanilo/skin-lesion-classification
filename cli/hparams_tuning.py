@@ -111,7 +111,8 @@ def init_with_parsed_arguments():
 def hparams_tuning(train_loader, val_loader, **hparams):
     hparams_space = {
         "reg": [0.01, 0.02, 0.03, 0.04, 0.05, 0.06],
-        "dropout_p": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+        # NOTE: Vit pretrained doesn't use dropout
+        "dropout_p": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8] if hparams["architecture"] != "pretrained" else []
     }
     combinations = list(itertools.product(*hparams_space.values()))
 
@@ -155,7 +156,7 @@ def hparams_tuning(train_loader, val_loader, **hparams):
 
 
 def init_run(train_loader, val_loader, **kwargs):
-    model = get_model(kwargs.get("architecture"))
+    model = get_model(**kwargs)
 
     if kwargs["use_wandb"]:
         if wandb.run is not None:
@@ -172,21 +173,32 @@ def init_run(train_loader, val_loader, **kwargs):
                         **kwargs)
 
 
-def get_model(architecture: str):
+def get_model(**kwargs):
+    architecture = kwargs.get("architecture")
+    dropout_p = kwargs.get("dropout_p")
     if architecture == "resnet24":
         model = ResNet24Pretrained(
-            HIDDEN_SIZE, NUM_CLASSES).to(device)
+            hidden_layers=HIDDEN_SIZE,
+            num_classes=NUM_CLASSES,
+            dropout_p=dropout_p).to(device)
     elif architecture == "densenet121":
         model = DenseNetPretrained(
-            HIDDEN_SIZE, NUM_CLASSES).to(device)
+            hidden_layers=HIDDEN_SIZE,
+            num_classes=NUM_CLASSES,
+            dropout_p=dropout_p).to(device)
     elif architecture == "inception_v3":
-        model = InceptionV3Pretrained(NUM_CLASSES).to(device)
+        model = InceptionV3Pretrained(
+            num_classes=NUM_CLASSES,
+            dropout_p=dropout_p).to(device)
     elif architecture == "pretrained":
+        # NOTE: this doesn't use dropout_p
         model = ViT_pretrained(NUM_CLASSES, pretrained=True).to(device)
     elif architecture == "standard":
         model = ViT_standard(in_channels=INPUT_SIZE, patch_size=PATCH_SIZE, d_model=EMB_SIZE,
-                             img_size=IMAGE_SIZE, n_classes=NUM_CLASSES, n_head=N_HEADS, n_layers=N_LAYERS).to(device)
+                             img_size=IMAGE_SIZE, n_classes=NUM_CLASSES, n_head=N_HEADS, n_layers=N_LAYERS,
+                             dropout_p=dropout_p).to(device)
     elif architecture == "efficient":
+        # TODO: dropout not implemented, add it later
         model = EfficientViT(img_size=224, patch_size=16, in_chans=INPUT_SIZE, stages=['s', 's', 's'], embed_dim=[
             64, 128, 192], key_dim=[16, 16, 16], depth=[1, 2, 3], window_size=[7, 7, 7], kernels=[5, 5, 5, 5])
     else:
@@ -231,9 +243,10 @@ def run_train_eval_loop(model, train_loader, val_loader, **kwargs):
 
     print(f"---CURRENT CONFIGURATION---\n{kwargs}")
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=REG)
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=kwargs["learning_rate"], weight_decay=kwargs["reg"])
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=N_EPOCHS, eta_min=1e-5, verbose=True)
+        optimizer, T_max=kwargs["epochs"], eta_min=1e-5, verbose=True)
 
     train_eval_loop(device, train_loader=train_loader, val_loader=val_loader, model=model,
                     config=kwargs, optimizer=optimizer, scheduler=scheduler, resume=RESUME)

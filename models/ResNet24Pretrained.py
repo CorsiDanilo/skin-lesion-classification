@@ -6,11 +6,11 @@ import numpy as np
 
 
 class ResNet24Pretrained(nn.Module):
-    def __init__(self, hidden_layers, num_classes):
+    def __init__(self, hidden_layers, num_classes, dropout_p=DROPOUT_P):
         super(ResNet24Pretrained, self).__init__()
         self.model = models.resnet34(weights=ResNet34_Weights.DEFAULT)
 
-        self.dropout = nn.Dropout(p=DROPOUT_P)
+        self.dropout = nn.Dropout(p=dropout_p)
         self.relu = nn.ReLU()
 
         self.layers = []
