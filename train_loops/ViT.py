@@ -11,10 +11,10 @@ from models.ViTEfficient import EfficientViT
 
 def get_model(device):
     if ARCHITECTURE == "pretrained":
-        model = ViT_pretrained(NUM_CLASSES, pretrained=True).to(device)
+        model = ViT_pretrained(HIDDEN_SIZE, NUM_CLASSES, pretrained=True, dropout=DROPOUT_P).to(device)
     elif ARCHITECTURE == "standard":
         model = ViT_standard(in_channels=INPUT_SIZE, patch_size=PATCH_SIZE, d_model=EMB_SIZE,
-                             img_size=IMAGE_SIZE, n_classes=NUM_CLASSES, n_head=N_HEADS, n_layers=N_LAYERS).to(device)
+                             img_size=IMAGE_SIZE, n_classes=NUM_CLASSES, n_head=N_HEADS, n_layers=N_LAYERS, dropout=DROPOUT_P).to(device)
     elif ARCHITECTURE == "efficient":
         model = EfficientViT(img_size=224, patch_size=16, in_chans=INPUT_SIZE, stages=['s', 's', 's'], embed_dim=[
                              64, 128, 192], key_dim=[16, 16, 16], depth=[1, 2, 3], window_size=[7, 7, 7], kernels=[5, 5, 5, 5])
