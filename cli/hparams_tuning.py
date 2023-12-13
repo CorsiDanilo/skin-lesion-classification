@@ -1,11 +1,12 @@
 from argparse import ArgumentParser
 import itertools
+import json
+import os
 
 import torch
 from tqdm import tqdm
 import wandb
 from models.ResNet24Pretrained import ResNet24Pretrained
-from shared.enums import DynamicSegmentationStrategy, SegmentationStrategy
 from models.DenseNetPretrained import DenseNetPretrained
 from models.InceptionV3Pretrained import InceptionV3Pretrained
 from models.ViTEfficient import EfficientViTBlock
@@ -35,22 +36,25 @@ def init_with_parsed_arguments():
     parser.add_argument("--reg", type=float, default=None)
     parser.add_argument("--dropout-p", type=float, default=None)
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
-    # parser.add_argument("--hidden-size", type=int, default=HIDDEN_SIZE)
-    # parser.add_argument("--resumed", action="store_true", default=False)
     parser.add_argument("--epochs", type=int, default=N_EPOCHS)
-    # parser.add_argument("--normalize", action="store_true" if NORMALIZE else "store_false")
-    # parser.add_argument(
-    # "--resumed", action="store_true", default=False)
-    # parser.add_argument("--from-epoch", type=int, default=RESUME_EPOCH)
-    # parser.add_argument("--balance-undersampling", action="store_true" if BALANCE_UNDERSAMPLING else "store_false")
-    # parser.add_argument("--upsample-train", action="store_true" if UPSAMPLE_TRAIN else "store_false")
     parser.add_argument("--balance_undersampling",
                         type=float, default=BALANCE_UNDERSAMPLING)
+
+    # If True, it will not use the double loss
     parser.add_argument("--no-double-loss", action="store_true", default=False)
+
+    # If True, it will not use wandb for logging
     parser.add_argument("--no-wandb", action="store_true", default=False)
+
+    # If True, it uses dynamic load instead of loading the full dataset in memory (this is way slower)
     parser.add_argument("--dynamic-load", action="store_true", default=False)
+
+    # If True, it will remove the background from the images (only for dynamic segmentation)
     parser.add_argument("--no-background",
                         action="store_true", default=False)
+
+    # If True, will reset the combinations tried for the current architecture
+    parser.add_argument("--force-reset", action="store_true", default=False)
 
     args = parser.parse_args()
     assert args.architecture is not None, "You must specify an architecture"
@@ -87,7 +91,9 @@ def init_with_parsed_arguments():
         "use_wandb": not kwargs.get("no_wandb"),
         "keep_background": not kwargs.get("no_background"),
         "hparam_tuning": True,
+        "force_reset": kwargs.get("force_reset"),
     }
+
     train_loader, val_loader = build_dataloaders(**config)
     if args.reg is not None and args.dropout_p is not None:
         print(f"----REG AND DROPOUT_P ARE NOT NONE, NOT DOING HPARAMS TUNING----")
@@ -112,6 +118,25 @@ def hparams_tuning(train_loader, val_loader, **hparams):
     combinations = [
         combination for combination in combinations if combination not in already_tried]
 
+    if hparams["force_reset"]:
+        combinations_tried = {}
+    else:
+        # Filter combinations that have already been tried
+        if "./results/combinations.json" in os.listdir():
+            with open("./results/combinations.json", "r") as f:
+                combinations_tried = json.load(f)
+        else:
+            combinations_tried = {}
+
+        curr_architecture = hparams["architecture"]
+        if curr_architecture in combinations_tried:
+            combinations = [
+                combination for combination in combinations if combination not in combinations_tried[curr_architecture]]
+            print(
+                f"----Found {len(combinations_tried[curr_architecture])} combinations already tried for {curr_architecture}, excluding them from the run! ----")
+        else:
+            combinations_tried[curr_architecture] = []
+
     print(f"Combinations are {combinations}")
     for combination in tqdm(combinations, "Hparams tuning"):
         hparams.update(dict(zip(hparams_space.keys(), combination)))
@@ -119,6 +144,10 @@ def hparams_tuning(train_loader, val_loader, **hparams):
         init_run(train_loader=train_loader,
                  val_loader=val_loader,
                  **hparams)
+
+        combinations_tried[curr_architecture].append(combination)
+        with open("./results/combinations.json", "w") as f:
+            json.dump(combinations_tried, f)
 
 
 def init_run(train_loader, val_loader, **kwargs):
