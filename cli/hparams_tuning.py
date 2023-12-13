@@ -185,8 +185,9 @@ def get_model(**kwargs):
             num_classes=NUM_CLASSES,
             dropout_p=dropout_p).to(device)
     elif architecture == "pretrained":
+        hidden_size = [256, 128]
         model = ViT_pretrained(
-            hidden_layers=HIDDEN_SIZE,
+            hidden_layers=hidden_size,
             num_classes=NUM_CLASSES,
             pretrained=True,
             dropout=dropout_p).to(device)
