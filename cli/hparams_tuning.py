@@ -127,7 +127,7 @@ def hparams_tuning(train_loader, val_loader, **hparams):
 
         print(f"COMBINATIONS TRIED: {combinations_tried}")
 
-        curr_architecture = hparams["architecture"]
+        curr_architecture = f"{hparams['architecture']}_{hparams['segmentation_strategy']}_{hparams['double_loss']}_{hparams['keep_background']}"
         if curr_architecture in combinations_tried:
             combinations = [
                 combination for combination in combinations if list(combination) not in combinations_tried[curr_architecture]]
