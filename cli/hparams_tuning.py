@@ -9,9 +9,9 @@ import wandb
 from models.ResNet24Pretrained import ResNet24Pretrained
 from models.DenseNetPretrained import DenseNetPretrained
 from models.InceptionV3Pretrained import InceptionV3Pretrained
-from models.ViTEfficient import EfficientViTBlock
-from models.ViTPretrained import ViT_pretrained as ViTPretrained
-from models.ViTStandard import ViT_standard as ViTStandard
+from models.ViTStandard import ViT_standard
+from models.ViTPretrained import ViT_pretrained
+from models.ViTEfficient import EfficientViT
 from config import ARCHITECTURE, BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, EMB_SIZE, IMAGE_SIZE, INPUT_SIZE, N_HEADS, N_LAYERS, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, PATCH_SIZE, REG, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN, USE_DOUBLE_LOSS, USE_WANDB
 from tests.opencv_segmentation_test import set_seed
 from train_loops.CNN_pretrained import get_normalization_statistics
@@ -182,12 +182,12 @@ def get_model(architecture: str):
     elif architecture == "inception_v3":
         model = InceptionV3Pretrained(NUM_CLASSES).to(device)
     elif architecture == "pretrained":
-        model = ViTPretrained(NUM_CLASSES, pretrained=True).to(device)
+        model = ViT_pretrained(NUM_CLASSES, pretrained=True).to(device)
     elif architecture == "standard":
-        model = ViTStandard(in_channels=INPUT_SIZE, patch_size=PATCH_SIZE, d_model=EMB_SIZE,
-                            img_size=IMAGE_SIZE, n_classes=NUM_CLASSES, n_head=N_HEADS, n_layers=N_LAYERS).to(device)
+        model = ViT_standard(in_channels=INPUT_SIZE, patch_size=PATCH_SIZE, d_model=EMB_SIZE,
+                             img_size=IMAGE_SIZE, n_classes=NUM_CLASSES, n_head=N_HEADS, n_layers=N_LAYERS).to(device)
     elif architecture == "efficient":
-        model = EfficientViTBlock(img_size=224, patch_size=16, in_chans=INPUT_SIZE, stages=['s', 's', 's'], embed_dim=[
+        model = EfficientViT(img_size=224, patch_size=16, in_chans=INPUT_SIZE, stages=['s', 's', 's'], embed_dim=[
             64, 128, 192], key_dim=[16, 16, 16], depth=[1, 2, 3], window_size=[7, 7, 7], kernels=[5, 5, 5, 5])
     else:
         raise ValueError(f"Unknown architechture {architecture}")
@@ -196,13 +196,14 @@ def get_model(architecture: str):
         model.load_state_dict(torch.load(
             f"{PATH_TO_SAVE_RESULTS}/{PATH_MODEL_TO_RESUME}/models/melanoma_detection_{RESUME_EPOCH}.pt"))
 
-    for p in model.parameters():
-        p.requires_grad = False
+    if architecture in ["resnet24", "densenet121", "inception_v3"]:
+        for p in model.parameters():
+            p.requires_grad = False
 
-    print(f"--Model-- Using {architecture} pretrained model")
+        print(f"--Model-- Using {architecture} pretrained model")
 
-    for p in model.classifier.parameters():
-        p.requires_grad = True
+        for p in model.classifier.parameters():
+            p.requires_grad = True
 
     return model
 
