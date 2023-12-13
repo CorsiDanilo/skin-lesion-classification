@@ -16,16 +16,16 @@ METADATA_TRAIN_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_train.csv')
 # DATA_DIR, 'HAM10000_metadata_train.csv')
 # METADATA_TEST_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_test.csv')
 
-BATCH_SIZE = 64
+BATCH_SIZE = 128
 
 
-USE_WANDB = True  # Use wandb for logging
+USE_WANDB = False  # Use wandb for logging
 # DirectML library for AMD gpu on Windows (set to false if you want to use cpu or standard CUDA)
-USE_DML = True
+USE_DML = False
 USE_MPS = False  # Use MPS gpu for MacOS
 SAVE_RESULTS = True  # Save results in JSON locally
 SAVE_MODELS = True  # Save models locally
-PRINT_MODEL_ARCHITECTURE = False # Print the architecture of the model
+PRINT_MODEL_ARCHITECTURE = False  # Print the architecture of the model
 
 # Configurations
 RANDOM_SEED = 42
@@ -46,12 +46,12 @@ ARCHITECTURE = "standard"
 DATASET_LIMIT = None
 DROPOUT_P = 0.3
 NORMALIZE = True
-BALANCE_UNDERSAMPLING = 0.5
+BALANCE_UNDERSAMPLING = 1
 UPSAMPLE_TRAIN = True  # Decide if upsample with data augmentation the train set or not
 # Use binary loss (benign/malign) and multiclassification loss if true, otherwise use only the multiclassification one
-USE_DOUBLE_LOSS = False
+USE_DOUBLE_LOSS = True
 
-SEGMENTATION_STRATEGY = SegmentationStrategy.DYNAMIC_SEGMENTATION.value
+SEGMENTATION_STRATEGY = SegmentationStrategy.NO_SEGMENTATION.value
 DYNAMIC_SEGMENTATION_STRATEGY = DynamicSegmentationStrategy.SAM.value
 # If true, the background is kept in the segmentation, otherwise it is removed
 KEEP_BACKGROUND = True

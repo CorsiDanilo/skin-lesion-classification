@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
+from config import DROPOUT_P
+
 class PositionalEncoding(nn.Module):
     def __init__(self, embed_dim, max_len=512):
         super(PositionalEncoding, self).__init__()
@@ -182,7 +184,7 @@ class ViT_standard(nn.Sequential):
         #self.positional_encoding = PositionalEncoding(emb_size)
         d_k = d_v = d_model // n_head
         d_inner = d_model
-        self.transformer_encoder = TransformerEncoder(img_size, in_channels, d_model, patch_size, n_layers, n_head, d_k, d_v, d_inner)
+        self.transformer_encoder = TransformerEncoder(img_size, in_channels, d_model, patch_size, n_layers, n_head, d_k, d_v, d_inner, dropout=DROPOUT_P)
         self.fc = nn.Linear(d_model, n_classes)
         self.relu = nn.ReLU()
 
