@@ -68,7 +68,7 @@ def main():
             "double_loss": USE_DOUBLE_LOSS,
             "use_wandb": USE_WANDB,
         }
-    elif config == "standard":
+    elif ARCHITECTURE == "standard":
         config = {
             "learning_rate": LR,
             "architecture": ARCHITECTURE,
