@@ -1,6 +1,7 @@
 from dataloaders.DataLoader import DataLoader
 from typing import Optional, Tuple
 import torch
+import numpy as np
 
 from typing import Optional
 
@@ -104,14 +105,27 @@ class StatefulTransform:
         self.width = width
     
     def cutout(self, img, seg):
-        size = min(self.height, self.width) // 2
-        x = random.randint(0, self.width - size)
-        y = random.randint(0, self.height - size)
+        seg_array = np.array(seg)
 
-        draw_img = ImageDraw.Draw(img)
-        draw_img.rectangle([x, y, x + size, y + size], fill=0)
-        draw_seg = ImageDraw.Draw(seg)
-        draw_seg.rectangle([x, y, x + size, y + size], fill=0)
+        img_width = self.width if self.width is not None else img.size[0]
+        img_height = self.height if self.height is not None else img.size[1]
+        size = min(img_height, img_width) // 2
+
+        for _ in range(10):
+            coverage = random.uniform(0.1, 0.6)
+            x = random.randint(0, max(0, img_width - size))
+            y = random.randint(0, max(0, img_height - size))
+            new_size = int(size * coverage)
+
+            # Check if there is at least one "255" pixel in the cutout area
+            if not np.all(seg_array[y:y+new_size, x:x+new_size]) == 0:
+                draw_img = ImageDraw.Draw(img)
+                draw_seg = ImageDraw.Draw(seg)
+
+                # Draw rectangles on both image and segmentation
+                draw_img.rectangle([x, y, x + new_size, y + new_size], fill=0)
+                draw_seg.rectangle([x, y, x + new_size, y + new_size], fill=0)
+                break  # Break the loop if a valid cutout area is found
 
         return img, seg
 
@@ -122,12 +136,10 @@ class StatefulTransform:
                                     interpolation=Image.BILINEAR)(img)
             seg = transforms.Resize((self.height, self.width),
                                     interpolation=Image.BILINEAR)(seg)
-        else:
-            self.width, self.height = img.size
 
         #Cutout
-        #if random.random() > 0.5:
-        #    img, seg = self.cutout(img, seg)
+        if random.random() > 0.7:
+            img, seg = self.cutout(img, seg)
 
         # Horizonal flip
         if random.random() > 0.5:

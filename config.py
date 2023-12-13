@@ -21,7 +21,7 @@ BATCH_SIZE = 128
 
 USE_WANDB = False  # Use wandb for logging
 # DirectML library for AMD gpu on Windows (set to false if you want to use cpu or standard CUDA)
-USE_DML = False
+USE_DML = True
 USE_MPS = False  # Use MPS gpu for MacOS
 SAVE_RESULTS = True  # Save results in JSON locally
 SAVE_MODELS = True  # Save models locally
@@ -37,12 +37,12 @@ DenseNet HIDDEN_SIZE = [512, 256, 128]
 Inception HIDDEN_SIZE = [512, 256, 128]
 '''
 HIDDEN_SIZE = [512, 256, 128]
-N_EPOCHS = 50
+N_EPOCHS = 10
 LR = 1e-3
 LR_DECAY = 0.85
 REG = 0.01
 # resnet24, densenet121, inception_v3, standard, pretrained, efficient
-ARCHITECTURE = "pretrained"
+ARCHITECTURE = "resnet24"
 DATASET_LIMIT = None
 DROPOUT_P = 0.3
 NORMALIZE = True
