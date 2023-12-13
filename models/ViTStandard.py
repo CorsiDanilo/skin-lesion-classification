@@ -178,13 +178,13 @@ class TransformerEncoder(nn.Module):
         return enc_output
 
 class ViT_standard(nn.Sequential):
-    def __init__(self, in_channels, n_head, patch_size, d_model, img_size, n_layers, n_classes):
+    def __init__(self, in_channels, n_head, patch_size, d_model, img_size, n_layers, n_classes, dropout=DROPOUT_P):
         super(ViT_standard, self).__init__()
         #self.patch_embedding = PatchEmbedding(img_size, patch_size, in_channels, emb_size)
         #self.positional_encoding = PositionalEncoding(emb_size)
         d_k = d_v = d_model // n_head
         d_inner = d_model
-        self.transformer_encoder = TransformerEncoder(img_size, in_channels, d_model, patch_size, n_layers, n_head, d_k, d_v, d_inner, dropout=DROPOUT_P)
+        self.transformer_encoder = TransformerEncoder(img_size, in_channels, d_model, patch_size, n_layers, n_head, d_k, d_v, d_inner, dropout)
         self.fc = nn.Linear(d_model, n_classes)
         self.relu = nn.ReLU()
 

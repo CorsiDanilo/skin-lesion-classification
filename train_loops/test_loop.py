@@ -6,7 +6,7 @@ from sklearn.metrics import recall_score, accuracy_score
 from tqdm import tqdm
 from utils.utils import save_results, set_seed, select_device
 from utils.dataloader_utils import get_dataloder_from_strategy
-from config import USE_DOUBLE_LOSS, BATCH_SIZE, SAVE_RESULTS, DATASET_LIMIT, NORMALIZE, RANDOM_SEED, PATH_TO_SAVE_RESULTS, NUM_CLASSES, HIDDEN_SIZE, INPUT_SIZE, IMAGE_SIZE, PATCH_SIZE, EMB_SIZE, N_HEADS, N_LAYERS
+from config import USE_DOUBLE_LOSS, BATCH_SIZE, SAVE_RESULTS, DATASET_LIMIT, NORMALIZE, RANDOM_SEED, PATH_TO_SAVE_RESULTS, NUM_CLASSES, HIDDEN_SIZE, INPUT_SIZE, IMAGE_SIZE, PATCH_SIZE, EMB_SIZE, N_HEADS, N_LAYERS, DROPOUT_P
 from constants import DEFAULT_STATISTICS, IMAGENET_STATISTICS
 from shared.enums import DynamicSegmentationStrategy, SegmentationStrategy
 from models.ResNet24Pretrained import ResNet24Pretrained
@@ -118,11 +118,12 @@ def get_model(model_path, device):
                              n_classes=NUM_CLASSES if configurations is None else configurations[
                                  "num_classes"],
                              n_head=N_HEADS if configurations is None else configurations["n_heads"],
-                             n_layers=N_LAYERS if configurations is None else configurations["n_layers"]).to(device)
+                             n_layers=N_LAYERS if configurations is None else configurations["n_layers"],
+                             dropout=DROPOUT_P).to(device)
         normalization_stats = None
     elif type == "pretrained":
         model = ViT_pretrained(
-            NUM_CLASSES if configurations is None else configurations["num_classes"], pretrained=True).to(device)
+            NUM_CLASSES if configurations is None else configurations["num_classes"], pretrained=True, dropout=DROPOUT_P).to(device)
         normalization_stats = IMAGENET_STATISTICS
     elif type == "efficient":
         model = EfficientViT(img_size=224, patch_size=16, in_chans=INPUT_SIZE if configurations is None else configurations["input_size"], stages=['s', 's', 's'],
