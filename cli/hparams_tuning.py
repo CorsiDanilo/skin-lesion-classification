@@ -111,8 +111,7 @@ def init_with_parsed_arguments():
 def hparams_tuning(train_loader, val_loader, **hparams):
     hparams_space = {
         "reg": [0.01, 0.02, 0.03, 0.04, 0.05, 0.06],
-        # NOTE: Vit pretrained doesn't use dropout
-        "dropout_p": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8] if hparams["architecture"] != "pretrained" else []
+        "dropout_p": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
     }
     combinations = list(itertools.product(*hparams_space.values()))
 
@@ -191,12 +190,15 @@ def get_model(**kwargs):
             num_classes=NUM_CLASSES,
             dropout_p=dropout_p).to(device)
     elif architecture == "pretrained":
-        # NOTE: this doesn't use dropout_p
-        model = ViT_pretrained(NUM_CLASSES, pretrained=True).to(device)
+        model = ViT_pretrained(
+            hidden_layers=HIDDEN_SIZE,
+            num_classes=NUM_CLASSES,
+            pretrained=True,
+            dropout=dropout_p).to(device)
     elif architecture == "standard":
         model = ViT_standard(in_channels=INPUT_SIZE, patch_size=PATCH_SIZE, d_model=EMB_SIZE,
                              img_size=IMAGE_SIZE, n_classes=NUM_CLASSES, n_head=N_HEADS, n_layers=N_LAYERS,
-                             dropout_p=dropout_p).to(device)
+                             dropout=dropout_p).to(device)
     elif architecture == "efficient":
         # TODO: dropout not implemented, add it later
         model = EfficientViT(img_size=224, patch_size=16, in_chans=INPUT_SIZE, stages=['s', 's', 's'], embed_dim=[
