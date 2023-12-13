@@ -76,8 +76,6 @@ def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, 
 
                 # Sum of the losses
                 tr_epoch_loss += tr_epoch_loss_binary
-            if USE_WANDB:
-                wandb.log({"Training Loss": tr_epoch_loss.item()})
 
             optimizer.zero_grad()
             tr_epoch_loss.backward()
@@ -95,6 +93,7 @@ def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, 
                 epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy(), average='macro', zero_division=0) * 100
 
             if USE_WANDB:
+                wandb.log({"Training Loss": tr_epoch_loss.item()})
                 wandb.log({"Training Accuracy": tr_accuracy})
                 wandb.log({"Training Recall": tr_recall})
             if (tr_i+1) % 50 == 0:
