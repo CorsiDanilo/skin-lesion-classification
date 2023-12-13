@@ -115,11 +115,6 @@ def hparams_tuning(train_loader, val_loader, **hparams):
     }
     combinations = list(itertools.product(*hparams_space.values()))
 
-    already_tried = []
-
-    combinations = [
-        combination for combination in combinations if combination not in already_tried]
-
     if hparams["force_reset"]:
         combinations_tried = {}
     else:
