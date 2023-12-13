@@ -64,6 +64,7 @@ class DataLoader(ABC):
                 f"Ignoring limit for because it is bigger than the dataset size")
             limit = None
         if limit is not None:
+            print(f"---LIMITING DATASET TO {limit} ENTRIES---")
             metadata = metadata.sample(n=limit, random_state=42)
         metadata['image_path'] = metadata['image_id'].apply(
             lambda x: os.path.join(DATASET_TRAIN_DIR, x + '.jpg'))

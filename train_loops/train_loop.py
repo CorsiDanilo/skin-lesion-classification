@@ -18,7 +18,8 @@ def train_eval_loop(device,
                     optimizer,
                     scheduler,
                     resume=False):
-    if config["use_wandb"]:
+
+    if config["use_wandb"] and "hparam_tuning" not in config:
         # Start a new run
         wandb.init(
             project="melanoma",
