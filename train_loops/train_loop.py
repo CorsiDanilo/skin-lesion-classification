@@ -98,7 +98,8 @@ def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, 
                 wandb.log({"Training Recall": tr_recall})
             if (tr_i+1) % 50 == 0:
                 print('Training -> Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%, Recall: {:.4f}%'
-                      .format(epoch+1, N_EPOCHS, tr_i+1, total_step, tr_epoch_loss, tr_accuracy, tr_recall))
+                        .format(epoch+1, N_EPOCHS, tr_i+1, total_step, tr_epoch_loss, tr_accuracy, tr_recall))
+                
         model.eval()
         with torch.no_grad():
             epoch_val_preds = torch.tensor([]).to(device)
