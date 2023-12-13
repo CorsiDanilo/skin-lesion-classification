@@ -19,7 +19,7 @@ METADATA_TRAIN_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_train.csv')
 BATCH_SIZE = 128
 
 
-USE_WANDB = True  # Use wandb for logging
+USE_WANDB = False  # Use wandb for logging
 # DirectML library for AMD gpu on Windows (set to false if you want to use cpu or standard CUDA)
 USE_DML = False
 USE_MPS = False  # Use MPS gpu for MacOS
@@ -42,7 +42,7 @@ LR = 1e-3
 LR_DECAY = 0.85
 REG = 0.01
 # resnet24, densenet121, inception_v3, standard, pretrained, efficient
-ARCHITECTURE = "resnet24"
+ARCHITECTURE = "standard"
 DATASET_LIMIT = None
 DROPOUT_P = 0.3
 NORMALIZE = True
@@ -51,7 +51,7 @@ UPSAMPLE_TRAIN = True  # Decide if upsample with data augmentation the train set
 # Use binary loss (benign/malign) and multiclassification loss if true, otherwise use only the multiclassification one
 USE_DOUBLE_LOSS = True
 
-SEGMENTATION_STRATEGY = SegmentationStrategy.DYNAMIC_SEGMENTATION.value
+SEGMENTATION_STRATEGY = SegmentationStrategy.NO_SEGMENTATION.value
 DYNAMIC_SEGMENTATION_STRATEGY = DynamicSegmentationStrategy.SAM.value
 # If true, the background is kept in the segmentation, otherwise it is removed
 KEEP_BACKGROUND = True
