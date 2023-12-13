@@ -16,7 +16,7 @@ METADATA_TRAIN_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_train.csv')
 # DATA_DIR, 'HAM10000_metadata_train.csv')
 # METADATA_TEST_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_test.csv')
 
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 
 
 USE_WANDB = True  # Use wandb for logging
@@ -42,7 +42,7 @@ LR = 1e-3
 LR_DECAY = 0.85
 REG = 0.01
 # resnet24, densenet121, inception_v3, standard, pretrained, efficient
-ARCHITECTURE = "resnet24"
+ARCHITECTURE = "standard"
 DATASET_LIMIT = None
 DROPOUT_P = 0.3
 NORMALIZE = True

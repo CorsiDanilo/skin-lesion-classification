@@ -67,7 +67,7 @@ def main():
             "upsample_train": UPSAMPLE_TRAIN,
             "double_loss": USE_DOUBLE_LOSS
         }
-    elif config == "standard":
+    elif ARCHITECTURE == "standard":
         config = {
             "learning_rate": LR,
             "architecture": ARCHITECTURE,
