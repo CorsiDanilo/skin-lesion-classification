@@ -30,6 +30,8 @@ def init_with_parsed_arguments():
     parser = ArgumentParser()
     parser.add_argument("--segmentation-strategy",
                         type=str, default="dynamic_segmentation")
+
+    # REQUIRED: resnet24, densenet121, inception_v3, standard, pretrained, efficient
     parser.add_argument("--architecture", type=str)
     parser.add_argument("--dataset-limit", type=int, default=DATASET_LIMIT)
     parser.add_argument("--lr", type=float, default=LR)
@@ -122,16 +124,18 @@ def hparams_tuning(train_loader, val_loader, **hparams):
         combinations_tried = {}
     else:
         # Filter combinations that have already been tried
-        if "./results/combinations.json" in os.listdir():
+        if os.path.exists("./results/combinations.json"):
             with open("./results/combinations.json", "r") as f:
                 combinations_tried = json.load(f)
         else:
             combinations_tried = {}
 
+        print(f"COMBINATIONS TRIED: {combinations_tried}")
+
         curr_architecture = hparams["architecture"]
         if curr_architecture in combinations_tried:
             combinations = [
-                combination for combination in combinations if combination not in combinations_tried[curr_architecture]]
+                combination for combination in combinations if list(combination) not in combinations_tried[curr_architecture]]
             print(
                 f"----Found {len(combinations_tried[curr_architecture])} combinations already tried for {curr_architecture}, excluding them from the run! ----")
         else:
