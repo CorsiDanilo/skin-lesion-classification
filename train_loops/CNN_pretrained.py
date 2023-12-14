@@ -1,5 +1,5 @@
 import torch
-from config import ARCHITECTURE, PRINT_MODEL_ARCHITECTURE, BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN, USE_DOUBLE_LOSS
+from config import ARCHITECTURE, PRINT_MODEL_ARCHITECTURE, BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN, USE_DOUBLE_LOSS, USE_WANDB
 from constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
 from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device, set_seed
@@ -80,6 +80,8 @@ def main():
         'dynamic_segmentation_strategy': DYNAMIC_SEGMENTATION_STRATEGY,
         "upsample_train": UPSAMPLE_TRAIN,
         "double_loss": USE_DOUBLE_LOSS,
+        "use_wandb": USE_WANDB,
+        "keep_background": KEEP_BACKGROUND
     }
 
     dataloader = get_dataloder_from_strategy(
@@ -94,7 +96,7 @@ def main():
         keep_background=KEEP_BACKGROUND,)
     train_loader = dataloader.get_train_dataloder()
     val_loader = dataloader.get_val_dataloader()
-    
+
     optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=REG)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=N_EPOCHS, eta_min=1e-4, verbose=True)

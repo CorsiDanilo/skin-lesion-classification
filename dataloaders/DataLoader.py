@@ -24,7 +24,8 @@ class DataLoader(ABC):
                  upscale_train: bool = True,
                  normalize: bool = NORMALIZE,
                  normalization_statistics: tuple = None,
-                 batch_size: int = BATCH_SIZE):
+                 batch_size: int = BATCH_SIZE,
+                 always_rotate: bool = False):
         super().__init__()
         self.limit = limit
         self.transform = transform
@@ -40,6 +41,7 @@ class DataLoader(ABC):
         self.device = select_device()
         self.train_df, self.val_df, self.test_df = self._init_metadata(
             limit=limit)
+        self.always_rotate = always_rotate
 
     @abstractmethod
     def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int, transform: transforms.Compose = None):
@@ -56,14 +58,14 @@ class DataLoader(ABC):
                       'akiec': 3, 'bcc': 4, 'df': 5, 'vasc': 6}  # 2, 3, 4 malignant, otherwise begign
         labels_encoded = metadata['dx'].map(label_dict)
         metadata['label'] = labels_encoded
-        # assert len(
-        #     label_dict) == 7, "There should be 7 unique labels, increase the limit"
+
         print(f"LOADED METADATA HAS LENGTH {len(metadata)}")
         if limit is not None and limit > len(metadata):
             print(
                 f"Ignoring limit for because it is bigger than the dataset size")
             limit = None
         if limit is not None:
+            print(f"---LIMITING DATASET TO {limit} ENTRIES---")
             metadata = metadata.sample(n=limit, random_state=42)
         metadata['image_path'] = metadata['image_id'].apply(
             lambda x: os.path.join(DATASET_TRAIN_DIR, x + '.jpg'))
@@ -84,6 +86,13 @@ class DataLoader(ABC):
             test_size=0.1,  # Of the 85% train, 10% val, 90% train
             random_state=42,
             stratify=df_train['label'])
+
+        assert len(df_train['label'].unique(
+        )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_train['label'].unique())}, increase the limit"
+        assert len(df_val['label'].unique(
+        )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_val['label'].unique())}, increase the limit"
+        assert len(df_test['label'].unique(
+        )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_test['label'].unique())}, increase the limit"
 
         df_train["train"] = True
         # df_val["train"] = False

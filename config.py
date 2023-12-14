@@ -11,12 +11,13 @@ SEGMENTATION_DIR = os.path.join(
     DATA_DIR, 'HAM10000_segmentations_lesion_tschandl')
 # SEGMENTATION_WITH_BOUNDING_BOX_DIR = os.path.join(
 # DATA_DIR, 'HAM10000_segmentations_lesion_tschandl_with_bounding_box_450_600')
-METADATA_TRAIN_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_train_no_duplicates.csv')
+METADATA_TRAIN_DIR = os.path.join(
+    DATA_DIR, 'HAM10000_metadata_train_no_duplicates.csv')
 # METADATA_NO_DUPLICATES_DIR = os.path.join(
 # DATA_DIR, 'HAM10000_metadata_train.csv')
 # METADATA_TEST_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_test.csv')
 
-BATCH_SIZE = 32
+BATCH_SIZE = 128
 
 
 USE_WANDB = False  # Use wandb for logging
