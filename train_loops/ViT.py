@@ -1,5 +1,5 @@
 import torch
-from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, ARCHITECTURE, DATASET_LIMIT, DROPOUT_P, NORMALIZE, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN, USE_DOUBLE_LOSS, N_HEADS, N_LAYERS, PATCH_SIZE, EMB_SIZE, IMAGE_SIZE, RANDOM_SEED, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, PATH_TO_SAVE_RESULTS, USE_WANDB
+from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, ARCHITECTURE, DATASET_LIMIT, DROPOUT_P, NORMALIZE, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN, USE_DOUBLE_LOSS, N_HEADS, N_LAYERS, PATCH_SIZE, EMB_SIZE, IMAGE_SIZE, RANDOM_SEED, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, PATH_TO_SAVE_RESULTS, USE_WANDB
 from constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
 from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device, set_seed
@@ -11,7 +11,8 @@ from models.ViTEfficient import EfficientViT
 
 def get_model(device):
     if ARCHITECTURE == "pretrained":
-        model = ViT_pretrained(HIDDEN_SIZE, NUM_CLASSES, pretrained=True, dropout=DROPOUT_P).to(device)
+        model = ViT_pretrained(HIDDEN_SIZE, NUM_CLASSES,
+                               pretrained=True, dropout=DROPOUT_P).to(device)
     elif ARCHITECTURE == "standard":
         model = ViT_standard(in_channels=INPUT_SIZE, patch_size=PATCH_SIZE, d_model=EMB_SIZE,
                              img_size=IMAGE_SIZE, n_classes=NUM_CLASSES, n_head=N_HEADS, n_layers=N_LAYERS, dropout=DROPOUT_P).to(device)
@@ -67,6 +68,7 @@ def main():
             "upsample_train": UPSAMPLE_TRAIN,
             "double_loss": USE_DOUBLE_LOSS,
             "use_wandb": USE_WANDB,
+            "keep_background": KEEP_BACKGROUND
         }
     elif ARCHITECTURE == "standard":
         config = {
@@ -96,6 +98,7 @@ def main():
             "emb_size": EMB_SIZE,
             "double_loss": USE_DOUBLE_LOSS,
             "use_wandb": USE_WANDB,
+            "keep_background": KEEP_BACKGROUND
         }
     else:
         config = {
@@ -124,6 +127,7 @@ def main():
             "emb_size": EMB_SIZE,
             "double_loss": USE_DOUBLE_LOSS,
             "use_wandb": USE_WANDB,
+            "keep_background": KEEP_BACKGROUND
         }
 
     dataloader = get_dataloder_from_strategy(

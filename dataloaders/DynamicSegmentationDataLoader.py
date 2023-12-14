@@ -41,12 +41,14 @@ class DynamicSegmentationDataLoader(DataLoader):
                          upscale_train=upscale_train,
                          normalize=normalize,
                          normalization_statistics=normalization_statistics,
-                         batch_size=batch_size)
+                         batch_size=batch_size,
+                         always_rotate=True)
         self.segmentation_strategy = segmentation_strategy
         self.segmentation_transform = transforms.Compose([
             transforms.ToTensor()
         ])
-        self.stateful_transform = StatefulTransform()
+        self.stateful_transform = StatefulTransform(
+            always_rotate=self.always_rotate)
         # self.transform = transforms.Compose([
         #     transforms.RandomVerticalFlip(),
         #     transforms.RandomHorizontalFlip(),

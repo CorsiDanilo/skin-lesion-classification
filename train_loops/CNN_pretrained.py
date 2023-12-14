@@ -81,6 +81,7 @@ def main():
         "upsample_train": UPSAMPLE_TRAIN,
         "double_loss": USE_DOUBLE_LOSS,
         "use_wandb": USE_WANDB,
+        "keep_background": KEEP_BACKGROUND
     }
 
     dataloader = get_dataloder_from_strategy(

@@ -31,29 +31,33 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                  upscale_train: bool = True,
                  normalize: bool = NORMALIZE,
                  normalization_statistics: tuple = None,
-                 batch_size: int = BATCH_SIZE):
+                 batch_size: int = BATCH_SIZE,):
         super().__init__(limit=limit,
                          transform=transform,
                          dynamic_load=dynamic_load,
                          upscale_train=upscale_train,
                          normalize=normalize,
                          normalization_statistics=normalization_statistics,
-                         batch_size=batch_size)
+                         batch_size=batch_size,
+                         always_rotate=False)
         self.resize_dim = resize_dim
         if self.resize_dim is not None:
             self.stateful_transform = StatefulTransform(
-                height=resize_dim[0], width=resize_dim[1])  # TODO: check if this is needed
+                height=resize_dim[0],
+                width=resize_dim[1],
+                always_rotate=self.always_rotate)
             self.transform = transforms.Compose([
-                # TODO: check if this is needed
-                transforms.Resize((resize_dim[0], resize_dim[1]),),
+                transforms.Resize(resize_dim,
+                                  interpolation=Image.BILINEAR),
                 transforms.ToTensor()
             ])
         else:
-            self.stateful_transform = StatefulTransform()
+            self.stateful_transform = StatefulTransform(
+                always_rotate=self.always_rotate)
 
     def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int):
         img = metadata.iloc[idx]
-        load_segmentations = "segmentation_path" in img
+        load_segmentations = "train" in img
         label = img['label']
         image = Image.open(img['image_path'])
         if load_segmentations:
@@ -77,7 +81,7 @@ class ImagesAndSegmentationDataLoader(DataLoader):
         labels = []
 
         for index, (row_index, img) in tqdm(enumerate(metadata.iterrows()), desc=f'Loading images'):
-            load_segmentations = "segmentation_path" in img
+            load_segmentations = "train" in img
             if load_segmentations:
                 image, label, segmentation = self.load_images_and_labels_at_idx(
                     idx=index, metadata=metadata)
@@ -100,9 +104,13 @@ class ImagesAndSegmentationDataLoader(DataLoader):
 
 
 class StatefulTransform:
-    def __init__(self, height: Optional[int] = None, width: Optional[int] = None):
+    def __init__(self,
+                 height: Optional[int] = None,
+                 width: Optional[int] = None,
+                 always_rotate: bool = False):
         self.height = height
         self.width = width
+        self.always_rotate = always_rotate
 
     def cutout(self, img, seg):
         seg_array = np.array(seg)
@@ -152,10 +160,10 @@ class StatefulTransform:
             seg = TF.vflip(seg)
 
         # Random rotation
-        # if random.random() > 0.5:
-        angle = random.randint(1, 360)
-        img = TF.rotate(img, angle)
-        seg = TF.rotate(seg, angle)
+        if self.always_rotate or random.random() > 0.5:
+            angle = random.randint(1, 360)
+            img = TF.rotate(img, angle)
+            seg = TF.rotate(seg, angle)
 
         img = transforms.ToTensor()(img)
         seg = transforms.ToTensor()(seg)
