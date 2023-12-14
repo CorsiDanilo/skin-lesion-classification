@@ -6,7 +6,7 @@ from sklearn.metrics import recall_score, accuracy_score
 from tqdm import tqdm
 from utils.utils import save_results, set_seed, select_device
 from utils.dataloader_utils import get_dataloder_from_strategy
-from config import USE_DOUBLE_LOSS, BATCH_SIZE, SAVE_RESULTS, DATASET_LIMIT, NORMALIZE, RANDOM_SEED, PATH_TO_SAVE_RESULTS, NUM_CLASSES, HIDDEN_SIZE, INPUT_SIZE, IMAGE_SIZE, PATCH_SIZE, EMB_SIZE, N_HEADS, N_LAYERS, DROPOUT_P
+from config import USE_DOUBLE_LOSS, BATCH_SIZE, SAVE_RESULTS, DATASET_LIMIT, NORMALIZE, RANDOM_SEED, PATH_TO_SAVE_RESULTS, NUM_CLASSES, HIDDEN_SIZE, INPUT_SIZE, IMAGE_SIZE, PATCH_SIZE, EMB_SIZE, N_HEADS, N_LAYERS, DROPOUT_P, SEGMENTATION_STRATEGY, DYNAMIC_SEGMENTATION_STRATEGY
 from constants import DEFAULT_STATISTICS, IMAGENET_STATISTICS
 from shared.enums import DynamicSegmentationStrategy, SegmentationStrategy
 from models.ResNet24Pretrained import ResNet24Pretrained
@@ -23,10 +23,10 @@ def test(test_model, test_loader, device, data_name):
         loss_function_binary = nn.CrossEntropyLoss()
     test_model.eval()
     test_loss_iter = 0
-    epoch_test_preds = torch.tensor([]).to(device)
-    epoch_test_labels = torch.tensor([]).to(device)
 
     with torch.no_grad():
+        epoch_test_preds = torch.tensor([]).to(device)
+        epoch_test_labels = torch.tensor([]).to(device)
         for _, (test_images, test_labels) in enumerate(tqdm(test_loader, desc="Test")):
             test_images = test_images.to(device)
             test_labels = test_labels.to(device)
@@ -45,14 +45,14 @@ def test(test_model, test_loader, device, data_name):
                 test_labels_binary = torch.zeros_like(
                     test_labels, dtype=torch.long).to(device)
                 # Set ground-truth to 1 for classes 0, 1, and 6 (the malignant classes)
-                test_labels_binary[(test_labels == 0) | (
-                    test_labels == 1) | (test_labels == 6)] = 1
+                test_labels_binary[(test_labels == 2) | (
+                    test_labels == 3) | (test_labels == 4)] = 1
 
                 # Second loss: Binary loss considering only benign/malignant classes
                 test_outputs_binary = torch.zeros_like(
                     test_outputs[:, :2]).to(device)
                 test_outputs_binary[:, 1] = torch.sum(
-                    test_outputs[:, [0, 1, 6]], dim=1)
+                    test_outputs[:, [2, 3, 4]], dim=1)
                 test_outputs_binary[:, 0] = 1 - test_outputs_binary[:, 1]
 
                 test_epoch_loss_binary = loss_function_binary(
@@ -66,8 +66,8 @@ def test(test_model, test_loader, device, data_name):
         test_loss = test_loss_iter / (len(test_loader) * BATCH_SIZE)
         test_accuracy = accuracy_score(
             epoch_test_labels.cpu().numpy(), epoch_test_preds.cpu().numpy()) * 100
-        test_recall = recall_score(epoch_test_labels.cpu().numpy(
-        ), epoch_test_preds.cpu().numpy(), average='macro', zero_division=0) * 100
+        test_recall = recall_score(
+            epoch_test_labels.cpu().numpy(), epoch_test_preds.cpu().numpy(), average='macro', zero_division=0) * 100
 
         print('Test -> Loss: {:.4f}, Accuracy: {:.4f}%, Recall: {:.4f}%'.format(
             test_loss, test_accuracy, test_recall))
@@ -123,7 +123,7 @@ def get_model(model_path, device):
         normalization_stats = None
     elif type == "pretrained":
         model = ViT_pretrained(
-            NUM_CLASSES if configurations is None else configurations["num_classes"], pretrained=True, dropout=DROPOUT_P).to(device)
+            HIDDEN_SIZE if configurations is None else configurations["hidden_size"], NUM_CLASSES if configurations is None else configurations["num_classes"], pretrained=True, dropout=DROPOUT_P).to(device)
         normalization_stats = IMAGENET_STATISTICS
     elif type == "efficient":
         model = EfficientViT(img_size=224, patch_size=16, in_chans=INPUT_SIZE if configurations is None else configurations["input_size"], stages=['s', 's', 's'],
@@ -150,7 +150,8 @@ def main(model_path, epoch):
     model = load_test_model(model, model_path, epoch)
 
     dataloader = get_dataloder_from_strategy(
-        strategy=SegmentationStrategy.NO_SEGMENTATION.value,
+        strategy=SEGMENTATION_STRATEGY,
+        dynamic_segmentation_strategy=DYNAMIC_SEGMENTATION_STRATEGY,
         limit=DATASET_LIMIT,
         dynamic_load=True,
         normalize=NORMALIZE,
@@ -162,7 +163,7 @@ def main(model_path, epoch):
 
 if __name__ == "__main__":
     # Name of the sub-folder into "results" folder in which to find the model to test (e.g. "resnet24_2023-12-10_12-29-49")
-    model_path = "resnet24_2023-12-09_09-09-54"
-    epoch = 1  # Specify the epoch number (e.g. 2) or "best" to get best model
+    model_path = "pretrained_2023-12-14_14-13-32"
+    epoch = "6"  # Specify the epoch number (e.g. 2) or "best" to get best model
 
     main(model_path, epoch)

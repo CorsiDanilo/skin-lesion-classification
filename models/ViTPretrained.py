@@ -8,7 +8,7 @@ from config import DROPOUT_P
 class ViT_pretrained(nn.Module):
     def __init__(self, hidden_layers, num_classes, pretrained=True, dropout=DROPOUT_P):
         super (ViT_pretrained, self).__init__()
-        self.model = timm.create_model("vit_base_patch16_224", pretrained)
+        self.model = timm.create_model("vit_large_patch16_224", pretrained)
 
         for param in self.model.parameters():
             param.requires_grad = False
