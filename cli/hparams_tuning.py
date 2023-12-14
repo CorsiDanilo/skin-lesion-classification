@@ -27,6 +27,7 @@ device = select_device()
 
 
 def init_with_parsed_arguments():
+    set_seed(RANDOM_SEED)
     parser = ArgumentParser()
     parser.add_argument("--segmentation-strategy",
                         type=str, default="dynamic_segmentation")
@@ -237,8 +238,6 @@ def build_dataloaders(**args):
 
 
 def run_train_eval_loop(model, train_loader, val_loader, **kwargs):
-    set_seed(RANDOM_SEED)
-
     print(f"---CURRENT CONFIGURATION---\n{kwargs}")
 
     optimizer = torch.optim.AdamW(
