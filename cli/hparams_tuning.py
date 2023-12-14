@@ -36,7 +36,7 @@ def init_with_parsed_arguments():
     parser.add_argument("--dataset-limit", type=int, default=DATASET_LIMIT)
     parser.add_argument("--lr", type=float, default=LR)
     parser.add_argument("--reg", type=float, default=None)
-    parser.add_argument("--dropout-p", type=float, default=None)
+    parser.add_argument("--dropout", type=float, default=None)
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--epochs", type=int, default=N_EPOCHS)
     parser.add_argument("--balance_undersampling",
@@ -75,12 +75,12 @@ def init_with_parsed_arguments():
         "epochs": N_EPOCHS if kwargs.get("epochs") is None else kwargs.get("epochs"),
         'reg': REG if kwargs.get("reg") is None else kwargs.get("reg"),
         'batch_size': BATCH_SIZE if kwargs.get("batch_size") is None else kwargs.get("batch_size"),
-        "hidden_size": HIDDEN_SIZE,
+        "hidden_size": HIDDEN_SIZE if kwargs.get("architecture") != "pretrained" else [256, 128],
         "num_classes": NUM_CLASSES if kwargs.get("num_classes") is None else kwargs.get("num_classes"),
         "dataset": "HAM10K",
         "optimizer": "AdamW",
         "dataset_limit": DATASET_LIMIT if kwargs.get("dataset_limit") is None else kwargs.get("dataset_limit"),
-        "dropout_p": DROPOUT_P if kwargs.get("dropout_p") is None else kwargs.get("dropout_p"),
+        "dropout_p": DROPOUT_P if kwargs.get("dropout") is None else kwargs.get("dropout"),
         "normalize": NORMALIZE,
         "resumed": False,
         "from_epoch": 0,
@@ -92,12 +92,12 @@ def init_with_parsed_arguments():
         "double_loss": not kwargs.get("no_double_loss"),
         "use_wandb": not kwargs.get("no_wandb"),
         "keep_background": not kwargs.get("no_background"),
-        "hparam_tuning": True,
+        "hparam_tuning": True if (kwargs.get("reg") is None and kwargs.get("dropout") is None) else False,
         "force_reset": kwargs.get("force_reset"),
     }
 
     train_loader, val_loader = build_dataloaders(**config)
-    if args.reg is not None and args.dropout_p is not None:
+    if args.reg is not None and args.dropout is not None:
         print(f"----REG AND DROPOUT_P ARE NOT NONE, NOT DOING HPARAMS TUNING----")
         init_run(train_loader=train_loader,
                  val_loader=val_loader,
