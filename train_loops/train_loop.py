@@ -94,15 +94,14 @@ def train_eval_loop(device,
                 epoch_tr_preds = torch.cat((epoch_tr_preds, tr_preds), 0)
                 epoch_tr_labels = torch.cat((epoch_tr_labels, tr_labels), 0)
 
-        with torch.no_grad():
-            tr_accuracy = accuracy_score(
+                tr_accuracy = accuracy_score(
                 epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy()) * 100
-            tr_recall = recall_score(
-                epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy(), average='macro', zero_division=0) * 100
+                tr_recall = recall_score(
+                    epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy(), average='macro', zero_division=0) * 100
 
-            if (tr_i+1) % 50 == 0:
-                print('Training -> Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%, Recall: {:.4f}%'
-                      .format(epoch+1, config["epochs"], tr_i+1, total_step, tr_epoch_loss, tr_accuracy, tr_recall))
+                if (tr_i+1) % 50 == 0:
+                    print('Training -> Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%, Recall: {:.4f}%'
+                            .format(epoch+1, config["epochs"], tr_i+1, total_step, tr_epoch_loss, tr_accuracy, tr_recall))
 
         if config["use_wandb"]:
             wandb.log({"Training Loss": tr_epoch_loss.item()})
