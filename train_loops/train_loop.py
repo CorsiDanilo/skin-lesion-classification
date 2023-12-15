@@ -86,11 +86,10 @@ def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, 
                 epoch_tr_preds = torch.cat((epoch_tr_preds, tr_preds), 0)
                 epoch_tr_labels = torch.cat((epoch_tr_labels, tr_labels), 0)
 
-        with torch.no_grad():
-            tr_accuracy = accuracy_score(
+                tr_accuracy = accuracy_score(
                 epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy()) * 100
-            tr_recall = recall_score(
-                epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy(), average='macro', zero_division=0) * 100
+                tr_recall = recall_score(
+                    epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy(), average='macro', zero_division=0) * 100
 
             if (tr_i+1) % 50 == 0:
                 print('Training -> Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%, Recall: {:.4f}%'
@@ -173,4 +172,4 @@ def train_eval_loop(device, train_loader, val_loader, model, config, optimizer, 
             if epoch == N_EPOCHS-1 and SAVE_MODELS:
                 save_model(data_name, best_model, epoch=None, is_best=True)
 
-        scheduler.step()
+        #scheduler.step()
