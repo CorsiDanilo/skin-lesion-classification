@@ -2,14 +2,9 @@ import torch
 from torch import nn
 from torchvision import models
 
-class LANet(nn.Module):
+class MSLANet(nn.Module):
     def __init__(self):
-        super(LANet, self).__init__()
-        self.cnn_block = models.resnet50(pretrained=True)
-        self.cnn_block_features = nn.Sequential(*list(self.cnn_block.children())[:-2])
-        self.adaptive_avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.in_channels = self.cnn_block.layer4[-1].conv3.out_channels
-        self.conv1x1 = nn.Conv2d(in_channels=self.in_channels, out_channels=self.in_channels, kernel_size=1)
+        super(MSLANet, self).__init__()
 
     def mixed_sigmoid(self, x):
         return torch.sigmoid(x) * x
