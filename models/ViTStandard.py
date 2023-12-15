@@ -46,6 +46,8 @@ class PatchEmbedding(nn.Module):
 class PatchEmbedding(nn.Module):
     def __init__(self, image_size, patch_size, in_channels, d_model):
         super(PatchEmbedding, self).__init__()
+        image_size = eval(image_size) # Transform the string into a tuple
+
         self.image_size = image_size
         self.patch_size = patch_size
         self.in_channels = in_channels
