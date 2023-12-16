@@ -3,35 +3,32 @@ from tkinter import filedialog
 from PIL import Image, ImageTk
 import numpy as np
 
-from models.ResNet24Pretrained import ResNet24Pretrained
-from models.SAM import SAM
+import json
 import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, ImageTk
 import torch
 from torchvision import transforms
 import os
-from config import PATH_TO_SAVE_RESULTS, HIDDEN_SIZE, NUM_CLASSES, IMAGE_SIZE
+from config import PATH_TO_SAVE_RESULTS, HIDDEN_SIZE, NUM_CLASSES, IMAGE_SIZE, DROPOUT_P, INPUT_SIZE, EMB_SIZE, PATCH_SIZE, N_HEADS, N_LAYERS
+from constants import DEFAULT_STATISTICS, IMAGENET_STATISTICS
 from train_loops.SAM_pretrained import preprocess_images
 from utils.utils import approximate_bounding_box_to_square, crop_image_from_box, get_bounding_boxes_from_segmentation, resize_images, resize_segmentations, select_device
-import json
+from models.SAM import SAM
+from models.ResNet24Pretrained import ResNet24Pretrained
+from models.DenseNetPretrained import DenseNetPretrained
+from models.InceptionV3Pretrained import InceptionV3Pretrained
+from models.ViTStandard import ViT_standard
+from models.ViTPretrained import ViT_pretrained
+from models.ViTEfficient import EfficientViT
 
 device = select_device()
-# Define the image transformation
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-])
-preprocess_params = {
-    'adjust_contrast': 1.5,
-    'adjust_brightness': 1.2,
-    'adjust_saturation': 2,
-    'adjust_gamma': 1.5,
-    'gaussian_blur': 5}
 SAM_IMG_SIZE = 128
 KEEP_BACKGROUND = False
+DEMO_MODEL_PATH = "densenet121_2023-12-14_20-16-57"
+DEMO_MODEL_EPOCH = "best"
 
-def get_model(model_path, epoch, sam_checkpoint_path):
+def get_model(model_path, epoch, sam_checkpoint_path="checkpoints/sam_checkpoint.pt"):
     # Load configuration
     conf_path = PATH_TO_SAVE_RESULTS + f"/{model_path}/configurations.json"
     configurations = None
@@ -43,8 +40,43 @@ def get_model(model_path, epoch, sam_checkpoint_path):
     else:
         print("--Model-- Old configurations NOT found. Using configurations in the config for test.")
 
-    model = ResNet24Pretrained(
+    type = model_path.split('_')[0]
+    if type == "resnet24":
+        model = ResNet24Pretrained(
             HIDDEN_SIZE if configurations is None else configurations["hidden_size"], NUM_CLASSES if configurations is None else configurations["num_classes"]).to(device)
+        normalization_stats = IMAGENET_STATISTICS
+    elif type == "densenet121":
+        model = DenseNetPretrained(
+            HIDDEN_SIZE if configurations is None else configurations["hidden_size"], NUM_CLASSES if configurations is None else configurations["num_classes"]).to(device)
+        normalization_stats = IMAGENET_STATISTICS
+    elif type == "inception_v3":
+        model = InceptionV3Pretrained(
+            HIDDEN_SIZE if configurations is None else configurations["hidden_size"], NUM_CLASSES if configurations is None else configurations["num_classes"]).to(device)
+        normalization_stats = IMAGENET_STATISTICS
+    elif type == "standard":
+        model = ViT_standard(in_channels=INPUT_SIZE if configurations is None else configurations["input_size"],
+                             patch_size=PATCH_SIZE if configurations is None else configurations[
+                                 "patch_size"],
+                             d_model=EMB_SIZE if configurations is None else configurations[
+                                 "emb_size"],
+                             img_size=IMAGE_SIZE if configurations is None else configurations[
+                                 "image_size"],
+                             n_classes=NUM_CLASSES if configurations is None else configurations[
+                                 "num_classes"],
+                             n_head=N_HEADS if configurations is None else configurations["n_heads"],
+                             n_layers=N_LAYERS if configurations is None else configurations["n_layers"],
+                             dropout=DROPOUT_P).to(device)
+        normalization_stats = None
+    elif type == "pretrained":
+        model = ViT_pretrained(
+            NUM_CLASSES if configurations is None else configurations["num_classes"], pretrained=True, dropout=DROPOUT_P).to(device)
+        normalization_stats = IMAGENET_STATISTICS
+    elif type == "efficient":
+        model = EfficientViT(img_size=224, patch_size=16, in_chans=INPUT_SIZE if configurations is None else configurations["input_size"], stages=['s', 's', 's'],
+                             embed_dim=[64, 128, 192], key_dim=[16, 16, 16], depth=[1, 2, 3], window_size=[7, 7, 7], kernels=[5, 5, 5, 5])
+        normalization_stats = None
+    else:
+        raise ValueError(f"Unknown architecture {type}")
 
     state_dict = torch.load(
         f"{PATH_TO_SAVE_RESULTS}/{model_path}/models/melanoma_detection_{epoch}.pt")
@@ -58,8 +90,8 @@ def get_model(model_path, epoch, sam_checkpoint_path):
     return model, sam_model
 
 def crop_to_background(images: torch.Tensor,
-                           segmentations: torch.Tensor,
-                           resize: bool = True):
+                        segmentations: torch.Tensor,
+                        resize: bool = True):
         bboxes = [get_bounding_boxes_from_segmentation(
             mask)[0] for mask in segmentations]
 
@@ -81,6 +113,14 @@ def sam_segmentation_pipeline(sam_model, images):
         THRESHOLD = 0.5
         resized_images = resize_images(images, new_size=(
             sam_model.get_img_size(), sam_model.get_img_size())).to(device)
+        
+        preprocess_params = {
+            'adjust_contrast': 1.5,
+            'adjust_brightness': 1.2,
+            'adjust_saturation': 2,
+            'adjust_gamma': 1.5,
+            'gaussian_blur': 5
+        }
 
         resized_images = preprocess_images(
             resized_images, params=preprocess_params)
@@ -116,12 +156,17 @@ def decode_prediction(pred):
     else:
         return "Vascular lesion (Begign)"
 
-def process_image(image_path):
-    model, sam_model = get_model("resnet24_2023-12-13_17-55-55", 1, "checkpoints/sam_checkpoint.pt")
+def process_image(image_path, model_path=DEMO_MODEL_PATH, epoch=DEMO_MODEL_EPOCH):
+    model, sam_model = get_model(model_path, epoch)
     model = model.to(device)
     sam_model = sam_model.to(device)
     model.eval()
     sam_model.model.eval()
+
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+    ])
 
     # Open and preprocess the image
     image = Image.open(image_path)
@@ -188,6 +233,24 @@ def set_window_size():
     # Set the window geometry
     root.geometry(f"{window_width}x{window_height}+{int((screen_width - window_width) / 2)}+{int((screen_height - window_height) / 2)}")
 
+def update_labels():
+    # Show or hide the text label above panel 1 based on whether panel1 is assigned
+    if panel1.winfo_ismapped():
+        text_label_panel1.grid(row=4, column=0, columnspan=2, pady=10)
+    else:
+        text_label_panel1.grid_remove()
+
+    # Show or hide the text label above the result based on whether result_label is assigned
+    if panel2.winfo_ismapped():
+        text_label_panel2.grid(row=4, column=0, columnspan=2, pady=10)
+    else:
+        text_label_panel2.grid_remove()
+    
+    if result_label.winfo_ismapped():
+        text_label_result.grid(row=5, column=0, columnspan=2, pady=10)
+    else:
+        text_label_result.grid_remove()
+
 # Create the main window
 root = tk.Tk()
 root.title("Image Prediction GUI")
@@ -195,21 +258,43 @@ root.title("Image Prediction GUI")
 # Set window size based on desktop dimensions
 set_window_size()
 
+# Create a title label
+title_label = tk.Label(root, text="Melanoma Detection", font=("Helvetica", 16, "underline"), bg="pink")
+title_label.grid(row=0, column=0, columnspan=2, pady=10)
+
+# Create a description
+description_label = tk.Label(root, text="Please, upload an image with a mole to make the diagnosis:", font=("Helvetica", 12))
+description_label.grid(row=1, column=0, columnspan=2, pady=10)
+
 # Create a button to open an image
-open_button = tk.Button(root, text="Open Image", command=open_image)
-open_button.pack(pady=10)
+open_button = tk.Button(root, text="Upload Image", command=open_image)
+open_button.grid(row=2, column=0, columnspan=2, pady=10)
+
+# Create two panels with a small border between them
+panel1 = tk.Label(root)
+panel2 = tk.Label(root)
+
+# Create a label for text above panel 1
+text_label_panel1 = tk.Label(root, text="Uploaded image", font=("Helvetica", 12))
+text_label_panel1.grid(row=3, column=0, columnspan=2, pady=10)
+
+# Create a label for text above panel 1
+text_label_panel2 = tk.Label(root, text="Segmented mole", font=("Helvetica", 12))
+text_label_panel2.grid(row=3, column=1, columnspan=2, pady=10)
+
+# Center panels in the window
+panel1.grid(row=4, column=0, padx=5)
+panel2.grid(row=4, column=1, padx=5)
 
 # Create a label to display the result
+text_label_result = tk.Label(root, text="Result of the diagnosis:", font=("Helvetica", 12, "underline"))
+text_label_result.grid(row=5, column=0, columnspan=2, pady=10)
 result_text = tk.StringVar()
 result_label = tk.Label(root, textvariable=result_text, font=("Helvetica", 12))
-result_label.pack(pady=10)
+result_label.grid(row=6, column=0, columnspan=2, pady=10)
 
-# Create three panels with a small border between them
-panel1 = tk.Label(root)
-panel1.pack(side="left", padx=5)
-
-panel2 = tk.Label(root)
-panel2.pack(side="left", padx=5)
+ # Schedule the label updates to occur after the mainloop has started
+root.after(1, update_labels)
 
 # Start the GUI event loop
 root.mainloop()
