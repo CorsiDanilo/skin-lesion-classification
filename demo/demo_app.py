@@ -10,7 +10,7 @@ from PIL import Image, ImageTk
 import torch
 from torchvision import transforms
 import os
-from config import PATH_TO_SAVE_RESULTS, HIDDEN_SIZE, NUM_CLASSES, IMAGE_SIZE, DROPOUT_P, INPUT_SIZE, EMB_SIZE, PATCH_SIZE, N_HEADS, N_LAYERS
+from config import PATH_TO_SAVE_RESULTS, HIDDEN_SIZE, NUM_CLASSES, IMAGE_SIZE, DROPOUT_P, INPUT_SIZE, EMB_SIZE, PATCH_SIZE, N_HEADS, N_LAYERS, HIDDEN_SIZE
 from constants import DEFAULT_STATISTICS, IMAGENET_STATISTICS
 from train_loops.SAM_pretrained import preprocess_images
 from utils.utils import approximate_bounding_box_to_square, crop_image_from_box, get_bounding_boxes_from_segmentation, resize_images, resize_segmentations, select_device
@@ -25,7 +25,7 @@ from models.ViTEfficient import EfficientViT
 device = select_device()
 SAM_IMG_SIZE = 128
 KEEP_BACKGROUND = False
-DEMO_MODEL_PATH = "densenet121_2023-12-14_20-16-57"
+DEMO_MODEL_PATH = "pretrained_2023-12-16_07-54-16"
 DEMO_MODEL_EPOCH = "best"
 
 def get_model(model_path, epoch, sam_checkpoint_path="checkpoints/sam_checkpoint.pt"):
@@ -66,15 +66,15 @@ def get_model(model_path, epoch, sam_checkpoint_path="checkpoints/sam_checkpoint
                              n_head=N_HEADS if configurations is None else configurations["n_heads"],
                              n_layers=N_LAYERS if configurations is None else configurations["n_layers"],
                              dropout=DROPOUT_P).to(device)
-        normalization_stats = None
+        normalization_stats = DEFAULT_STATISTICS
     elif type == "pretrained":
         model = ViT_pretrained(
-            NUM_CLASSES if configurations is None else configurations["num_classes"], pretrained=True, dropout=DROPOUT_P).to(device)
+            HIDDEN_SIZE if configurations is None else configurations["hidden_size"], NUM_CLASSES if configurations is None else configurations["num_classes"], pretrained=True, dropout=DROPOUT_P).to(device)
         normalization_stats = IMAGENET_STATISTICS
     elif type == "efficient":
         model = EfficientViT(img_size=224, patch_size=16, in_chans=INPUT_SIZE if configurations is None else configurations["input_size"], stages=['s', 's', 's'],
                              embed_dim=[64, 128, 192], key_dim=[16, 16, 16], depth=[1, 2, 3], window_size=[7, 7, 7], kernels=[5, 5, 5, 5])
-        normalization_stats = None
+        normalization_stats = DEFAULT_STATISTICS
     else:
         raise ValueError(f"Unknown architecture {type}")
 
@@ -87,7 +87,7 @@ def get_model(model_path, epoch, sam_checkpoint_path="checkpoints/sam_checkpoint
                 img_size=SAM_IMG_SIZE,
                 checkpoint_path=sam_checkpoint_path).to(device)
     
-    return model, sam_model
+    return model, sam_model, normalization_stats
 
 def crop_to_background(images: torch.Tensor,
                         segmentations: torch.Tensor,
@@ -142,22 +142,22 @@ def sam_segmentation_pipeline(sam_model, images):
 
 def decode_prediction(pred):
     if pred == 0:
-        return "Melanocytic nevi (Begign)"
+        return tuple(("Melanocytic nevi", 0))
     elif pred == 1:
-        return "Benign lesions of the keratosis (Begign)"
+        return tuple(("Benign lesions of the keratosis", 0))
     elif pred == 2:
-        return "Melanoma (Malignant)"
+        return tuple(("Melanoma", 1))
     elif pred == 3:
-        return "Actinic keratoses and intraepithelial carcinoma (Malignant)"
+        return tuple(("Actinic keratoses and intraepithelial carcinoma", 1))
     elif pred == 4:
-        return "Basal cell carcinoma (Malignant)"
+        return tuple(("Basal cell carcinoma", 1))
     elif pred == 5:
-        return "Dermatofibroma (Begign)"
+        return tuple(("Dermatofibroma", 0))
     else:
-        return "Vascular lesion (Begign)"
+        return tuple(("Vascular lesion", 0))
 
 def process_image(image_path, model_path=DEMO_MODEL_PATH, epoch=DEMO_MODEL_EPOCH):
-    model, sam_model = get_model(model_path, epoch)
+    model, sam_model, normalization_stats = get_model(model_path, epoch)
     model = model.to(device)
     sam_model = sam_model.to(device)
     model.eval()
@@ -218,42 +218,41 @@ def display_image(image, segmented_image, binary_mask, predicted_class):
     panel2.config(image=image_two)
     panel2.image = image_two
 
+    # Show the the texts once the prediction is done
+    text_label_panel1.grid(row=3, column=0)
+    text_label_panel2.grid(row=3, column=1)
+    text_label_result.grid(row=5, column=0, columnspan=2)
+
     # Update the result label with the predicted class
-    result_text.set(f"{decode_prediction(predicted_class)}")
+    pred_text = decode_prediction(predicted_class)
+    result_text.set(f"{pred_text[0]} ({'Benign' if pred_text[1] == 0 else 'Malignant'})")
+    if pred_text[1] == 0:
+        result_label.config(fg="green")
+    else:
+        result_label.config(fg="red")
 
 def set_window_size():
     # Get the screen width and height
-    screen_width = root.winfo_screenwidth()
-    screen_height = root.winfo_screenheight()
+    #screen_width = root.winfo_screenwidth()
+    #screen_height = root.winfo_screenheight()
+
+    # Set the window size
+    window_width = 480  # Adjust the width as needed
+    window_height = 450  # Adjust the height as needed
 
     # Set the window size (80% of the screen width and height)
-    window_width = int(0.3 * screen_width)
-    window_height = int(0.3 * screen_height)
+    #window_width = int(0.3 * screen_width)
+    #window_height = int(0.3 * screen_height)
 
     # Set the window geometry
-    root.geometry(f"{window_width}x{window_height}+{int((screen_width - window_width) / 2)}+{int((screen_height - window_height) / 2)}")
-
-def update_labels():
-    # Show or hide the text label above panel 1 based on whether panel1 is assigned
-    if panel1.winfo_ismapped():
-        text_label_panel1.grid(row=4, column=0, columnspan=2, pady=10)
-    else:
-        text_label_panel1.grid_remove()
-
-    # Show or hide the text label above the result based on whether result_label is assigned
-    if panel2.winfo_ismapped():
-        text_label_panel2.grid(row=4, column=0, columnspan=2, pady=10)
-    else:
-        text_label_panel2.grid_remove()
+    root.geometry(f"{window_width}x{window_height}+{int((root.winfo_screenwidth() - window_width) / 2)}+{int((root.winfo_screenheight() - window_height) / 2)}")
     
-    if result_label.winfo_ismapped():
-        text_label_result.grid(row=5, column=0, columnspan=2, pady=10)
-    else:
-        text_label_result.grid_remove()
+    # Disable window resizing
+    root.resizable(False, False)
 
 # Create the main window
 root = tk.Tk()
-root.title("Image Prediction GUI")
+root.title("Melanoma Detection Demo")
 
 # Set window size based on desktop dimensions
 set_window_size()
@@ -268,7 +267,7 @@ description_label.grid(row=1, column=0, columnspan=2, pady=10)
 
 # Create a button to open an image
 open_button = tk.Button(root, text="Upload Image", command=open_image)
-open_button.grid(row=2, column=0, columnspan=2, pady=10)
+open_button.grid(row=2, column=0, columnspan=2)
 
 # Create two panels with a small border between them
 panel1 = tk.Label(root)
@@ -276,11 +275,11 @@ panel2 = tk.Label(root)
 
 # Create a label for text above panel 1
 text_label_panel1 = tk.Label(root, text="Uploaded image", font=("Helvetica", 12))
-text_label_panel1.grid(row=3, column=0, columnspan=2, pady=10)
+text_label_panel1.grid_remove()
 
 # Create a label for text above panel 1
 text_label_panel2 = tk.Label(root, text="Segmented mole", font=("Helvetica", 12))
-text_label_panel2.grid(row=3, column=1, columnspan=2, pady=10)
+text_label_panel2.grid_remove()
 
 # Center panels in the window
 panel1.grid(row=4, column=0, padx=5)
@@ -288,13 +287,19 @@ panel2.grid(row=4, column=1, padx=5)
 
 # Create a label to display the result
 text_label_result = tk.Label(root, text="Result of the diagnosis:", font=("Helvetica", 12, "underline"))
-text_label_result.grid(row=5, column=0, columnspan=2, pady=10)
+text_label_result.grid_remove()
 result_text = tk.StringVar()
 result_label = tk.Label(root, textvariable=result_text, font=("Helvetica", 12))
-result_label.grid(row=6, column=0, columnspan=2, pady=10)
+result_label.grid(row=6, column=0, columnspan=2)
 
- # Schedule the label updates to occur after the mainloop has started
-root.after(1, update_labels)
+# Assign the panels a mock image
+grey_image_array = np.ones((224, 224, 3), dtype=np.uint8) * (240, 240, 240)
+grey_image_pil = Image.fromarray(grey_image_array.astype('uint8'))
+grey_image = ImageTk.PhotoImage(grey_image_pil)
+panel1.config(image=grey_image)
+panel1.image = grey_image
+panel2.config(image=grey_image)
+panel2.image = grey_image
 
 # Start the GUI event loop
 root.mainloop()
