@@ -12,6 +12,9 @@ import pandas as pd
 import torchvision.transforms.functional as TF
 from config import BATCH_SIZE, IMAGE_SIZE, NORMALIZE, RANDOM_SEED
 import random
+from albumentations import GridDistortion
+from torchvision.transforms import ColorJitter
+
 random.seed(RANDOM_SEED)
 
 
@@ -112,6 +115,16 @@ class StatefulTransform:
         self.width = width
         self.always_rotate = always_rotate
 
+    def add_gaussian_noise(self, image):
+        """
+        Add gaussian noise to a PIL Image.
+        """
+        mean = 0
+        stddev = 0.1
+        noisy_image = image + torch.randn(image.shape) * stddev + mean
+        noisy_image = np.clip(noisy_image, 0., 1.)
+        return noisy_image
+
     def cutout(self, img, seg):
         seg_array = np.array(seg)
 
@@ -145,6 +158,21 @@ class StatefulTransform:
             seg = transforms.Resize((self.height, self.width),
                                     interpolation=Image.BILINEAR)(seg)
 
+        # Apply the grid distortion
+        # if random.random() > 0.5:
+        #     # Convert tensors back to PIL Images
+        #     # img_pil = to_pil_image(img)
+        #     # seg_pil = to_pil_image(seg)
+
+        #     grid_distortion = GridDistortion(p=1)
+        #     img = grid_distortion(image=np.array(
+        #         img).astype(np.float32))["image"]
+        #     seg = grid_distortion(image=np.array(
+        #         seg).astype(np.float32))["image"]
+
+        #     img = Image.fromarray(img.astype(np.uint8))
+        #     seg = Image.fromarray(seg.astype(np.uint8))
+
         # Cutout
         if random.random() > 0.7:
             img, seg = self.cutout(img, seg)
@@ -165,7 +193,21 @@ class StatefulTransform:
             img = TF.rotate(img, angle)
             seg = TF.rotate(seg, angle)
 
+        # if random.random() > 0.5:
+        #     elastic_transform = transforms.ElasticTransform()
+        #     img = elastic_transform(img)
+        #     seg = elastic_transform(seg)
+
+        # if random.random() > 0.5:
+        #     color_jitter = ColorJitter(
+        #         brightness=0.2, contrast=0.2, saturation=0.2)
+        #     img = color_jitter(img)
+
         img = transforms.ToTensor()(img)
         seg = transforms.ToTensor()(seg)
+
+        # # Add Gaussian noise
+        # if random.random() > 0.5:
+        #     img = self.add_gaussian_noise(img)
 
         return img, seg

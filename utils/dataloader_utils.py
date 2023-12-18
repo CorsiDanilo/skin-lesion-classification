@@ -3,7 +3,7 @@ from config import BATCH_SIZE, DATASET_LIMIT, KEEP_BACKGROUND, NORMALIZE
 from dataloaders.DataLoader import DataLoader
 from dataloaders.DynamicSegmentationDataLoader import DynamicSegmentationDataLoader
 from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
-from dataloaders.DEPRECATED_SegmentedImagesDataLoader import DEPRECTED_SegmentedImagesDataLoader
+from dataloaders.SegmentedImagesDataLoader import SegmentedImagesDataLoader
 from shared.enums import DynamicSegmentationStrategy, SegmentationStrategy
 
 
@@ -29,8 +29,7 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
             keep_background=keep_background,
         )
     elif strategy == SegmentationStrategy.SEGMENTATION.value:
-        print(f"!------WARNING-----!: SegmentationStrategy doesn't work if the validation set is taken from the test set, since it doesn't have the segmentation!!! ಥ_ಥ")
-        dataloader = DEPRECTED_SegmentedImagesDataLoader(
+        dataloader = SegmentedImagesDataLoader(
             limit=limit,
             dynamic_load=dynamic_load,
             upscale_train=upsample_train,

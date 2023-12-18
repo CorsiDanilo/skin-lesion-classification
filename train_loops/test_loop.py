@@ -118,7 +118,8 @@ def get_model(model_path, device):
                              n_classes=NUM_CLASSES if configurations is None else configurations[
                                  "num_classes"],
                              n_head=N_HEADS if configurations is None else configurations["n_heads"],
-                             n_layers=N_LAYERS if configurations is None else configurations["n_layers"],
+                             n_layers=N_LAYERS if configurations is None else configurations[
+                                 "n_layers"],
                              dropout=DROPOUT_P).to(device)
         normalization_stats = None
     elif type == "pretrained":
@@ -163,7 +164,8 @@ def main(model_path, epoch):
 
 if __name__ == "__main__":
     # Name of the sub-folder into "results" folder in which to find the model to test (e.g. "resnet24_2023-12-10_12-29-49")
-    model_path = "pretrained_2023-12-14_14-13-32"
-    epoch = "6"  # Specify the epoch number (e.g. 2) or "best" to get best model
+    model_path = "densenet121_2023-12-16_16-37-04"
+    # Specify the epoch number (e.g. 2) or "best" to get best model
+    epoch = "best"
 
     main(model_path, epoch)
