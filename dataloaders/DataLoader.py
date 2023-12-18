@@ -5,7 +5,7 @@ from typing import Optional
 import os
 import pandas as pd
 import torch
-from config import IMAGE_SIZE, DATASET_TRAIN_DIR, METADATA_TRAIN_DIR, NORMALIZE, SEGMENTATION_DIR, BATCH_SIZE
+from config import IMAGE_SIZE, DATASET_TRAIN_DIR, METADATA_TRAIN_DIR, NORMALIZE, SEGMENTATION_DIR, BATCH_SIZE, RANDOM_SEED
 from constants import DEFAULT_STATISTICS
 from typing import Optional, Tuple
 from sklearn.model_selection import train_test_split
@@ -78,13 +78,13 @@ class DataLoader(ABC):
         df_train, df_test = train_test_split(
             metadata,
             test_size=0.15,  # 15% test, 85% train
-            random_state=42,
+            random_state=RANDOM_SEED,
             stratify=metadata['dx'])
 
         df_train, df_val = train_test_split(
             df_train,
             test_size=0.1,  # Of the 85% train, 10% val, 90% train
-            random_state=42,
+            random_state=RANDOM_SEED,
             stratify=df_train['dx'])
 
         assert len(df_train['label'].unique(
