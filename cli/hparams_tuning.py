@@ -80,6 +80,8 @@ def init_with_parsed_arguments():
         "patch_size": PATCH_SIZE if kwargs.get("patch_size") is None else kwargs.get("patch_size"),
         "emb_size": EMB_SIZE if kwargs.get("emb_size") is None else kwargs.get("emb_size"),
         "image_size": IMAGE_SIZE if kwargs.get("image_size") is None else kwargs.get("image_size"),
+        "n_heads": N_HEADS if kwargs.get("n_heads") is None else kwargs.get("n_heads"),
+        "n_layers": N_LAYERS if kwargs.get("n_layers") is None else kwargs.get("n_layers"),
         "dataset": "HAM10K",
         "optimizer": "AdamW",
         "dataset_limit": DATASET_LIMIT if kwargs.get("dataset_limit") is None else kwargs.get("dataset_limit"),
