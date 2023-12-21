@@ -11,26 +11,16 @@ from torchvision import transforms
 import pandas as pd
 from dataloaders.ImagesAndSegmentationDataLoader import StatefulTransform
 from models.SAM import SAM
-from shared.enums import DynamicSegmentationStrategy
 from train_loops.SAM_pretrained import preprocess_images
-from utils.opencv_segmentation import bounding_box_pipeline
-from torchvision.transforms import functional as TF
 from utils.utils import approximate_bounding_box_to_square, crop_image_from_box, get_bounding_boxes_from_segmentation, resize_images, resize_segmentations
 
 
-class DynamicSegmentationDataLoader(DataLoader):
-    """
-    This class is used to load the images and create the dataloaders.
-    The dataloder will output a tuple of (images, labels).
-    The images are already segmented using the segmentation strategy specified in the constructor.
-    """
-
+class SegmentedImagesDataLoader(DataLoader):
     def __init__(self,
                  limit: Optional[int] = None,
                  transform: Optional[transforms.Compose] = None,
                  dynamic_load: bool = False,
                  upscale_train: bool = True,
-                 segmentation_strategy: DynamicSegmentationStrategy = DynamicSegmentationStrategy.OPENCV,
                  normalize: bool = NORMALIZE,
                  keep_background: Optional[bool] = KEEP_BACKGROUND,
                  normalization_statistics: tuple = None,
@@ -42,65 +32,40 @@ class DynamicSegmentationDataLoader(DataLoader):
                          normalize=normalize,
                          normalization_statistics=normalization_statistics,
                          batch_size=batch_size,
-                         always_rotate=False)  # TODO: see if is better True or False here
-        self.segmentation_strategy = segmentation_strategy
+                         always_rotate=False)
         self.segmentation_transform = transforms.Compose([
             transforms.ToTensor()
         ])
         self.stateful_transform = StatefulTransform(
             always_rotate=self.always_rotate)
-        # self.transform = transforms.Compose([
-        #     transforms.RandomVerticalFlip(),
-        #     transforms.RandomHorizontalFlip(),
-        #     transforms.RandomRotation(90),
-        #     transforms.ToTensor()
-        # ])
-        if self.segmentation_strategy == DynamicSegmentationStrategy.OPENCV.value:
-            print(f"NOOOOOO, DON'T USE OPEN_CV AS A STRATEGY, IT'S DEPRECATED!! ò_ó")
         self.keep_background = keep_background
-        if segmentation_strategy == DynamicSegmentationStrategy.SAM.value:
-            sam_checkpoint_path = "checkpoints/sam_checkpoint.pt"
-            SAM_IMG_SIZE = 128
-            self.sam_model = SAM(
-                custom_size=True,
-                img_size=SAM_IMG_SIZE,
-                checkpoint_path=sam_checkpoint_path).to(self.device)
-            self.sam_model.model.eval()
-
-            self.preprocess_params = {
-                'adjust_contrast': 1.5,
-                'adjust_brightness': 1.2,
-                'adjust_saturation': 2,
-                'adjust_gamma': 1.5,
-                'gaussian_blur': 5}
 
     def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int, transform: transforms.Compose = None):
         img = metadata.iloc[idx]
         label = img['label']
-        segmentation_available = "train" in img
+        # segmentation_available = "train" in img
 
-        if not segmentation_available:
-            image = Image.open(img['image_path'])
-            image = TF.to_tensor(image)
-            if self.segmentation_strategy == DynamicSegmentationStrategy.OPENCV.value:
-                # NOTE: This is deprecated, use SAM instead
-                segmented_image = bounding_box_pipeline(
-                    image.unsqueeze(0)).squeeze(0)
-            elif self.segmentation_strategy == DynamicSegmentationStrategy.SAM.value:
-                segmented_image = self.sam_segmentation_pipeline(
-                    image).squeeze(0)
-            else:
-                raise NotImplementedError(
-                    f"Dynamic segmentation strategy {self.segmentation_strategy} not implemented")
+        # if not segmentation_available:
+        #     image = Image.open(img['image_path'])
+        #     image = TF.to_tensor(image)
+        #     if self.segmentation_strategy == DynamicSegmentationStrategy.OPENCV.value:
+        #         # NOTE: This is deprecated, use SAM instead
+        #         segmented_image = bounding_box_pipeline(
+        #             image.unsqueeze(0)).squeeze(0)
+        #     elif self.segmentation_strategy == DynamicSegmentationStrategy.SAM.value:
+        #         segmented_image = self.sam_segmentation_pipeline(
+        #             image).squeeze(0)
+        #     else:
+        #         raise NotImplementedError(
+        #             f"Dynamic segmentation strategy {self.segmentation_strategy} not implemented")
 
-            assert segmented_image.shape[-2:
-                                         ] == IMAGE_SIZE, f"Image shape is {segmented_image.shape}, expected last two dimensions to be {IMAGE_SIZE}"
+        #     assert segmented_image.shape[-2:
+        #                                  ] == IMAGE_SIZE, f"Image shape is {segmented_image.shape}, expected last two dimensions to be {IMAGE_SIZE}"
 
-            return segmented_image, label
+        #     return segmented_image, label
 
         ti, ts = Image.open(img['image_path']), Image.open(
             img['segmentation_path']).convert('1')
-        # ti, ts = TF.to_tensor(ti), TF.to_tensor(ts)
         ti, ts = self.stateful_transform(ti, ts)
         if img["augmented"]:
             if not self.keep_background:
@@ -169,10 +134,9 @@ class DynamicSegmentationDataLoader(DataLoader):
         binary_masks = torch.sigmoid(upscaled_masks)
         binary_masks = (binary_masks > THRESHOLD).float()
         binary_masks = resize_segmentations(
-            binary_masks, new_size=(600, 450)).to(self.device)
+            binary_masks, new_size=(450, 450)).to(self.device)
 
-        images = images.to(self.device)
-        # images = resize_images(images, new_size=(450, 450)).to(self.device)
+        images = resize_images(images, new_size=(450, 450)).to(self.device)
         if not self.keep_background:
             images = binary_masks * images
 

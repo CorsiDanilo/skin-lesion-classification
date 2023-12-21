@@ -12,7 +12,7 @@ SEGMENTATION_DIR = os.path.join(
 # SEGMENTATION_WITH_BOUNDING_BOX_DIR = os.path.join(
 # DATA_DIR, 'HAM10000_segmentations_lesion_tschandl_with_bounding_box_450_600')
 METADATA_TRAIN_DIR = os.path.join(
-    DATA_DIR, 'HAM10000_metadata_train_no_duplicates.csv')
+    DATA_DIR, 'HAM10000_metadata_train.csv')
 # METADATA_NO_DUPLICATES_DIR = os.path.join(
 # DATA_DIR, 'HAM10000_metadata_train.csv')
 # METADATA_TEST_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_test.csv')
@@ -22,7 +22,7 @@ BATCH_SIZE = 128
 
 USE_WANDB = False  # Use wandb for logging
 # DirectML library for AMD gpu on Windows (set to false if you want to use cpu or standard CUDA)
-USE_DML = True
+USE_DML = False
 USE_MPS = False  # Use MPS gpu for MacOS
 SAVE_RESULTS = True  # Save results in JSON locally
 SAVE_MODELS = True  # Save models locally
@@ -38,17 +38,17 @@ DenseNet HIDDEN_SIZE = [512, 256, 128]
 Inception HIDDEN_SIZE = [512, 256, 128]
 ViT_Pretrained HIDDEN_SIZE = [256, 128]
 '''
-HIDDEN_SIZE = [256, 128]
+HIDDEN_SIZE = [512, 256, 128]
 N_EPOCHS = 10
 LR = 1e-3
 LR_DECAY = 0.85
-REG = 0.01
+REG = 0.06
 # resnet24, densenet121, inception_v3, standard, pretrained, efficient
 ARCHITECTURE = "resnet24"
 DATASET_LIMIT = None
-DROPOUT_P = 0.3
+DROPOUT_P = 0.5
 NORMALIZE = True
-BALANCE_UNDERSAMPLING = 1
+BALANCE_UNDERSAMPLING = 0.3
 UPSAMPLE_TRAIN = True  # Decide if upsample with data augmentation the train set or not
 # Use binary loss (benign/malign) and multiclassification loss if true, otherwise use only the multiclassification one
 USE_DOUBLE_LOSS = True

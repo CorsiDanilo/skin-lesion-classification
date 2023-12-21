@@ -5,7 +5,7 @@ from typing import Optional
 import os
 import pandas as pd
 import torch
-from config import IMAGE_SIZE, DATASET_TRAIN_DIR, METADATA_TRAIN_DIR, NORMALIZE, SEGMENTATION_DIR, BATCH_SIZE
+from config import IMAGE_SIZE, DATASET_TRAIN_DIR, METADATA_TRAIN_DIR, NORMALIZE, SEGMENTATION_DIR, BATCH_SIZE, RANDOM_SEED
 from constants import DEFAULT_STATISTICS
 from typing import Optional, Tuple
 from sklearn.model_selection import train_test_split
@@ -77,30 +77,32 @@ class DataLoader(ABC):
 
         df_train, df_test = train_test_split(
             metadata,
-            test_size=0.15,  # 15% test, 85% train
-            random_state=42,
-            stratify=metadata['label'])
+            test_size=0.1,  # 15% test, 85% train
+            random_state=RANDOM_SEED,
+            stratify=metadata['dx'])
 
         df_train, df_val = train_test_split(
             df_train,
-            test_size=0.1,  # Of the 85% train, 10% val, 90% train
-            random_state=42,
-            stratify=df_train['label'])
+            test_size=0.2,  # Of the 85% train, 10% val, 90% train
+            random_state=RANDOM_SEED,
+            stratify=df_train['dx'])
 
         assert len(df_train['label'].unique(
         )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_train['label'].unique())}, increase the limit"
         assert len(df_val['label'].unique(
         )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_val['label'].unique())}, increase the limit"
-        assert len(df_test['label'].unique(
-        )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_test['label'].unique())}, increase the limit"
+        # TODO: Uncomment
+        # assert len(df_test['label'].unique(
+        # )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_test['label'].unique())}, increase the limit"
 
         df_train["train"] = True
         # df_val["train"] = False
         # df_test["train"] = False
 
         # Remove segmentation path from test and val just to be sure not to use them
-        df_val.drop(columns=['segmentation_path'], inplace=True)
-        df_test.drop(columns=['segmentation_path'], inplace=True)
+        # TODO: Uncomment
+        # df_val.drop(columns=['segmentation_path'], inplace=True)
+        # df_test.drop(columns=['segmentation_path'], inplace=True)
 
         print(f"---TRAIN---: {len(df_train)} entries")
         print(f"---VAL---: {len(df_val)} entries")

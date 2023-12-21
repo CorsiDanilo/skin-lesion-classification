@@ -12,16 +12,12 @@ from models.InceptionV3Pretrained import InceptionV3Pretrained
 from models.ViTStandard import ViT_standard
 from models.ViTPretrained import ViT_pretrained
 from models.ViTEfficient import EfficientViT
-from config import ARCHITECTURE, BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, EMB_SIZE, IMAGE_SIZE, INPUT_SIZE, N_HEADS, N_LAYERS, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, PATCH_SIZE, REG, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN, USE_DOUBLE_LOSS, USE_WANDB
+from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, EMB_SIZE, IMAGE_SIZE, INPUT_SIZE, N_HEADS, N_LAYERS, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, PATCH_SIZE, REG, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN
 from tests.opencv_segmentation_test import set_seed
 from train_loops.CNN_pretrained import get_normalization_statistics
 from train_loops.train_loop import train_eval_loop
 from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device
-
-# TODO: work in progress
-
-hparams_space = {}
 
 device = select_device()
 
@@ -58,6 +54,8 @@ def init_with_parsed_arguments():
 
     # If True, will reset the combinations tried for the current architecture
     parser.add_argument("--force-reset", action="store_true", default=False)
+
+    parser.add_argument("--message", type=str, default=None)
 
     args = parser.parse_args()
     assert args.architecture is not None, "You must specify an architecture"
@@ -101,6 +99,7 @@ def init_with_parsed_arguments():
         "keep_background": not kwargs.get("no_background"),
         "hparam_tuning": True if (kwargs.get("reg") is None and kwargs.get("dropout") is None) else False,
         "force_reset": kwargs.get("force_reset"),
+        "message": kwargs.get("message") if kwargs.get("message") is not None else None,
     }
 
     train_loader, val_loader = build_dataloaders(**config)

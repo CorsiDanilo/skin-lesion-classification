@@ -7,6 +7,5 @@ wandb
 *_ignore.*
 vast
 boxes_outputs
-plots/**
 results/**
 !**.gitkeep
