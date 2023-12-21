@@ -6,7 +6,7 @@ from sklearn.metrics import recall_score, accuracy_score
 from tqdm import tqdm
 from utils.utils import save_results, set_seed, select_device
 from utils.dataloader_utils import get_dataloder_from_strategy
-from config import USE_DOUBLE_LOSS, BATCH_SIZE, SAVE_RESULTS, DATASET_LIMIT, NORMALIZE, RANDOM_SEED, PATH_TO_SAVE_RESULTS, NUM_CLASSES, HIDDEN_SIZE, INPUT_SIZE, IMAGE_SIZE, PATCH_SIZE, EMB_SIZE, N_HEADS, N_LAYERS, DROPOUT_P, SEGMENTATION_STRATEGY, DYNAMIC_SEGMENTATION_STRATEGY
+from config import USE_DOUBLE_LOSS, SAVE_RESULTS, DATASET_LIMIT, NORMALIZE, RANDOM_SEED, PATH_TO_SAVE_RESULTS, NUM_CLASSES, HIDDEN_SIZE, INPUT_SIZE, IMAGE_SIZE, PATCH_SIZE, EMB_SIZE, N_HEADS, N_LAYERS, DROPOUT_P, SEGMENTATION_STRATEGY, DYNAMIC_SEGMENTATION_STRATEGY
 from constants import DEFAULT_STATISTICS, IMAGENET_STATISTICS
 from shared.enums import DynamicSegmentationStrategy, SegmentationStrategy
 from models.ResNet24Pretrained import ResNet24Pretrained
@@ -15,6 +15,8 @@ from models.InceptionV3Pretrained import InceptionV3Pretrained
 from models.ViTStandard import ViT_standard
 from models.ViTPretrained import ViT_pretrained
 from models.ViTEfficient import EfficientViT
+
+BATCH_SIZE = 64
 
 
 def test(test_model, test_loader, device, data_name):
@@ -138,7 +140,7 @@ def get_model(model_path, device):
 
 def load_test_model(model, model_path, epoch):
     state_dict = torch.load(
-        f"{PATH_TO_SAVE_RESULTS}/{model_path}/models/melanoma_detection_{epoch}.pt")
+        f"{PATH_TO_SAVE_RESULTS}/{model_path}/models/melanoma_detection_{epoch}.pt",  map_location=torch.device('mps'))
     model.load_state_dict(state_dict)
     model.eval()
     return model
@@ -164,7 +166,7 @@ def main(model_path, epoch):
 
 if __name__ == "__main__":
     # Name of the sub-folder into "results" folder in which to find the model to test (e.g. "resnet24_2023-12-10_12-29-49")
-    model_path = "densenet121_2023-12-16_16-37-04"
+    model_path = "pretrained_2023-12-20_18-23-49"
     # Specify the epoch number (e.g. 2) or "best" to get best model
     epoch = "best"
 

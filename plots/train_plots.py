@@ -2,14 +2,16 @@ import os
 import json
 import matplotlib.pyplot as plt
 
+
 def read_train_val_results(tests):
     all_results = []
-    
+
     for t in tests:
         script_directory = os.path.dirname(os.path.realpath(__file__))
-        test_file_name = os.path.join(script_directory, '..', 'results', t, 'results', 'tr_val_results.json')
+        test_file_name = os.path.join(
+            script_directory, '..', 'results', t, 'results', 'tr_val_results.json')
         print(test_file_name)
-        if os.path.exists(test_file_name): 
+        if os.path.exists(test_file_name):
             with open(test_file_name, 'r') as file:
                 try:
                     data = json.load(file)
@@ -19,6 +21,7 @@ def read_train_val_results(tests):
         else:
             print(f"Test results for {t} don't exist")
     return all_results
+
 
 def create_line_plots(metrics, data, models_name, configuration, save_plot_prefix="plot"):
     script_directory = os.path.dirname(__file__)
@@ -30,11 +33,15 @@ def create_line_plots(metrics, data, models_name, configuration, save_plot_prefi
             test_label = f"{models_name[j]} Train {metric[1]}"
             val_label = f"{models_name[j]} Validation {metric[1]}"
 
-            test_values = [epoch[f'training_{metric[0]}'] for epoch in model_data]
-            val_values = [epoch[f'validation_{metric[0]}'] for epoch in model_data]
+            test_values = [epoch[f'training_{metric[0]}']
+                           for epoch in model_data]
+            val_values = [epoch[f'validation_{metric[0]}']
+                          for epoch in model_data]
 
-            line_test, = ax.plot(range(1, len(test_values) + 1), test_values, marker='o', label=test_label)
-            line_val, = ax.plot(range(1, len(val_values) + 1), val_values, marker='o', label=val_label, linestyle='dashed')
+            line_test, = ax.plot(range(1, len(test_values) + 1),
+                                 test_values, marker='o', label=test_label)
+            line_val, = ax.plot(range(1, len(val_values) + 1), val_values,
+                                marker='o', label=val_label, linestyle='dashed')
 
             lines.extend([line_test, line_val])
             labels.extend([test_label, val_label])
@@ -45,24 +52,28 @@ def create_line_plots(metrics, data, models_name, configuration, save_plot_prefi
         ax.legend(lines, labels, loc='best')
 
         # Add a description under the title
-        ax.text(0.5, -0.11, configuration, ha='center', va='center', transform=ax.transAxes, fontsize=9, color='black')
+        ax.text(0.5, -0.11, configuration, ha='center', va='center',
+                transform=ax.transAxes, fontsize=9, color='black')
 
         # Save the plot to a file
-        save_path = os.path.join(script_directory, f"{save_plot_prefix}_{metric[0]}.png")
+        save_path = os.path.join(
+            script_directory, f"{save_plot_prefix}_{metric[0]}.png")
         plt.savefig(save_path)
         print(f"Plot saved as {save_path}")
 
-#---CONFIGURATIONS---#
+
+# ---CONFIGURATIONS---#
 test_folders = [
-    "pretrained_2023-12-16_12-07-26",
-    "pretrained_2023-12-16_14-54-31"
+    "14. pretrained_2023-12-20_08-28-35",
 ]
 metrics = [('accuracy', 'Accuracy'), ('recall', 'Recall'), ('loss', 'Loss')]
-models_name = ["Pretrained1", "Pretrained2"]
-configuration = "Double_Loss=True, Segmentation=Dynamic, Keep_Background=True"
+models_name = ["ViT Pretrained"]
+batch_size = 256
+configuration = f"Multiple_Loss=True, Segmentation=Dynamic, Keep_Background=True, Batch Size={batch_size}"
 
 
-assert(len(test_folders) == len(models_name), "The number of tests and their name must be of equal lenght")
+assert len(test_folders) == len(
+    models_name), "The number of tests and their name must be of equal length"
 
 data = read_train_val_results(test_folders)
 print(data)

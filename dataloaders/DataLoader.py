@@ -77,13 +77,13 @@ class DataLoader(ABC):
 
         df_train, df_test = train_test_split(
             metadata,
-            test_size=0.15,  # 15% test, 85% train
+            test_size=0.1,  # 15% test, 85% train
             random_state=RANDOM_SEED,
             stratify=metadata['dx'])
 
         df_train, df_val = train_test_split(
             df_train,
-            test_size=0.1,  # Of the 85% train, 10% val, 90% train
+            test_size=0.2,  # Of the 85% train, 10% val, 90% train
             random_state=RANDOM_SEED,
             stratify=df_train['dx'])
 
