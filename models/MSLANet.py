@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torchvision import models
+from models.GradCAM import GradCAM
 
 class MSLANet(nn.Module):
     def __init__(self):
@@ -19,9 +20,12 @@ class MSLANet(nn.Module):
         out = torch.cat([downsamples_cnn_block_feature_map * final_layer], dim=1)
         return out
 
-# Example usage
-lanet_model = MSLANet()
-input_data = torch.randn(1, 3, 224, 224)  # Replace with your input dimensions
-output = lanet_model(input_data)
-print(output.shape)
-
+if __name__ == "__main__":
+    cam_instance = GradCAM()
+    lanet_model = MSLANet()
+    image_path = 'C:/Users/aless/OneDrive/Desktop/Mole_images/20231213_192133.jpg'
+    thresholds = [120]
+    for t in thresholds:
+        _, cropped_img, _ = cam_instance.generate_cam(image_path, t)
+        output = lanet_model(cropped_img)
+        print(output.shape)

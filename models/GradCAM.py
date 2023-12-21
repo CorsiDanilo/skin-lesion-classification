@@ -1,11 +1,13 @@
 import torch
+from torch import nn
 from torchvision import models, transforms
 from PIL import Image
-import cv2
 import numpy as np
+import cv2
 
-class GradCAM:
+class GradCAM(nn.Module):
     def __init__(self):
+        super(GradCAM, self).__init__()
         self.model = models.resnet50(pretrained=True)
         self.target_layer = "layer4"
         self.model.eval()
@@ -76,7 +78,7 @@ class GradCAM:
         cropped_img = img.crop((bounding_rect[0], bounding_rect[1],
                                bounding_rect[0] + bounding_rect[2],
                                bounding_rect[1] + bounding_rect[3]))
-        cropped_img = cropped_img.resize((224, 224)) # Resize the cropping back to 224x224
+        cropped_img = transform(cropped_img)
 
         # Apply color map to the orginal image to show the focus areas
         img_np = np.array(img)

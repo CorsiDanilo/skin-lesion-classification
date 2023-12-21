@@ -37,7 +37,7 @@ DenseNet HIDDEN_SIZE = [512, 256, 128]
 Inception HIDDEN_SIZE = [512, 256, 128]
 ViT_Pretrained HIDDEN_SIZE = [256, 128]
 '''
-HIDDEN_SIZE = [256, 128]
+HIDDEN_SIZE = []
 N_EPOCHS = 10
 LR = 1e-3
 LR_DECAY = 0.85
