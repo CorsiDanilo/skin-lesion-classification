@@ -78,6 +78,7 @@ class GradCAM(nn.Module):
         cropped_img = img.crop((bounding_rect[0], bounding_rect[1],
                                bounding_rect[0] + bounding_rect[2],
                                bounding_rect[1] + bounding_rect[3]))
+        cropped_img.show()
         cropped_img = transform(cropped_img)
 
         # Apply color map to the orginal image to show the focus areas
@@ -93,4 +94,3 @@ if __name__ == "__main__":
     thresholds = [120, 200]
     for t in thresholds:
         _, cropped_img, _ = cam_instance.generate_cam(image_path, t)
-        cropped_img.show()
