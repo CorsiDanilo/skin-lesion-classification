@@ -11,11 +11,11 @@ import torch
 from torchvision import transforms
 import os
 from config import PATH_TO_SAVE_RESULTS, HIDDEN_SIZE, NUM_CLASSES, IMAGE_SIZE, DROPOUT_P, INPUT_SIZE, EMB_SIZE, PATCH_SIZE, N_HEADS, N_LAYERS, HIDDEN_SIZE
-from constants import DEFAULT_STATISTICS, IMAGENET_STATISTICS
+from shared.constants import DEFAULT_STATISTICS, IMAGENET_STATISTICS
 from train_loops.SAM_pretrained import preprocess_images
 from utils.utils import approximate_bounding_box_to_square, crop_image_from_box, get_bounding_boxes_from_segmentation, resize_images, resize_segmentations, select_device
 from models.SAM import SAM
-from models.ResNet24Pretrained import ResNet24Pretrained
+from models.ResNet34Pretrained import ResNet34Pretrained
 from models.DenseNetPretrained import DenseNetPretrained
 from models.InceptionV3Pretrained import InceptionV3Pretrained
 from models.ViTStandard import ViT_standard
@@ -41,8 +41,8 @@ def get_model(model_path, epoch, sam_checkpoint_path="checkpoints/sam_checkpoint
         print("--Model-- Old configurations NOT found. Using configurations in the config for test.")
 
     type = model_path.split('_')[0]
-    if type == "resnet24":
-        model = ResNet24Pretrained(
+    if type == "resnet34":
+        model = ResNet34Pretrained(
             HIDDEN_SIZE if configurations is None else configurations["hidden_size"], NUM_CLASSES if configurations is None else configurations["num_classes"]).to(device)
         normalization_stats = IMAGENET_STATISTICS
     elif type == "densenet121":

@@ -7,7 +7,7 @@ import torch.nn as nn
 import wandb
 from datetime import datetime
 import copy
-from config import SAVE_MODELS, SAVE_RESULTS, PATH_MODEL_TO_RESUME, RESUME_EPOCH
+from config import SAVE_MODELS, SAVE_RESULTS, PATH_MODEL_TO_RESUME, RESUME_EPOCH, USE_MULTIPLE_LOSS, MULTIPLE_LOSS_BALANCE
 
 
 def train_eval_loop(device,
@@ -27,14 +27,12 @@ def train_eval_loop(device,
             resume=resume,
         )
 
-    loss_function_multiclass = nn.CrossEntropyLoss()
-    if config["double_loss"]:
-        loss_function_binary = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss() # Loss function
 
     if resume:
         data_name = PATH_MODEL_TO_RESUME
     else:
-        # Creation of folders where to save data (plots and models)
+        # Definition of the parameters to create folders where to save data (plots and models)
         current_datetime = datetime.now()
         current_datetime_str = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
         data_name = f"{config['architecture']}_{current_datetime_str}"
@@ -61,11 +59,11 @@ def train_eval_loop(device,
             tr_outputs = model(tr_images)  # Prediction
 
             # First loss: Multiclassification loss considering all classes
-            tr_epoch_loss_multiclass = loss_function_multiclass(
+            tr_epoch_loss_multiclass = criterion(
                 tr_outputs, tr_labels)
             tr_epoch_loss = tr_epoch_loss_multiclass
 
-            if config["double_loss"]:
+            if USE_MULTIPLE_LOSS:
                 tr_labels_binary = torch.zeros_like(
                     tr_labels, dtype=torch.long).to(device)
                 # Set ground-truth to 1 for classes 2, 3, and 4 (the malignant classes)
@@ -79,11 +77,11 @@ def train_eval_loop(device,
                     tr_outputs[:, [2, 3, 4]], dim=1)
                 tr_outputs_binary[:, 0] = 1 - tr_outputs_binary[:, 1]
 
-                tr_epoch_loss_binary = loss_function_binary(
+                tr_epoch_loss_binary = criterion(
                     tr_outputs_binary, tr_labels_binary)
 
-                # Sum of the losses
-                tr_epoch_loss += tr_epoch_loss_binary
+                # Sum of the losses (with importance factor)
+                tr_epoch_loss = (tr_epoch_loss * MULTIPLE_LOSS_BALANCE) + (tr_epoch_loss_binary * (1 - MULTIPLE_LOSS_BALANCE))
 
             optimizer.zero_grad()
             tr_epoch_loss.backward()
@@ -126,11 +124,11 @@ def train_eval_loop(device,
                 epoch_val_labels = torch.cat((epoch_val_labels, val_labels), 0)
 
                 # First loss: Multiclassification loss considering all classes
-                val_epoch_loss_multiclass = loss_function_multiclass(
+                val_epoch_loss_multiclass = criterion(
                     val_outputs, val_labels)
                 val_epoch_loss = val_epoch_loss_multiclass
 
-                if config["double_loss"]:
+                if config["multiple_loss"]:
                     val_labels_binary = torch.zeros_like(
                         val_labels, dtype=torch.long).to(device)
                     # Set ground-truth to 1 for classes 2, 3, and 4 (the malignant classes)
@@ -144,7 +142,7 @@ def train_eval_loop(device,
                         val_outputs[:, [2, 3, 4]], dim=1)
                     val_outputs_binary[:, 0] = 1 - val_outputs_binary[:, 1]
 
-                    val_epoch_loss_binary = loss_function_binary(
+                    val_epoch_loss_binary = criterion(
                         val_outputs_binary, val_labels_binary)
 
                     # Sum of the losses

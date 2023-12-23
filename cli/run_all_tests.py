@@ -7,13 +7,13 @@
 # from tqdm import tqdm
 # import wandb
 # from cli.hparams_tuning import build_dataloaders, get_model
-# from models.ResNet24Pretrained import ResNet24Pretrained
+# from models.ResNet34Pretrained import ResNet34Pretrained
 # from models.DenseNetPretrained import DenseNetPretrained
 # from models.InceptionV3Pretrained import InceptionV3Pretrained
 # from models.ViTStandard import ViT_standard
 # from models.ViTPretrained import ViT_pretrained
 # from models.ViTEfficient import EfficientViT
-# from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, EMB_SIZE, IMAGE_SIZE, INPUT_SIZE, N_HEADS, N_LAYERS, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, PATCH_SIZE, REG, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN
+# from config import BALANCE_DOWNSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, EMB_SIZE, IMAGE_SIZE, INPUT_SIZE, N_HEADS, N_LAYERS, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, PATCH_SIZE, REG, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, OVERSAMPLE_TRAIN
 # from shared.enums import SegmentationStrategy
 # from tests.opencv_segmentation_test import set_seed
 # from train_loops.CNN_pretrained import get_normalization_statistics
@@ -29,23 +29,23 @@
 #     segmentation_strategies = [
 #         SegmentationStrategy.DYNAMIC_SEGMENTATION, SegmentationStrategy.NO_SEGMENTATION]
 #     keep_backgrounds = [True, False]
-#     double_loss = [True, False]
+#     multiple_loss = [True, False]
 
 #     config = itertools.product(architectures, segmentation_strategies,
-#                                keep_backgrounds, double_loss)
+#                                keep_backgrounds, multiple_loss)
 
 #     clean_config = []
-#     for architecture, segmentation_strategy, keep_background, double_loss in config:
+#     for architecture, segmentation_strategy, keep_background, multiple_loss in config:
 #         if segmentation_strategy == SegmentationStrategy.NO_SEGMENTATION and not keep_background:
 #             continue
 #         clean_config.append(
-#             (architecture, segmentation_strategy, keep_background, double_loss))
+#             (architecture, segmentation_strategy, keep_background, multiple_loss))
 
 #     print(f"There are {len(clean_config)} configs to run")
 
 #     assert len(clean_config) == 18
 
-#     for architecture, segmentation_strategy, keep_background, double_loss in clean_config:
+#     for architecture, segmentation_strategy, keep_background, multiple_loss in clean_config:
 #         config = {
 #             "learning_rate": LR,
 #             "architecture": architecture,
@@ -65,11 +65,11 @@
 #             "normalize": NORMALIZE,
 #             "resumed": False,
 #             "from_epoch": 0,
-#             "balance_undersampling": 1,
+#             "balance_downsampling": 1,
 #             'segmentation_strategy': segmentation_strategy,
 #             'dynamic_segmentation_strategy': DYNAMIC_SEGMENTATION_STRATEGY,
-#             "upsample_train": True,
-#             "double_loss": double_loss,
+#             "oversample_train": True,
+#             "multiple_loss": multiple_loss,
 #             "use_wandb": True,
 #             "keep_background": keep_background,
 #             "hparam_tuning": False,

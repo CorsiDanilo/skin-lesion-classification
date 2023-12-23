@@ -1,11 +1,14 @@
 .DS_Store
 data/*
+!data/README.md
 checkpoints/*
+!checkpoints/README.md
 !checkpoints/.gitkeep
 __pycache__/
 wandb
 *_ignore.*
 vast
 boxes_outputs
-results/**
+results/*
+!results/README.md
 !**.gitkeep

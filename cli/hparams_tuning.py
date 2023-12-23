@@ -6,13 +6,13 @@ import os
 import torch
 from tqdm import tqdm
 import wandb
-from models.ResNet24Pretrained import ResNet24Pretrained
+from models.ResNet34Pretrained import ResNet34Pretrained
 from models.DenseNetPretrained import DenseNetPretrained
 from models.InceptionV3Pretrained import InceptionV3Pretrained
 from models.ViTStandard import ViT_standard
 from models.ViTPretrained import ViT_pretrained
 from models.ViTEfficient import EfficientViT
-from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, EMB_SIZE, IMAGE_SIZE, INPUT_SIZE, N_HEADS, N_LAYERS, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, PATCH_SIZE, REG, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN
+from config import BALANCE_DOWNSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, EMB_SIZE, IMAGE_SIZE, INPUT_SIZE, N_HEADS, N_LAYERS, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, PATCH_SIZE, REG, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, OVERSAMPLE_TRAIN
 from tests.opencv_segmentation_test import set_seed
 from train_loops.CNN_pretrained import get_normalization_statistics
 from train_loops.train_loop import train_eval_loop
@@ -28,7 +28,7 @@ def init_with_parsed_arguments():
     parser.add_argument("--segmentation-strategy",
                         type=str, default="dynamic_segmentation")
 
-    # REQUIRED: resnet24, densenet121, inception_v3, standard, pretrained, efficient
+    # REQUIRED: resnet34, densenet121, inception_v3, standard, pretrained, efficient
     parser.add_argument("--architecture", type=str)
     parser.add_argument("--dataset-limit", type=int, default=DATASET_LIMIT)
     parser.add_argument("--lr", type=float, default=LR)
@@ -36,8 +36,8 @@ def init_with_parsed_arguments():
     parser.add_argument("--dropout", type=float, default=None)
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--epochs", type=int, default=N_EPOCHS)
-    parser.add_argument("--balance_undersampling",
-                        type=float, default=BALANCE_UNDERSAMPLING)
+    parser.add_argument("--balance_downsampling",
+                        type=float, default=BALANCE_DOWNSAMPLING)
 
     # If True, it will not use the double loss
     parser.add_argument("--no-double-loss", action="store_true", default=False)
@@ -89,12 +89,12 @@ def init_with_parsed_arguments():
         "normalize": NORMALIZE,
         "resumed": False,
         "from_epoch": 0,
-        "balance_undersampling": BALANCE_UNDERSAMPLING if kwargs.get("balance_undersampling") is None else kwargs.get("balance_undersampling"),
+        "balance_downsampling": BALANCE_DOWNSAMPLING if kwargs.get("balance_downsampling") is None else kwargs.get("balance_downsampling"),
         # "initialization": "default",
         'segmentation_strategy': SEGMENTATION_STRATEGY if kwargs.get("segmentation_strategy") is None else kwargs.get("segmentation_strategy"),
         'dynamic_segmentation_strategy': DYNAMIC_SEGMENTATION_STRATEGY if kwargs.get("dynamic_segmentation_strategy") is None else kwargs.get("dynamic_segmentation_strategy"),
-        "upsample_train": UPSAMPLE_TRAIN,
-        "double_loss": not kwargs.get("no_double_loss"),
+        "oversample_train": OVERSAMPLE_TRAIN,
+        "multiple_loss": not kwargs.get("no_multiple_loss"),
         "use_wandb": not kwargs.get("no_wandb"),
         "keep_background": not kwargs.get("no_background"),
         "hparam_tuning": True if (kwargs.get("reg") is None and kwargs.get("dropout") is None) else False,
@@ -133,7 +133,7 @@ def hparams_tuning(train_loader, val_loader, **hparams):
 
         print(f"COMBINATIONS TRIED: {combinations_tried}")
 
-        curr_architecture = f"{hparams['architecture']}_{hparams['segmentation_strategy']}_{hparams['double_loss']}_{hparams['keep_background']}"
+        curr_architecture = f"{hparams['architecture']}_{hparams['segmentation_strategy']}_{hparams['multiple_loss']}_{hparams['keep_background']}"
         if curr_architecture in combinations_tried:
             combinations = [
                 combination for combination in combinations if list(combination) not in combinations_tried[curr_architecture]]
@@ -176,8 +176,8 @@ def init_run(train_loader, val_loader, **kwargs):
 def get_model(**kwargs):
     architecture = kwargs.get("architecture")
     dropout_p = kwargs.get("dropout_p")
-    if architecture == "resnet24":
-        model = ResNet24Pretrained(
+    if architecture == "resnet34":
+        model = ResNet34Pretrained(
             hidden_layers=HIDDEN_SIZE,
             num_classes=NUM_CLASSES,
             dropout_p=dropout_p).to(device)
@@ -212,7 +212,7 @@ def get_model(**kwargs):
         model.load_state_dict(torch.load(
             f"{PATH_TO_SAVE_RESULTS}/{PATH_MODEL_TO_RESUME}/models/melanoma_detection_{RESUME_EPOCH}.pt"))
 
-    if architecture in ["resnet24", "densenet121", "inception_v3"]:
+    if architecture in ["resnet34", "densenet121", "inception_v3"]:
         for p in model.parameters():
             p.requires_grad = False
 
@@ -231,7 +231,7 @@ def build_dataloaders(**args):
         dynamic_segmentation_strategy=args["dynamic_segmentation_strategy"],
         limit=args["dataset_limit"],
         dynamic_load=dynamic_load,
-        upsample_train=args["upsample_train"],
+        oversample_train=args["oversample_train"],
         normalize=args["normalize"],
         normalization_statistics=get_normalization_statistics(),
         batch_size=args["batch_size"],

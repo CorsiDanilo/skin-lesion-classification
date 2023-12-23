@@ -1,4 +1,4 @@
-from constants import IMAGENET_STATISTICS
+from shared.constants import IMAGENET_STATISTICS
 from dataloaders.SegmentedImagesDataLoader import SegmentedImagesDataLoader
 from dataloaders.DynamicSegmentationDataLoader import DynamicSegmentationDataLoader
 from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader

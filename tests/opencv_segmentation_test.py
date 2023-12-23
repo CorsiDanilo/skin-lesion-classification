@@ -11,7 +11,7 @@ device = torch.device("cpu")
 # Configurations
 DATASET_LIMIT = None
 NORMALIZE = False
-BALANCE_UNDERSAMPLING = 1
+BALANCE_DOWNSAMPLING = 1
 BATCH_SIZE = 128
 RANDOM_SEED = 42
 

@@ -6,7 +6,7 @@ import os
 import pandas as pd
 import torch
 from config import IMAGE_SIZE, DATASET_TRAIN_DIR, METADATA_TRAIN_DIR, NORMALIZE, SEGMENTATION_DIR, BATCH_SIZE, RANDOM_SEED
-from constants import DEFAULT_STATISTICS
+from shared.constants import DEFAULT_STATISTICS
 from typing import Optional, Tuple
 from sklearn.model_selection import train_test_split
 from utils.utils import calculate_normalization_statistics
