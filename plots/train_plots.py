@@ -26,7 +26,7 @@ def read_train_val_results(tests):
 def create_line_plots(metrics, data, models_name, configuration, save_plot_prefix="plot"):
     script_directory = os.path.dirname(__file__)
     for i, metric in enumerate(metrics):
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=(10, 7))
         lines = []
         labels = []
         for j, model_data in enumerate(data):
@@ -46,14 +46,17 @@ def create_line_plots(metrics, data, models_name, configuration, save_plot_prefi
             lines.extend([line_test, line_val])
             labels.extend([test_label, val_label])
 
-        ax.set_xlabel('Epoch')
-        ax.set_ylabel(metric[1])
-        ax.set_title(f'{metric[1]} Train Results', fontsize=16)
+        ax.set_xlabel('Epoch', fontsize=14)
+        ax.set_ylabel(metric[1], fontsize=14)
+        if len(data) == 1:
+            ax.set_title(f'{models_name[0]} {metric[1]} Train Results', fontsize=16)
+        else:
+            ax.set_title(f'{metric[1]} Train Results', fontsize=16)
         ax.legend(lines, labels, loc='best')
 
         # Add a description under the title
-        ax.text(0.5, -0.11, configuration, ha='center', va='center',
-                transform=ax.transAxes, fontsize=9, color='black')
+        ax.text(0.5, -0.12, configuration, ha='center', va='center',
+                transform=ax.transAxes, fontsize=11, color='black')
 
         # Save the plot to a file
         save_path = os.path.join(
@@ -64,10 +67,10 @@ def create_line_plots(metrics, data, models_name, configuration, save_plot_prefi
 
 # ---CONFIGURATIONS---#
 test_folders = [
-    "14. pretrained_2023-12-20_08-28-35",
+    "densenet",
 ]
-metrics = [('accuracy', 'Accuracy'), ('recall', 'Recall'), ('loss', 'Loss')]
-models_name = ["ViT Pretrained"]
+metrics = [('accuracy', 'Accuracy'), ('recall', 'Recall'), ('loss', 'Cross Entropy Loss')]
+models_name = ["Densenet121"]
 batch_size = 256
 configuration = f"Multiple_Loss=True, Segmentation=Dynamic, Keep_Background=True, Batch Size={batch_size}"
 

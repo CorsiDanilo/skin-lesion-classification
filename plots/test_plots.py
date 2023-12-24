@@ -34,13 +34,13 @@ def create_plots(metrics, data, models_name, configuration, save_plot_prefix="pl
         # Generate random colors for each bar
         ax.bar(range(len(data)), values[i], color=colors)
         ax.set_xticks(range(len(data)))
-        ax.set_xticklabels([f"{models_name[j]}" for j in range(len(data))])
-        ax.set_ylabel(metric[1])
+        ax.set_xticklabels([f"{models_name[j]}" for j in range(len(data))], fontsize=14)
+        ax.set_ylabel(f"{metric[1]} (%)", fontsize=14)
         ax.set_title(f'{metric[1]} Test Results', fontsize=16)
 
         # Add a description under the title
         ax.text(0.5, -0.1, configuration, ha='center', va='center',
-                transform=ax.transAxes, fontsize=9, color='black')
+                transform=ax.transAxes, fontsize=11, color='black')
 
         # Save the plot to a file
         save_path = os.path.join(
@@ -51,9 +51,9 @@ def create_plots(metrics, data, models_name, configuration, save_plot_prefix="pl
 
 # ---CONFIGURATIONS---#
 test_folders = [
-    "2. densenet121_2023-12-19_12-10-36",
-    "14. pretrained_2023-12-20_08-28-35",
-    "8.standard_2023-12-20_16-28-57"
+    "densenet",
+    "pretrained",
+    "standard"
 ]
 
 metrics = [tuple(('test_accuracy', 'Accuracy')), tuple(
