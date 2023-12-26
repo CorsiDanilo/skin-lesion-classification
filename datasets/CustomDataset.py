@@ -2,7 +2,7 @@ from abc import ABC
 from typing import Callable, Optional, Tuple
 import pandas as pd
 from torch.utils.data import Dataset
-from config import BALANCE_UNDERSAMPLING
+from config import BALANCE_DOWNSAMPLING
 import torch
 
 from utils.utils import select_device
@@ -20,7 +20,7 @@ class CustomDataset(Dataset, ABC):
         # Control the data augmentation process aim to solve class imbalance
         balance_data: bool = True,
         # Percentage of data to keep from the majority class
-        balance_undersampling: float = BALANCE_UNDERSAMPLING,
+        balance_downsampling: float = BALANCE_DOWNSAMPLING,
         normalize: bool = False,  # Control the application of z-score normalization
         # Mean (per channel) for the z-score normalization
         mean: Optional[torch.Tensor] = None,
@@ -48,11 +48,11 @@ class CustomDataset(Dataset, ABC):
             raise ValueError("std_epsilon must be a positive number.")
         else:
             self.std_epsilon = std_epsilon
-        if balance_undersampling <= 0 and balance_undersampling > 1:
+        if balance_downsampling <= 0 and balance_downsampling > 1:
             raise ValueError(
-                "balance_undersampling must be a value in the range (0, 1].")
+                "balance_downsampling must be a value in the range (0, 1].")
         else:
-            self.balance_undersampling = balance_undersampling
+            self.balance_downsampling = balance_downsampling
         if self.normalize and (self.mean is None or self.std is None):
             raise ValueError(
                 "Normalization flag set to True. Please specify the mean a standard deviation for z-score normalization.")

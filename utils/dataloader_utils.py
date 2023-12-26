@@ -3,7 +3,7 @@ from config import BATCH_SIZE, DATASET_LIMIT, KEEP_BACKGROUND, NORMALIZE
 from dataloaders.DataLoader import DataLoader
 from dataloaders.DynamicSegmentationDataLoader import DynamicSegmentationDataLoader
 from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
-from dataloaders.DEPRECATED_SegmentedImagesDataLoader import DEPRECTED_SegmentedImagesDataLoader
+from dataloaders.SegmentedImagesDataLoader import SegmentedImagesDataLoader
 from shared.enums import DynamicSegmentationStrategy, SegmentationStrategy
 
 
@@ -11,7 +11,7 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
                                 dynamic_segmentation_strategy: DynamicSegmentationStrategy = DynamicSegmentationStrategy.SAM,
                                 limit: int = DATASET_LIMIT,
                                 dynamic_load: bool = True,
-                                upsample_train: bool = True,
+                                oversample_train: bool = True,
                                 normalize: bool = NORMALIZE,
                                 normalization_statistics: tuple = None,
                                 batch_size: int = BATCH_SIZE,
@@ -21,7 +21,7 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
         dataloader = DynamicSegmentationDataLoader(
             limit=limit,
             dynamic_load=dynamic_load,
-            upscale_train=upsample_train,
+            upscale_train=oversample_train,
             segmentation_strategy=dynamic_segmentation_strategy,
             normalize=normalize,
             normalization_statistics=normalization_statistics,
@@ -29,11 +29,10 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
             keep_background=keep_background,
         )
     elif strategy == SegmentationStrategy.SEGMENTATION.value:
-        print(f"!------WARNING-----!: SegmentationStrategy doesn't work if the validation set is taken from the test set, since it doesn't have the segmentation!!! ಥ_ಥ")
-        dataloader = DEPRECTED_SegmentedImagesDataLoader(
+        dataloader = SegmentedImagesDataLoader(
             limit=limit,
             dynamic_load=dynamic_load,
-            upscale_train=upsample_train,
+            upscale_train=oversample_train,
             normalize=normalize,
             normalization_statistics=normalization_statistics,
             batch_size=batch_size,
@@ -44,7 +43,7 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
         dataloader = ImagesAndSegmentationDataLoader(
             limit=limit,
             dynamic_load=dynamic_load,
-            upscale_train=upsample_train,
+            upscale_train=oversample_train,
             normalize=normalize,
             normalization_statistics=normalization_statistics,
             batch_size=batch_size,

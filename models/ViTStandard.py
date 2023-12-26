@@ -5,11 +5,13 @@ import math
 
 from config import DROPOUT_P
 
+
 class PositionalEncoding(nn.Module):
     def __init__(self, embed_dim, max_len=512):
         super(PositionalEncoding, self).__init__()
         position = torch.arange(0, max_len, dtype=torch.float32).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, embed_dim, 2).float() * -(math.log(10000.0) / embed_dim))
+        div_term = torch.exp(torch.arange(
+            0, embed_dim, 2).float() * -(math.log(10000.0) / embed_dim))
         pos_enc = torch.zeros((max_len, embed_dim))
         pos_enc[:, 0::2] = torch.sin(position * div_term)
         pos_enc[:, 1::2] = torch.cos(position * div_term)
@@ -17,8 +19,9 @@ class PositionalEncoding(nn.Module):
         self.register_buffer('positional_encoding', pos_enc)
 
     def forward(self, x):
-        B, L, E = x.shape #batch size, sequence length, embedding dimension
+        B, L, E = x.shape  # batch size, sequence length, embedding dimension
         return x + self.positional_encoding[:, :L, :]
+
 
 '''
 class PatchEmbedding(nn.Module):
@@ -39,24 +42,35 @@ class PatchEmbedding(nn.Module):
         return x
 '''
 
+
 class PatchEmbedding(nn.Module):
     def __init__(self, image_size, patch_size, in_channels, d_model):
         super(PatchEmbedding, self).__init__()
+        if isinstance(image_size, str):
+            image_size = eval(image_size) # Transform the string into a tuple
+
         self.image_size = image_size
         self.patch_size = patch_size
         self.in_channels = in_channels
         self.embed_dim = d_model
 
-        self.num_patches = (image_size[0] // patch_size) * (image_size[1] // patch_size) #Calculate the number of patches
-        self.projection = nn.Conv2d(in_channels, d_model, kernel_size=patch_size, stride=patch_size) # Define linear projection for each patch
+        # Calculate the number of patches
+        self.num_patches = (
+            image_size[0] // patch_size) * (image_size[1] // patch_size)
+        # Define linear projection for each patch
+        self.projection = nn.Conv2d(
+            in_channels, d_model, kernel_size=patch_size, stride=patch_size)
 
     def forward(self, x):
         B, C, H, W = x.shape
-        assert H == self.image_size[0] and W == self.image_size[1] #H and W must match
-        patches = self.projection(x) #Linear projection to obtain patches
-        patches = patches.view(B, self.embed_dim, self.num_patches).transpose(1, 2) #Reshape patches to (B, d_model, num_patches)
+        # H and W must match
+        assert H == self.image_size[0] and W == self.image_size[1]
+        patches = self.projection(x)  # Linear projection to obtain patches
+        patches = patches.view(B, self.embed_dim, self.num_patches).transpose(
+            1, 2)  # Reshape patches to (B, d_model, num_patches)
 
         return patches
+
 
 class Attention(nn.Module):
     def __init__(self, attn_dropout=0.1):
@@ -65,12 +79,15 @@ class Attention(nn.Module):
 
     def forward(self, query, key, value, mask=None):
         d_k = query.size(-1)  # Get the size of the key
-        attn = torch.einsum('BHLD, BHMD -> BHLM', query, key)  # Compute the dot product of the query and key, and scale it
+        # Compute the dot product of the query and key, and scale it
+        attn = torch.einsum('BHLD, BHMD -> BHLM', query, key)
         if mask is not None:
             attn = attn.masked_fill(mask == 0, -1e9)
         attn = self.dropout(F.softmax(attn/math.sqrt(d_k), dim=-1))
-        output = torch.einsum('BHLL, BHLD -> BHLD', attn, value)  # Compute the weighted sum of the values
+        # Compute the weighted sum of the values
+        output = torch.einsum('BHLL, BHLD -> BHLD', attn, value)
         return output, attn
+
 
 class MultiHeadAttention(nn.Module):
     ''' Multi-Head Attention module '''
@@ -123,11 +140,12 @@ class MultiHeadAttention(nn.Module):
 
         return q, attn
 
+
 class PositionwiseFeedForward(nn.Module):
     def __init__(self, d_in, d_hidden, dropout=0.1):
         super().__init__()
-        self.w1 = nn.Linear(d_in, d_hidden) # position-wise
-        self.w2 = nn.Linear(d_hidden, d_in) # position-wise
+        self.w1 = nn.Linear(d_in, d_hidden)  # position-wise
+        self.w2 = nn.Linear(d_hidden, d_in)  # position-wise
         self.layer_norm = nn.LayerNorm(d_in, eps=1e-6)
         self.dropout = nn.Dropout(dropout)
 
@@ -139,21 +157,27 @@ class PositionwiseFeedForward(nn.Module):
         x += residual
         return x
 
+
 class EncoderLayer(nn.Module):
     def __init__(self, d_model, d_inner, n_head, d_k, d_v, dropout=0.1):
         super(EncoderLayer, self).__init__()
-        self.slf_attn = MultiHeadAttention(n_head, d_model, d_k, d_v, dropout=dropout)
-        self.pos_ffn = PositionwiseFeedForward(d_model, d_inner, dropout=dropout)
+        self.slf_attn = MultiHeadAttention(
+            n_head, d_model, d_k, d_v, dropout=dropout)
+        self.pos_ffn = PositionwiseFeedForward(
+            d_model, d_inner, dropout=dropout)
 
     def forward(self, enc_input, slf_attn_mask=None):
-        enc_output, enc_slf_attn = self.slf_attn(enc_input, enc_input, enc_input, mask=slf_attn_mask)
+        enc_output, enc_slf_attn = self.slf_attn(
+            enc_input, enc_input, enc_input, mask=slf_attn_mask)
         enc_output = self.pos_ffn(enc_output)
         return enc_output, enc_slf_attn
+
 
 class TransformerEncoder(nn.Module):
     def __init__(self, img_size, in_channels, d_model, patch_size, n_layers, n_head, d_k, d_v, d_inner, dropout=0.1, scale_emb=False):
         super().__init__()
-        self.patch_embedding = PatchEmbedding(img_size, patch_size, in_channels, d_model)
+        self.patch_embedding = PatchEmbedding(
+            img_size, patch_size, in_channels, d_model)
         self.positional_encoding = PositionalEncoding(d_model)
         self.dropout = nn.Dropout(p=dropout)
         self.layer_stack = nn.ModuleList([
@@ -177,11 +201,12 @@ class TransformerEncoder(nn.Module):
             return enc_output, enc_slf_attn_list
         return enc_output
 
+
 class ViT_standard(nn.Sequential):
     def __init__(self, in_channels, n_head, patch_size, d_model, img_size, n_layers, n_classes, dropout=DROPOUT_P):
         super(ViT_standard, self).__init__()
-        #self.patch_embedding = PatchEmbedding(img_size, patch_size, in_channels, emb_size)
-        #self.positional_encoding = PositionalEncoding(emb_size)
+        # self.patch_embedding = PatchEmbedding(img_size, patch_size, in_channels, emb_size)
+        # self.positional_encoding = PositionalEncoding(emb_size)
         d_k = d_v = d_model // n_head
         d_inner = d_model
         self.transformer_encoder = TransformerEncoder(img_size, in_channels, d_model, patch_size, n_layers, n_head, d_k, d_v, d_inner, dropout)
@@ -193,4 +218,3 @@ class ViT_standard(nn.Sequential):
         x = x.mean(dim=1)
         x = self.fc(x)
         return x
-

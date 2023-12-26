@@ -1,5 +1,5 @@
-from constants import IMAGENET_STATISTICS
-from dataloaders.DEPRECATED_SegmentedImagesDataLoader import DEPRECTED_SegmentedImagesDataLoader
+from shared.constants import IMAGENET_STATISTICS
+from dataloaders.SegmentedImagesDataLoader import SegmentedImagesDataLoader
 from dataloaders.DynamicSegmentationDataLoader import DynamicSegmentationDataLoader
 from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
 from shared.enums import DynamicSegmentationStrategy
@@ -8,7 +8,7 @@ import pytest
 
 @pytest.mark.skip(reason="Deprecated")
 def test_segmeneted_images_dataloader():
-    dataloder = DEPRECTED_SegmentedImagesDataLoader(dynamic_load=True)
+    dataloder = SegmentedImagesDataLoader(dynamic_load=True)
     train_dataloder = dataloder.get_train_dataloder()
     val_dataloder, _ = dataloder.get_val_test_dataloader()
     assert len(train_dataloder) > 0

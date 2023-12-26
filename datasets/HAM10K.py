@@ -4,7 +4,7 @@ import random
 from typing import Callable
 import pandas as pd
 import torch
-from config import BALANCE_UNDERSAMPLING
+from config import BALANCE_DOWNSAMPLING
 from datasets.CustomDataset import CustomDataset
 import random
 import math
@@ -21,7 +21,7 @@ class HAM10K(CustomDataset):
                  # Control the data augmentation process aim to solve class imbalance
                  balance_data: bool = True,
                  # Percentage of data to keep from the majority class
-                 balance_undersampling: float = BALANCE_UNDERSAMPLING,
+                 balance_downsampling: float = BALANCE_DOWNSAMPLING,
                  normalize: bool = False,  # Control the application of z-score normalization
                  # Mean (per channel) for the z-score normalization
                  mean: torch.Tensor = None,
@@ -32,7 +32,7 @@ class HAM10K(CustomDataset):
                  # Sizes (height, width) for resize the images
                  resize_dims=(224, 224),
                  dynamic_load: bool = False):
-        super().__init__(metadata, load_data_fn, balance_data, balance_undersampling,
+        super().__init__(metadata, load_data_fn, balance_data, balance_downsampling,
                          normalize, mean, std, std_epsilon, resize_dims, dynamic_load)
 
         if self.balance_data:
@@ -55,11 +55,11 @@ class HAM10K(CustomDataset):
         print(
             f"--Data Balance-- The second common class is {second_max_label} with {second_max_count} images with a difference of {max_count-second_max_count} images from the most common class.")
 
-        # Undersampling most common class
+        # Downsampling most common class
         max_label_images_to_remove = max(math.floor(
-            max_count*self.balance_undersampling), second_max_count)
+            max_count*self.balance_downsampling), second_max_count)
         print(
-            f"--Data Balance (Undersampling)-- Keeping {max_label_images_to_remove} from {max_label} class..")
+            f"--Data Balance (Downsampling)-- Keeping {max_label_images_to_remove} from {max_label} class..")
         label_indices = self.metadata[self.metadata['label']
                                       == max_label].index
         removal_indices = random.sample(
@@ -70,7 +70,7 @@ class HAM10K(CustomDataset):
         max_label, max_count = max(
             labels_counts.items(), key=lambda x: x[1])
         print(
-            f"--Data Balance (Undersampling)-- {max_label} now has {max_count} images")
+            f"--Data Balance (Downsampling)-- {max_label} now has {max_count} images")
 
         # Oversampling of the other classes
         for label in self.metadata['label'].unique():

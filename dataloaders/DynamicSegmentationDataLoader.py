@@ -41,12 +41,14 @@ class DynamicSegmentationDataLoader(DataLoader):
                          upscale_train=upscale_train,
                          normalize=normalize,
                          normalization_statistics=normalization_statistics,
-                         batch_size=batch_size)
+                         batch_size=batch_size,
+                         always_rotate=False)  # TODO: see if is better True or False here
         self.segmentation_strategy = segmentation_strategy
         self.segmentation_transform = transforms.Compose([
             transforms.ToTensor()
         ])
-        self.stateful_transform = StatefulTransform()
+        self.stateful_transform = StatefulTransform(
+            always_rotate=self.always_rotate)
         # self.transform = transforms.Compose([
         #     transforms.RandomVerticalFlip(),
         #     transforms.RandomHorizontalFlip(),
@@ -167,9 +169,10 @@ class DynamicSegmentationDataLoader(DataLoader):
         binary_masks = torch.sigmoid(upscaled_masks)
         binary_masks = (binary_masks > THRESHOLD).float()
         binary_masks = resize_segmentations(
-            binary_masks, new_size=(450, 450)).to(self.device)
+            binary_masks, new_size=(600, 450)).to(self.device)
 
-        images = resize_images(images, new_size=(450, 450)).to(self.device)
+        images = images.to(self.device)
+        # images = resize_images(images, new_size=(450, 450)).to(self.device)
         if not self.keep_background:
             images = binary_masks * images
 

@@ -1,8 +1,0 @@
--   [x] See the results with the segmentation but without stretching the image, so first apply the bounding box and then the segmentation (or vice versa).
--   [x] Try to remove the small factor for the division by 0 for the std in the normalization and see if the results are better.
--   [x] Fine tune SAM
--   [x] Get the segmentation mask dynamically with SAM
--   [x] Handle the normalization before or after the image loading with the different dataloaders
--   [ ] Python CLI to train different models with different techniques via a shell script
--   [ ] Sistema normalizzazione
--   [ ] Fixa test e testa la robba del tutto training

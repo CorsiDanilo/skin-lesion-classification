@@ -1,6 +1,6 @@
 import torch
-from config import BALANCE_UNDERSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, ARCHITECTURE, DATASET_LIMIT, DROPOUT_P, NORMALIZE, SEGMENTATION_STRATEGY, UPSAMPLE_TRAIN, USE_DOUBLE_LOSS, N_HEADS, N_LAYERS, PATCH_SIZE, EMB_SIZE, IMAGE_SIZE, RANDOM_SEED, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, PATH_TO_SAVE_RESULTS
-from constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
+from config import BALANCE_DOWNSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, ARCHITECTURE, DATASET_LIMIT, DROPOUT_P, NORMALIZE, SEGMENTATION_STRATEGY, OVERSAMPLE_TRAIN, USE_MULTIPLE_LOSS, N_HEADS, N_LAYERS, PATCH_SIZE, EMB_SIZE, IMAGE_SIZE, RANDOM_SEED, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, PATH_TO_SAVE_RESULTS, USE_WANDB
+from shared.constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
 from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device, set_seed
 from train_loops.train_loop import train_eval_loop
@@ -11,7 +11,8 @@ from models.ViTEfficient import EfficientViT
 
 def get_model(device):
     if ARCHITECTURE == "pretrained":
-        model = ViT_pretrained(HIDDEN_SIZE, NUM_CLASSES, pretrained=True, dropout=DROPOUT_P).to(device)
+        model = ViT_pretrained(HIDDEN_SIZE, NUM_CLASSES,
+                               pretrained=True, dropout=DROPOUT_P).to(device)
     elif ARCHITECTURE == "standard":
         model = ViT_standard(in_channels=INPUT_SIZE, patch_size=PATCH_SIZE, d_model=EMB_SIZE,
                              img_size=IMAGE_SIZE, n_classes=NUM_CLASSES, n_head=N_HEADS, n_layers=N_LAYERS, dropout=DROPOUT_P).to(device)
@@ -60,12 +61,14 @@ def main():
             "normalize": NORMALIZE,
             "resumed": RESUME,
             "from_epoch": RESUME_EPOCH,
-            "balance_undersampling": BALANCE_UNDERSAMPLING,
+            "balance_downsampling": BALANCE_DOWNSAMPLING,
             "initialization": "default",
             "segmentation_strategy": SEGMENTATION_STRATEGY,
             "dynamic_segmentation_strategy": DYNAMIC_SEGMENTATION_STRATEGY,
-            "upsample_train": UPSAMPLE_TRAIN,
-            "double_loss": USE_DOUBLE_LOSS
+            "oversample_train": OVERSAMPLE_TRAIN,
+            "multiple_loss": USE_MULTIPLE_LOSS,
+            "use_wandb": USE_WANDB,
+            "keep_background": KEEP_BACKGROUND
         }
     elif ARCHITECTURE == "standard":
         config = {
@@ -84,16 +87,18 @@ def main():
             "normalize": NORMALIZE,
             "resumed": RESUME,
             "from_epoch": RESUME_EPOCH,
-            "balance_undersampling": BALANCE_UNDERSAMPLING,
+            "balance_downsampling": BALANCE_DOWNSAMPLING,
             "initialization": "default",
             "segmentation_strategy": SEGMENTATION_STRATEGY,
             "dynamic_segmentation_strategy": DYNAMIC_SEGMENTATION_STRATEGY,
-            "upsample_train": UPSAMPLE_TRAIN,
+            "oversample_train": OVERSAMPLE_TRAIN,
             "n_heads": N_HEADS,
             "n_layers": N_LAYERS,
             "patch_size": PATCH_SIZE,
             "emb_size": EMB_SIZE,
-            "double_loss": USE_DOUBLE_LOSS
+            "multiple_loss": USE_MULTIPLE_LOSS,
+            "use_wandb": USE_WANDB,
+            "keep_background": KEEP_BACKGROUND
         }
     else:
         config = {
@@ -111,16 +116,18 @@ def main():
             "normalize": NORMALIZE,
             "resumed": RESUME,
             "from_epoch": RESUME_EPOCH,
-            "balance_undersampling": BALANCE_UNDERSAMPLING,
+            "balance_downsampling": BALANCE_DOWNSAMPLING,
             "initialization": "default",
             "segmentation_strategy": SEGMENTATION_STRATEGY,
             "dynamic_segmentation_strategy": DYNAMIC_SEGMENTATION_STRATEGY,
-            "upsample_train": UPSAMPLE_TRAIN,
+            "oversample_train": OVERSAMPLE_TRAIN,
             "n_heads": N_HEADS,
             "n_layers": N_LAYERS,
             "patch_size": PATCH_SIZE,
             "emb_size": EMB_SIZE,
-            "double_loss": USE_DOUBLE_LOSS
+            "multiple_loss": USE_MULTIPLE_LOSS,
+            "use_wandb": USE_WANDB,
+            "keep_background": KEEP_BACKGROUND
         }
 
     dataloader = get_dataloder_from_strategy(
@@ -128,7 +135,7 @@ def main():
         dynamic_segmentation_strategy=DYNAMIC_SEGMENTATION_STRATEGY,
         limit=DATASET_LIMIT,
         dynamic_load=True,
-        upsample_train=UPSAMPLE_TRAIN,
+        oversample_train=OVERSAMPLE_TRAIN,
         normalize=NORMALIZE,
         normalization_statistics=get_normalization_statistics(),
         batch_size=BATCH_SIZE)
