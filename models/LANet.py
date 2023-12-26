@@ -3,7 +3,7 @@ from torch import nn
 from torchvision import models
 from torchvision.models import ResNet34_Weights
 from models.GradCAM import GradCAM
-from config import DROPOUT_P, HIDDEN_SIZE, NUM_CLASSES
+from config import DROPOUT_P, HIDDEN_SIZE, NUM_CLASSES, INPUT_SIZE
 
 """
 class LANet(nn.Module):
@@ -28,7 +28,7 @@ class LANet(nn.Module):
         out = torch.cat([downsamples_cnn_block_feature_map * final_layer], dim=1)
         return out
 """
-
+"""
 class LANet(nn.Module):
     def __init__(self, hidden_layers, num_classes, dropout=DROPOUT_P):
         super(LANet, self).__init__()
@@ -75,10 +75,30 @@ class LANet(nn.Module):
         attention_mask = self.mixed_sigmoid(self.conv1x1(final_layer))
         out = feature_map * attention_mask  # Element-wise multiplication
         return out
+"""
+
+class LANet(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(LANet, self).__init__()
+        self.downsample = nn.AdaptiveAvgPool2d((in_channels, out_channels))
+        self.conv1x1 = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
+        self.mixed_sigmoid = nn.Sequential(
+            nn.Sigmoid(),
+            nn.Conv2d(out_channels, out_channels, kernel_size=1, bias=False),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x, y):
+        Oout = self.downsample(x)
+        Y = self.conv1x1(y)
+        attention_mask = self.mixed_sigmoid(Y)
+        OF = Oout * attention_mask
+        return OF
+
 
 if __name__ == "__main__":
     cam_instance = GradCAM()
-    lanet_model = LANet(HIDDEN_SIZE, NUM_CLASSES, DROPOUT_P)
+    lanet_model = LANet(INPUT_SIZE, NUM_CLASSES)
     image_path = 'C:/Users/aless/OneDrive/Desktop/Mole_images/20231213_192133.jpg'
     thresholds = [120]
     for t in thresholds:

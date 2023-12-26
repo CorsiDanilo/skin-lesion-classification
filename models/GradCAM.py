@@ -78,7 +78,6 @@ class GradCAM(nn.Module):
         cropped_img = img.crop((bounding_rect[0], bounding_rect[1],
                                bounding_rect[0] + bounding_rect[2],
                                bounding_rect[1] + bounding_rect[3]))
-        cropped_img.show()
         cropped_img = transform(cropped_img)
 
         # Apply color map to the orginal image to show the focus areas
