@@ -5,6 +5,7 @@ from torchvision import models
 from torchvision.models import ResNet34_Weights
 from models.GradCAM import GradCAM
 from config import DROPOUT_P, HIDDEN_SIZE, NUM_CLASSES, INPUT_SIZE
+from utils.utils import select_device
 
 """
 class LANet(nn.Module):
@@ -34,7 +35,9 @@ class LANet(nn.Module):
 class LANet(nn.Module):
     def __init__(self, hidden_layers, num_classes, dropout=DROPOUT_P):
         super(LANet, self).__init__()
-        self.model = models.resnet50(pretrained=True)
+        self.device = select_device()
+        self.model = models.resnet50(pretrained=True).to(self.device)
+
         self.model_features = nn.Sequential(*list(self.model.children())[:-2])
         self.in_channels = self.model.layer4[-1].conv3.out_channels
         self.adaptive_avg_pool = nn.AdaptiveAvgPool2d(7)
@@ -69,23 +72,16 @@ class LANet(nn.Module):
         '''
         self.model.fc = nn.Identity()  # Remove the final fully connected layer from the ResNet model
 
-        self.conv_layers = nn.Sequential(
-            nn.Conv2d(in_channels=self.in_channels, out_channels=1024,
-                      kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(1024),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=1024, out_channels=512,
-                      kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=512, out_channels=256,
-                      kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU()
-        )
+        # Freeze all the layers except the fully connected layer
+        for param in self.model.parameters():
+            param.requires_grad = False
+        for param in self.model.fc.parameters():
+            param.requires_grad = True
+
+        self.cnn_blocks = self.extract_cnn_blocks()
 
     def conv1d(self, out_channels): return nn.Conv2d(
-        in_channels=2048, out_channels=out_channels, kernel_size=1)
+        in_channels=2048, out_channels=out_channels, kernel_size=1).to(self.device)
 
     def mixed_sigmoid(self, x):
         return torch.sigmoid(x) * x
@@ -111,10 +107,9 @@ class LANet(nn.Module):
 
     def forward(self, x):
         resnet_feature_map = self.model_features(x)
-        cnn_blocks = self.extract_cnn_blocks()
-        cat_output = torch.tensor(resnet_feature_map)
+        cat_output = resnet_feature_map.detach()
         C_x, H_x, W_x = x.shape[1:]
-        for index, cnn_block in enumerate(cnn_blocks):
+        for index, cnn_block in enumerate(self.cnn_blocks):
             if index == 0:
                 curr_activation_map = x
             curr_activation_map = cnn_block(curr_activation_map)

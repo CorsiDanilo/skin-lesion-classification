@@ -25,7 +25,8 @@ class DataLoader(ABC):
                  normalize: bool = NORMALIZE,
                  normalization_statistics: tuple = None,
                  batch_size: int = BATCH_SIZE,
-                 always_rotate: bool = False):
+                 always_rotate: bool = False,
+                 data_dir: str = DATASET_TRAIN_DIR,):
         super().__init__()
         self.limit = limit
         self.transform = transform
@@ -34,6 +35,7 @@ class DataLoader(ABC):
         self.normalize = normalize
         self.normalization_statistics = normalization_statistics
         self.batch_size = batch_size
+        self.data_dir = data_dir
         if self.transform is None:
             self.transform = transforms.Compose([
                 transforms.ToTensor()
@@ -68,7 +70,7 @@ class DataLoader(ABC):
             print(f"---LIMITING DATASET TO {limit} ENTRIES---")
             metadata = metadata.sample(n=limit, random_state=42)
         metadata['image_path'] = metadata['image_id'].apply(
-            lambda x: os.path.join(DATASET_TRAIN_DIR, x + '.jpg'))
+            lambda x: os.path.join(self.data_dir, x + '.jpg'))
 
         metadata['segmentation_path'] = metadata['image_id'].apply(
             lambda x: os.path.join(SEGMENTATION_DIR, x + '_segmentation.png'))
