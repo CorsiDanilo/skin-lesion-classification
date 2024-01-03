@@ -21,8 +21,8 @@ METADATA_TRAIN_DIR = os.path.join(
 # ---Library Configurations--- #
 USE_WANDB = False  # Use wandb for logging
 # DirectML library for AMD gpu on Windows (set to false if you want to use cpu or standard CUDA)
-USE_DML = False
-USE_MPS = True  # Use MPS gpu for MacOS
+USE_DML = True
+USE_MPS = False  # Use MPS gpu for MacOS
 
 # ---Train Configurations--- #
 RANDOM_SEED = 42  # Random seed

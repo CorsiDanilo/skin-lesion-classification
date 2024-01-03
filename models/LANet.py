@@ -9,7 +9,7 @@ from utils.utils import select_device
 
 
 class LANet(nn.Module):
-    def __init__(self, hidden_layers, num_classes, dropout=DROPOUT_P):
+    def __init__(self, dropout=DROPOUT_P):
         super(LANet, self).__init__()
         self.device = select_device()
         self.model = models.resnet50(
@@ -17,8 +17,6 @@ class LANet(nn.Module):
 
         self.model_features = nn.Sequential(*list(self.model.children())[:-2])
         self.adaptive_avg_pool = nn.AdaptiveAvgPool2d(NUM_CLASSES)
-        self.hidden_layers = hidden_layers
-        self.num_classes = num_classes
         self.dropout = nn.Dropout(p=dropout)
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
@@ -87,7 +85,7 @@ class LANet(nn.Module):
 
 if __name__ == "__main__":
     cam_instance = GradCAM()
-    lanet_model = LANet(HIDDEN_SIZE, NUM_CLASSES)
+    lanet_model = LANet()
     image_path = "/Users/dov/Library/Mobile Documents/com~apple~CloudDocs/dovsync/Documenti Universita/Advanced Machine Learning/AML Project.nosync/melanoma-detection/data/HAM10000_images_test/ISIC_0034524.jpg"
     thresholds = [120]
     for t in thresholds:
