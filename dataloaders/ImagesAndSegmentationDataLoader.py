@@ -12,8 +12,6 @@ import pandas as pd
 import torchvision.transforms.functional as TF
 from config import BATCH_SIZE, IMAGE_SIZE, NORMALIZE, RANDOM_SEED
 import random
-# from albumentations import GridDistortion
-from torchvision.transforms import ColorJitter
 
 random.seed(RANDOM_SEED)
 

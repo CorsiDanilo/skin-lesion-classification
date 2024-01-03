@@ -3,53 +3,8 @@ from config import ARCHITECTURE, PRINT_MODEL_ARCHITECTURE, BALANCE_DOWNSAMPLING,
 from dataloaders.MSLANetDataLoader import MSLANetDataLoader
 from models.MSLANet import MSLANet
 from shared.constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
-from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device, set_seed
-from train_loops.train_loop import train_eval_loop
-from models.ResNet34Pretrained import ResNet34Pretrained
-from models.DenseNetPretrained import DenseNetPretrained
-from models.InceptionV3Pretrained import InceptionV3Pretrained
-
-
-def get_model(device):
-    if ARCHITECTURE == "resnet34":
-        model = ResNet34Pretrained(
-            HIDDEN_SIZE, NUM_CLASSES).to(device)
-    elif ARCHITECTURE == "densenet121":
-        model = DenseNetPretrained(
-            HIDDEN_SIZE, NUM_CLASSES).to(device)
-    elif ARCHITECTURE == "inception_v3":
-        model = InceptionV3Pretrained(
-            HIDDEN_SIZE, NUM_CLASSES).to(device)
-    else:
-        raise ValueError(f"Unknown architechture {ARCHITECTURE}")
-
-    if RESUME:
-        model.load_state_dict(torch.load(
-            f"{PATH_TO_SAVE_RESULTS}/{PATH_MODEL_TO_RESUME}/models/melanoma_detection_{RESUME_EPOCH}.pt"))
-
-    for p in model.parameters():
-        p.requires_grad = False
-
-    # LAYERS_TO_FINE_TUNE = 20
-    # parameters = list(model.parameters())
-    # for p in parameters[-LAYERS_TO_FINE_TUNE:]:
-    #     p.requires_grad=True
-
-    print(f"--Model-- Using {ARCHITECTURE} pretrained model")
-
-    for p in model.classifier.parameters():
-        p.requires_grad = True
-
-    return model
-
-
-def get_normalization_statistics():
-    image_net_pretrained_models = ["resnet34", "densenet121", "inception_v3"]
-    if ARCHITECTURE in image_net_pretrained_models:
-        return IMAGENET_STATISTICS
-    else:
-        return DEFAULT_STATISTICS
+from train_loops.mslanet_train_loop import train_eval_loop
 
 
 def main():
@@ -76,17 +31,17 @@ def main():
         "from_epoch": RESUME_EPOCH,
         "balance_downsampling": BALANCE_DOWNSAMPLING,
         "initialization": "default",
-        'segmentation_strategy': "Cam Based Crop",
+        'segmentation_strategy': "CAM",
         "oversample_train": OVERSAMPLE_TRAIN,
+        "multiple_loss": USE_MULTIPLE_LOSS,
         "use_wandb": USE_WANDB,
     }
 
     dataloader = MSLANetDataLoader(
         limit=DATASET_LIMIT,
         dynamic_load=True,
-        resize_dim=INPUT_SIZE,
         normalize=NORMALIZE,
-        normalization_statistics=get_normalization_statistics(),
+        normalization_statistics=IMAGENET_STATISTICS,
         batch_size=BATCH_SIZE,
     )
     train_loader = dataloader.get_train_dataloder()

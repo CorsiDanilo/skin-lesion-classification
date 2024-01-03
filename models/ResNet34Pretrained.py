@@ -12,7 +12,7 @@ class ResNet34Pretrained(nn.Module):
 
         self.dropout = nn.Dropout(p=dropout_p)
         self.relu = nn.ReLU()
-
+        # In features: 512
         self.layers = []
         if len(hidden_layers) == 0:
             self.layers.append(self.dropout)
@@ -42,8 +42,6 @@ class ResNet34Pretrained(nn.Module):
             lambda p: p.requires_grad, self.model.parameters())
         params = sum([np.prod(p.size()) for p in model_parameters])
         print(f'Model has {params} trainable params.')
-
-        # self.initialize_weights()  # TODO: test this with balance_data = 1
 
     def forward(self, x):
         return self.model(x)

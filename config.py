@@ -33,19 +33,21 @@ HIDDEN_SIZE = [512, 256, 128]  # Hidden layers configurations
 N_EPOCHS = 10  # Number of epochs
 LR = 1e-3  # Learning rate
 LR_DECAY = 0.85  # Learning rate decay
-REG = 0.06  # Weight decay
+REG = 0.00  # Weight decay
 # Architecture used for training: resnet34, densenet121, inception_v3, standard, pretrained, efficient
 ARCHITECTURE = "resnet34"
 DATASET_LIMIT = None  # Value (0, dataset_length) used to limit the dataset
 DROPOUT_P = 0.5  # Dropout probability
 NORMALIZE = True  # True if data must be normalized, False otherwise
 # True if oversampling (with data augmentation) must be applied, False otherwise
-OVERSAMPLE_TRAIN = True
+
+# TODO: removed to compare resnet34 without oversampling and MSLANet without oversampling
+OVERSAMPLE_TRAIN = False
 # Proporsion used to downsample the majority. Applied only if OVERSAMPLE_TRAIN=True (1=Do not remove any examples from majority class).
 BALANCE_DOWNSAMPLING = 1
 
 # Use binary loss (benign/malign) and multiclassification loss if true, otherwise use only the multiclassification one
-USE_MULTIPLE_LOSS = True
+USE_MULTIPLE_LOSS = False
 # Value used to establish the importance of multiclassification loss over the binary classification loss
 MULTIPLE_LOSS_BALANCE = 0.5
 # Segmentation approch (NO_segmentation or DYNAMIC_SEGMENTATION to segment the mole with SAM)

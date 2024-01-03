@@ -117,7 +117,6 @@ class DataLoader(ABC):
         return self.load_images_and_labels(metadata)
 
     def get_train_dataloder(self) -> Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader]:
-
         if self.normalize:
             print(
                 "--Normalization-- Normalization flag set to True: Images will be normalized with z-score normalization")
