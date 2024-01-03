@@ -22,6 +22,23 @@ class LANet(nn.Module):
         self.dropout = nn.Dropout(p=dropout)
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
+        out_features = [256,
+                        512,
+                        512,
+                        512,
+                        512,
+                        1024,
+                        1024,
+                        1024,
+                        1024,
+                        1024,
+                        1024,
+                        2048,
+                        2048,
+                        2048]
+
+        self.conv1x1_layers = nn.ModuleList(
+            [nn.Conv2d(in_channels=2048, out_channels=i, kernel_size=1).to(self.device) for i in out_features])
 
         self.cnn_blocks = self.extract_cnn_blocks()
 
@@ -32,9 +49,6 @@ class LANet(nn.Module):
             param.requires_grad = False
         # for param in self.model.fc.parameters():
         #     param.requires_grad = True
-
-    def conv1x1(self, out_channels): return nn.Conv2d(
-        in_channels=2048, out_channels=out_channels, kernel_size=1).to(self.device)
 
     def mixed_sigmoid(self, Y):
         M = self.sigmoid(Y) * Y
@@ -75,9 +89,8 @@ class LANet(nn.Module):
 
             avg_pool_feature_map = self.adaptive_avg_pool(
                 curr_activation_map)
-
-            conv1d_feature_map = self.conv1x1(
-                avg_pool_feature_map.shape[1])(resnet_feature_map)
+            conv1d_feature_map = self.conv1x1_layers[index](
+                resnet_feature_map)
             conv_1d_feature_map = self.mixed_sigmoid(conv1d_feature_map)
             output = avg_pool_feature_map * conv_1d_feature_map
             cat_output = torch.cat((cat_output, output), dim=1)
