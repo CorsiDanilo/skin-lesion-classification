@@ -3,7 +3,7 @@ from torch import nn
 from models.LANet import LANet
 from models.GradCAM import GradCAM
 from utils.utils import select_device
-from config import DROPOUT_P
+from config import DROPOUT_P, NUM_CLASSES
 
 
 class MSLANet(nn.Module):
@@ -15,6 +15,7 @@ class MSLANet(nn.Module):
         self.dropout = nn.Dropout(p=DROPOUT_P)
         self.relu = nn.ReLU()
         self.flatten = nn.Flatten()
+        self.fc1 = nn.Linear(1, NUM_CLASSES).to(self.device)
 
     def forward(self, x):
         # NOTE: x is the cropped image
@@ -24,13 +25,18 @@ class MSLANet(nn.Module):
         for _ in range(NUM_OF_DROPOUTS):
             cropped_img = x.to(self.device)
             lanet_output = self.lanet_model(cropped_img).to(self.device)
+            if self.fc1.in_features == 1:
+                lanet_shape = lanet_output.shape
+                input_size = lanet_shape[1] * lanet_shape[2] * lanet_shape[3]
+                self.fc1 = nn.Linear(input_size, NUM_CLASSES).to(self.device)
+            
             lanet_output = self.flatten(lanet_output)
             lanet_output = self.dropout(lanet_output)
             lanet_output = self.relu(lanet_output)
             lanet_output = self.fc1(lanet_output).to(self.device)
             five_dropout_preds.append(lanet_output)
+        
         average_lanet_output = torch.stack(five_dropout_preds).mean(dim=0)
-        # lanet_output = nn.Softmax(dim=-1)(average_lanet_output)
         return average_lanet_output
 
 

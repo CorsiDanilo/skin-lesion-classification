@@ -31,9 +31,9 @@ INPUT_SIZE = 3  # Input size
 NUM_CLASSES = 7  # Number of classes for classification
 HIDDEN_SIZE = [512, 256, 128]  # Hidden layers configurations
 N_EPOCHS = 10  # Number of epochs
-LR = 1e-3  # Learning rate
+LR = 1e-4  # Learning rate
 LR_DECAY = 0.85  # Learning rate decay
-REG = 0.00  # Weight decay
+REG = 0.03  # Weight decay
 # Architecture used for training: resnet34, densenet121, inception_v3, standard, pretrained, efficient
 ARCHITECTURE = "resnet34"
 DATASET_LIMIT = None  # Value (0, dataset_length) used to limit the dataset

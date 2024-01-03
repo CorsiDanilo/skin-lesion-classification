@@ -80,8 +80,8 @@ class LANet(nn.Module):
                 curr_activation_map = x
             curr_activation_map = cnn_block(curr_activation_map)
             # NOTE: just for speed, skip some cnn blocks
-            if index > 5:
-                continue
+            #if index > 5:
+            #    continue
             C_o, H_o, W_o = curr_activation_map.shape[1:]
             # print(f"C_o: {C_o}, H_o: {H_o}, W_o: {W_o}")
 
