@@ -12,3 +12,5 @@ boxes_outputs
 results/*
 !results/README.md
 !**.gitkeep
+augmentation/models/*
+augmentation/StyleGANPytorch/*
