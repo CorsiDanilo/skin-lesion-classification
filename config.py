@@ -38,11 +38,12 @@ REG = 0.03  # Weight decay
 ARCHITECTURE = "resnet34"
 DATASET_LIMIT = None  # Value (0, dataset_length) used to limit the dataset
 DROPOUT_P = 0.5  # Dropout probability
+NUM_DROPOUT_LAYERS = 5 # Used in MSLANet to apply several parallel classification layers with a dropout in it. Predictions are averaged to get the final result.
 NORMALIZE = True  # True if data must be normalized, False otherwise
 # True if oversampling (with data augmentation) must be applied, False otherwise
 
 # TODO: removed to compare resnet34 without oversampling and MSLANet without oversampling
-OVERSAMPLE_TRAIN = False
+OVERSAMPLE_TRAIN = True
 # Proporsion used to downsample the majority. Applied only if OVERSAMPLE_TRAIN=True (1=Do not remove any examples from majority class).
 BALANCE_DOWNSAMPLING = 1
 
