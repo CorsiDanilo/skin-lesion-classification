@@ -18,7 +18,7 @@ import time
 import timeit
 import warnings
 from collections import OrderedDict
-
+from .gan_config import cfg
 import numpy as np
 import torch
 import torch.nn as nn
@@ -187,11 +187,19 @@ class GSynthesis(nn.Module):
         assert depth < self.depth, "Requested output depth cannot be produced"
 
         if self.structure == 'fixed':
+            # In the 'fixed' structure, the generator processes the input latent vectors through all the blocks of the generator network sequentially.
+            # It doesn't consider the depth parameter or the alpha parameter for any fade-in effect.
+            # This structure is typically used when the generator is fully trained and you're not growing the network any further.
             x = self.init_block(dlatents_in[:, 0:2])
             for i, block in enumerate(self.blocks):
                 x = block(x, dlatents_in[:, 2 * (i + 1):2 * (i + 2)])
             images_out = self.to_rgb[-1](x)
         elif self.structure == 'linear':
+            # In the 'linear' structure, the generator uses a progressive growing technique where the depth of the network can be increased over time.
+            # This is done by adding new layers to the network as training progresses to generate higher resolution images.
+            # The 'alpha' parameter is used for a fade-in effect where the output from the new layer is mixed with the upscaled output from the previous layer.
+            # This helps in smooth transition as the network depth increases. This structure is typically used during the training phase when you're growing the
+            # network progressively.
             x = self.init_block(dlatents_in[:, 0:2])
 
             if depth > 0:
@@ -757,7 +765,10 @@ class StyleGAN:
                 normalize=True,
                 normalization_statistics=IMAGENET_STATISTICS,
                 batch_size=batch_sizes[current_depth],
-                resize_dim=(32, 32)
+                resize_dim=(
+                    cfg.dataset.resolution,
+                    cfg.dataset.resolution,
+                )
             )
             data = dataloader.get_train_dataloder()
             for epoch in tqdm(range(1, epochs[current_depth] + 1), desc="Epoch loop at depth %d" % (current_depth + 1)):

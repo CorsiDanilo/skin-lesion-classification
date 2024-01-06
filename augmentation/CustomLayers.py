@@ -31,8 +31,10 @@ class Upscale2d(nn.Module):
             x = x * gain
         if factor != 1:
             shape = x.shape
-            x = x.view(shape[0], shape[1], shape[2], 1, shape[3], 1).expand(-1, -1, -1, factor, -1, factor)
-            x = x.contiguous().view(shape[0], shape[1], factor * shape[2], factor * shape[3])
+            x = x.view(shape[0], shape[1], shape[2], 1, shape[3],
+                       1).expand(-1, -1, -1, factor, -1, factor)
+            x = x.contiguous().view(
+                shape[0], shape[1], factor * shape[2], factor * shape[3])
         return x
 
     def __init__(self, factor=2, gain=1):
@@ -89,7 +91,8 @@ class EqualizedLinear(nn.Module):
         else:
             init_std = he_std / lrmul
             self.w_mul = lrmul
-        self.weight = torch.nn.Parameter(torch.randn(output_size, input_size) * init_std)
+        self.weight = torch.nn.Parameter(
+            torch.randn(output_size, input_size) * init_std)
         if bias:
             self.bias = torch.nn.Parameter(torch.zeros(output_size))
             self.b_mul = lrmul
@@ -117,7 +120,8 @@ class EqualizedConv2d(nn.Module):
             self.downscale = Downscale2d()
         else:
             self.downscale = None
-        he_std = gain * (input_channels * kernel_size ** 2) ** (-0.5)  # He init
+        he_std = gain * (input_channels * kernel_size **
+                         2) ** (-0.5)  # He init
         self.kernel_size = kernel_size
         if use_wscale:
             init_std = 1.0 / lrmul
@@ -147,8 +151,10 @@ class EqualizedConv2d(nn.Module):
             w = w.permute(1, 0, 2, 3)
             # probably applying a conv on w would be more efficient. also this quadruples the weight (average)?!
             w = F.pad(w, [1, 1, 1, 1])
-            w = w[:, :, 1:, 1:] + w[:, :, :-1, 1:] + w[:, :, 1:, :-1] + w[:, :, :-1, :-1]
-            x = F.conv_transpose2d(x, w, stride=2, padding=(w.size(-1) - 1) // 2)
+            w = w[:, :, 1:, 1:] + w[:, :, :-1, 1:] + \
+                w[:, :, 1:, :-1] + w[:, :, :-1, :-1]
+            x = F.conv_transpose2d(
+                x, w, stride=2, padding=(w.size(-1) - 1) // 2)
             have_convolution = True
         elif self.upscale is not None:
             x = self.upscale(x)
@@ -159,7 +165,8 @@ class EqualizedConv2d(nn.Module):
             w = self.weight * self.w_mul
             w = F.pad(w, [1, 1, 1, 1])
             # in contrast to upscale, this is a mean...
-            w = (w[:, :, 1:, 1:] + w[:, :, :-1, 1:] + w[:, :, 1:, :-1] + w[:, :, :-1, :-1]) * 0.25  # avg_pool?
+            w = (w[:, :, 1:, 1:] + w[:, :, :-1, 1:] +
+                 w[:, :, 1:, :-1] + w[:, :, :-1, :-1]) * 0.25  # avg_pool?
             x = F.conv2d(x, w, stride=2, padding=(w.size(-1) - 1) // 2)
             have_convolution = True
             downscale = None
@@ -170,7 +177,8 @@ class EqualizedConv2d(nn.Module):
         if not have_convolution and intermediate is None:
             return F.conv2d(x, self.weight * self.w_mul, bias, padding=self.kernel_size // 2)
         elif not have_convolution:
-            x = F.conv2d(x, self.weight * self.w_mul, None, padding=self.kernel_size // 2)
+            x = F.conv2d(x, self.weight * self.w_mul, None,
+                         padding=self.kernel_size // 2)
 
         if intermediate is not None:
             x = intermediate(x)
@@ -190,13 +198,40 @@ class NoiseLayer(nn.Module):
 
     def forward(self, x, noise=None):
         if noise is None and self.noise is None:
-            noise = torch.randn(x.size(0), 1, x.size(2), x.size(3), device=x.device, dtype=x.dtype)
+            noise = torch.randn(x.size(0), 1, x.size(
+                2), x.size(3), device=x.device, dtype=x.dtype)
         elif noise is None:
             # here is a little trick: if you get all the noise layers and set each
             # modules .noise attribute, you can have pre-defined noise.
             # Very useful for analysis
             noise = self.noise
         x = x + self.weight.view(1, -1, 1, 1) * noise
+        return x
+
+
+class AdaIN(nn.Module):
+    def __init__(self, latent_size, channels, use_wscale):
+        super(AdaIN, self).__init__()
+        self.lin = EqualizedLinear(latent_size,
+                                   channels * 2,
+                                   gain=1.0, use_wscale=use_wscale)
+
+    def forward(self, x, latent):
+        """
+        :param x: input feature map of the previous layer, shape => [batch_size, n_channels, height, width]
+        :latent: latent vector w, shape => [batch_size, latent_size]
+        """
+        style = self.lin(latent)  # style => [batch_size, n_channels*2]
+
+        shape = [-1, 2, x.size(1)] + (x.dim() - 2) * [1]
+        style = style.view(shape)  # [batch_size, 2, n_channels, ...]
+
+        # Normalize x along the spatial dimensions
+        x = x - x.mean([2, 3], keepdim=True)
+        x = x / torch.sqrt(x.var([2, 3], keepdim=True) + 1e-8)
+
+        # Apply scale and shift from style
+        x = x * style[:, 0] + style[:, 1]
         return x
 
 
@@ -235,7 +270,8 @@ class LayerEpilogue(nn.Module):
         self.top_epi = nn.Sequential(OrderedDict(layers))
 
         if use_styles:
-            self.style_mod = StyleMod(dlatent_size, channels, use_wscale=use_wscale)
+            self.style_mod = AdaIN(
+                dlatent_size, channels, use_wscale=use_wscale)
         else:
             self.style_mod = None
 
@@ -299,8 +335,10 @@ class StddevLayer(nn.Module):
         y = y - y.mean(0, keepdim=True)
         y = (y ** 2).mean(0, keepdim=True)
         y = (y + 1e-8) ** 0.5
-        y = y.mean([3, 4, 5], keepdim=True).squeeze(3)  # don't keep the meaned-out channels
-        y = y.expand(group_size, -1, -1, h, w).clone().reshape(b, self.num_new_features, h, w)
+        y = y.mean([3, 4, 5], keepdim=True).squeeze(
+            3)  # don't keep the meaned-out channels
+        y = y.expand(group_size, -1, -1, h, w).clone().reshape(b,
+                                                               self.num_new_features, h, w)
         z = torch.cat([x, y], dim=1)
         return z
 
@@ -314,10 +352,12 @@ class Truncation(nn.Module):
         self.register_buffer('avg_latent', avg_latent)
 
     def update(self, last_avg):
-        self.avg_latent.copy_(self.beta * self.avg_latent + (1. - self.beta) * last_avg)
+        self.avg_latent.copy_(
+            self.beta * self.avg_latent + (1. - self.beta) * last_avg)
 
     def forward(self, x):
         assert x.dim() == 3
         interp = torch.lerp(self.avg_latent, x, self.threshold)
-        do_trunc = (torch.arange(x.size(1)) < self.max_layer).view(1, -1, 1).to(x.device)
+        do_trunc = (torch.arange(x.size(1)) < self.max_layer).view(
+            1, -1, 1).to(x.device)
         return torch.where(do_trunc, interp, x)

@@ -26,10 +26,10 @@ cfg.checkpoint_factor = 10
 cfg.sched = CN()
 
 # example for {depth:9,resolution:1024}
-cfg.sched.epochs = [4, 4, 4, 4]
+cfg.sched.epochs = [4, 4, 4, 4, 4]
 # batches for oen 1080Ti with 11G memory
-cfg.sched.batch_sizes = [4, 4, 4, 4]
-cfg.sched.fade_in_percentage = [50, 50, 50, 50]
+cfg.sched.batch_sizes = [4, 4, 4, 4, 4]
+cfg.sched.fade_in_percentage = [50, 50, 50, 50,  50]
 
 # TODO
 # cfg.sched.G_lrate_dict = {128: 0.0015, 256: 0.002, 512: 0.003, 1024: 0.003}
@@ -41,7 +41,7 @@ cfg.sched.fade_in_percentage = [50, 50, 50, 50]
 cfg.dataset = CN()
 cfg.dataset.img_dir = ""
 cfg.dataset.folder = True
-cfg.dataset.resolution = 32
+cfg.dataset.resolution = 256
 cfg.dataset.channels = 3
 
 cfg.model = CN()

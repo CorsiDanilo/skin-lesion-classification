@@ -21,10 +21,30 @@ class InputBlock(nn.Module):
     We call it the InputBlock, the others GSynthesisBlock.
     (It might be nicer to do this the other way round,
     i.e. have the LayerEpilogue be the Layer and call the conv from that.)
+
+    :param nf: number of feature maps
+    :param dlatent_size: dimensionality of the disentangled latent (W)
+    :param const_input_layer: wheter to use a trainable constant input 
+    :param gain: original gain factor
+    :param use_wscale: whether to use the weight scaling
+    :param use_noise: whether to use noise input
+    :param use_pixel_norm: whether to use pixelwise normalization
+    :param use_instance_norm: whether to use instance normalization
+    :param use_styles: whether to use styles inputs
+    :param activation_layer: which activation layer to use
     """
 
-    def __init__(self, nf, dlatent_size, const_input_layer, gain,
-                 use_wscale, use_noise, use_pixel_norm, use_instance_norm, use_styles, activation_layer):
+    def __init__(self,
+                 nf: int,
+                 dlatent_size: int,
+                 const_input_layer: bool,
+                 gain: float,
+                 use_wscale: bool,
+                 use_noise: bool,
+                 use_pixel_norm: bool,
+                 use_instance_norm: bool,
+                 use_styles: bool,
+                 activation_layer: nn.Module):
         super().__init__()
         self.const_input_layer = const_input_layer
         self.nf = nf
@@ -37,7 +57,6 @@ class InputBlock(nn.Module):
             self.dense = EqualizedLinear(dlatent_size, nf * 16, gain=gain / 4,
                                          use_wscale=use_wscale)
             # tweak gain to match the official implementation of Progressing GAN
-
         self.epi1 = LayerEpilogue(nf, dlatent_size, use_wscale, use_noise, use_pixel_norm, use_instance_norm,
                                   use_styles, activation_layer)
         self.conv = EqualizedConv2d(
