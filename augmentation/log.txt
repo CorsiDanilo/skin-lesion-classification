@@ -1,0 +1,6 @@
+2024-01-06 18:27:57 INFO: Starting the training process ... 
+
+2024-01-06 18:27:57 INFO: Currently working on depth: 7
+2024-01-06 18:27:57 INFO: Current resolution: 256 x 256
+2024-01-06 18:27:57 INFO: Epoch: [1]
+2024-01-06 18:28:07 INFO: Elapsed: [0:00:10] Step: 1  Batch: 1  D_Loss: 0.924006  G_Loss: 0.100527

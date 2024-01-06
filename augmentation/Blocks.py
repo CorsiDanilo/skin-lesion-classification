@@ -2,8 +2,7 @@
 -------------------------------------------------
    File Name:    Blocks.py
    Date:         2019/10/17
-   Description:  Copy from: https://github.com/lernapparat/lernapparat
--------------------------------------------------
+   Description:  Copy from: https://github.com/lernapparat/lernapparat-------------------------------------------------
 """
 
 from collections import OrderedDict
@@ -69,11 +68,14 @@ class InputBlock(nn.Module):
 
         if self.const_input_layer:
             x = self.const.expand(batch_size, -1, -1, -1)
+            # X shape in InputBlock forward is torch.Size([1, 256, 4, 4])
             x = x + self.bias.view(1, -1, 1, 1)
         else:
             x = self.dense(dlatents_in_range[:, 0]).view(
                 batch_size, self.nf, 4, 4)
 
+        # d_latents_in_range shape is torch.Size([1, 2, 256])
+        # d_latents_in_range[:, 0] shape is torch.Size([1, 256])
         x = self.epi1(x, dlatents_in_range[:, 0])
         x = self.conv(x)
         x = self.epi2(x, dlatents_in_range[:, 1])

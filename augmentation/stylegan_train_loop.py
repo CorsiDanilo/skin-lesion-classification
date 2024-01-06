@@ -1,4 +1,4 @@
-from augmentation.StyleGAN import StyleGAN
+from augmentation.ModifiedStyleGAN import StyleGAN
 from augmentation.StyleGANPytorch.utils.logger import make_logger
 from config import BATCH_SIZE
 from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
@@ -24,8 +24,7 @@ def main():
                          drift=opt.drift,
                          d_repeats=opt.d_repeats,
                          use_ema=opt.use_ema,
-                         ema_decay=opt.ema_decay,
-                         device=select_device())
+                         ema_decay=opt.ema_decay)
     # # Resume training from checkpoints
     # if args.generator_file is not None:
     #     logger.info("Loading generator from: %s", args.generator_file)

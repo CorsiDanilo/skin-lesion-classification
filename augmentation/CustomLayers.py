@@ -221,6 +221,7 @@ class AdaIN(nn.Module):
         :param x: input feature map of the previous layer, shape => [batch_size, n_channels, height, width]
         :latent: latent vector w, shape => [batch_size, latent_size]
         """
+
         style = self.lin(latent)  # style => [batch_size, n_channels*2]
 
         shape = [-1, 2, x.size(1)] + (x.dim() - 2) * [1]
@@ -356,7 +357,7 @@ class Truncation(nn.Module):
             self.beta * self.avg_latent + (1. - self.beta) * last_avg)
 
     def forward(self, x):
-        assert x.dim() == 3
+        assert x.dim() == 3, f"Expected 3-dim tensor, got {x.dim()}"
         interp = torch.lerp(self.avg_latent, x, self.threshold)
         do_trunc = (torch.arange(x.size(1)) < self.max_layer).view(
             1, -1, 1).to(x.device)

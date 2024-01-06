@@ -12,7 +12,7 @@ def test_GMapping():
 
 
 def test_AdaIN():
-    adain = AdaIN(latent_size=512,
+    adain = AdaIN(latent_size=256,
                   channels=512,
                   use_wscale=True)
     w_vector = torch.randn((32, 512))

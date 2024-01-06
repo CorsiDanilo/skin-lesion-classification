@@ -7,9 +7,9 @@ cfg.device = 'cuda'
 cfg.device_id = '0'
 
 cfg.structure = 'fixed'
-cfg.conditional = True
+cfg.conditional = False
 cfg.n_classes = 7
-cfg.loss = "conditional-loss"
+cfg.loss = "standard-gan"
 cfg.drift = 0.001
 cfg.d_repeats = 1
 cfg.use_ema = True
@@ -26,10 +26,10 @@ cfg.checkpoint_factor = 10
 cfg.sched = CN()
 
 # example for {depth:9,resolution:1024}
-cfg.sched.epochs = [4, 4, 4, 4, 4]
+cfg.sched.epochs = [4, 4, 4, 4, 4, 4, 4, 4]
 # batches for oen 1080Ti with 11G memory
-cfg.sched.batch_sizes = [4, 4, 4, 4, 4]
-cfg.sched.fade_in_percentage = [50, 50, 50, 50,  50]
+cfg.sched.batch_sizes = [4, 4, 4, 4, 4, 4, 4, 4]
+cfg.sched.fade_in_percentage = [50, 50, 50, 50,  50, 50, 50, 50]
 
 # TODO
 # cfg.sched.G_lrate_dict = {128: 0.0015, 256: 0.002, 512: 0.003, 1024: 0.003}
@@ -49,7 +49,7 @@ cfg.model = CN()
 # Options for Generator
 # ---------------------------------------------------------------------------- #
 cfg.model.gen = CN()
-cfg.model.gen.latent_size = 512
+cfg.model.gen.latent_size = 256
 # 8 in original paper
 cfg.model.gen.mapping_layers = 4
 cfg.model.gen.blur_filter = [1, 2, 1]
