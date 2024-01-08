@@ -1,9 +1,7 @@
-from augmentation.ModifiedStyleGAN import StyleGAN
-from augmentation.StyleGANPytorch.utils.logger import make_logger
-from config import BATCH_SIZE
-from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
-from shared.constants import IMAGENET_STATISTICS
-from utils.utils import select_device
+import os
+import torch
+from augmentation.StyleGAN import StyleGAN
+from .gan_utils import make_logger
 from .gan_config import cfg as opt
 
 
@@ -16,24 +14,30 @@ def main():
                          resolution=opt.dataset.resolution,
                          num_channels=opt.dataset.channels,
                          latent_size=opt.model.gen.latent_size,
-                         g_args=opt.model.gen,
-                         d_args=opt.model.dis,
-                         g_opt_args=opt.model.g_optim,
-                         d_opt_args=opt.model.d_optim,
                          loss=opt.loss,
                          drift=opt.drift,
                          d_repeats=opt.d_repeats,
                          use_ema=opt.use_ema,
-                         ema_decay=opt.ema_decay)
-    # # Resume training from checkpoints
-    # if args.generator_file is not None:
-    #     logger.info("Loading generator from: %s", args.generator_file)
-    #     # style_gan.gen.load_state_dict(torch.load(args.generator_file))
-    #     # Load fewer layers of pre-trained models if possible
-    #     load(style_gan.gen, args.generator_file)
-    # else:
-    #     logger.info("Training from scratch...")
+                         ema_decay=opt.ema_decay,)
+    CHECKPOINT_GEN = os.path.join("checkpoints", "stylegan_ffhq_1024_gen.pth")
+    # Load the state dict from the checkpoint
+    # style_gan.gen.load_state_dict(torch.load(CHECKPOINT_GEN))
+    checkpoint_state_dict = torch.load(CHECKPOINT_GEN)
 
+    # Get the state dict of the current model
+    model_state_dict = style_gan.gen.state_dict()
+
+    # Filter out the keys in the checkpoint state dict that are not in the model state dict or have a different size
+    compatible_state_dict = {k: v for k, v in checkpoint_state_dict.items(
+    ) if k in model_state_dict and v.size() == model_state_dict[k].size()}
+
+    non_compatible_state_dict = {k: v for k, v in checkpoint_state_dict.items(
+    ) if k not in model_state_dict or v.size() != model_state_dict[k].size()}
+
+    print("Non compatible state dict keys: ", non_compatible_state_dict.keys())
+
+    # Load the compatible state dict into the model
+    style_gan.gen.load_state_dict(compatible_state_dict, strict=False)
     # if args.discriminator_file is not None:
     #     logger.info("Loading discriminator from: %s", args.discriminator_file)
     #     style_gan.dis.load_state_dict(torch.load(args.discriminator_file))
@@ -61,7 +65,7 @@ def main():
                     logger=logger,
                     output=opt.output_dir,
                     num_samples=opt.num_samples,
-                    start_depth=0,
+                    start_depth=2,
                     feedback_factor=opt.feedback_factor,
                     checkpoint_factor=opt.checkpoint_factor)
 

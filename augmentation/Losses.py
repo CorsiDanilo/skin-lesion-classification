@@ -125,23 +125,6 @@ class StandardGAN(GANLoss):
         # [Losses.StandardGAN] torch.squeeze(r_preds) shape is torch.Size([4])
         # [Losses.StandardGAN] torch.zeros(real_samps.shape[0]) shape is torch.Size([4])
 
-        print(f"[Losses.StandardGAN] fake_samps shape is {fake_samps.shape}")
-        print(
-            f"[Losses.StandardGAN] f_preds shape is {f_preds.shape}")
-        print(
-            f"[Losses.StandardGAN] torch.squeeze(f_preds) shape is {torch.squeeze(f_preds).shape}")
-        print(
-            f"[Losses.StandardGAN] torch.zeros(fake_samps.shape[0]) shape is {torch.zeros(fake_samps.shape[0]).shape}")
-
-        print("---------------------------------")
-
-        print(f"[Losses.StandardGAN] real_samps shape is {real_samps.shape}")
-        print(
-            f"[Losses.StandardGAN] r_preds shape is {r_preds.shape}")
-        print(
-            f"[Losses.StandardGAN] torch.squeeze(r_preds) shape is {torch.squeeze(r_preds).shape}")
-        print(
-            f"[Losses.StandardGAN] torch.zeros(real_samps.shape[0]) shape is {torch.zeros(real_samps.shape[0]).shape}")
         # calculate the real loss:
         real_loss = self.criterion(
             torch.squeeze(r_preds),
@@ -158,8 +141,6 @@ class StandardGAN(GANLoss):
     def gen_loss(self, _, fake_samps, height, alpha):
         dis_output = self.dis(fake_samps, height, alpha)
         dis_output = dis_output.unsqueeze(-1)
-        print(f"Dis output is {dis_output} with shape {dis_output.shape}")
-        print(f"[Losses.StandardGAN] dis_output shape is {dis_output.shape}")
         # preds, _, _ = dis_output
         preds = dis_output
         return self.criterion(torch.squeeze(preds),

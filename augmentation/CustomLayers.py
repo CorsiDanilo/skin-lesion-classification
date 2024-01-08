@@ -209,31 +209,33 @@ class NoiseLayer(nn.Module):
         return x
 
 
-class AdaIN(nn.Module):
-    def __init__(self, latent_size, channels, use_wscale):
-        super(AdaIN, self).__init__()
-        self.lin = EqualizedLinear(latent_size,
-                                   channels * 2,
-                                   gain=1.0, use_wscale=use_wscale)
+# class AdaIN(nn.Module):
+#     def __init__(self, latent_size, channels, use_wscale):
+#         super(AdaIN, self).__init__()
+#         latent_size = 256
+#         self.lin = EqualizedLinear(latent_size,
+#                                    channels * 2,
+#                                    gain=1.0, use_wscale=use_wscale)
 
-    def forward(self, x, latent):
-        """
-        :param x: input feature map of the previous layer, shape => [batch_size, n_channels, height, width]
-        :latent: latent vector w, shape => [batch_size, latent_size]
-        """
+#     def forward(self, x, latent):
+#         """
+#         :param x: input feature map of the previous layer, shape => [batch_size, n_channels, height, width]
+#         :latent: latent vector w, shape => [batch_size, latent_size]
+#         """
+#         print(f"Inside AdaIN: x.shape: {x.shape}")
+#         print(f"Inside AdaIN: latent.shape: {latent.shape}")
+#         style = self.lin(latent)  # style => [batch_size, n_channels*2]
 
-        style = self.lin(latent)  # style => [batch_size, n_channels*2]
+#         shape = [-1, 2, x.size(1)] + (x.dim() - 2) * [1]
+#         style = style.view(shape)  # [batch_size, 2, n_channels, ...]
 
-        shape = [-1, 2, x.size(1)] + (x.dim() - 2) * [1]
-        style = style.view(shape)  # [batch_size, 2, n_channels, ...]
+#         # Normalize x along the spatial dimensions
+#         x = x - x.mean([2, 3], keepdim=True)
+#         x = x / torch.sqrt(x.var([2, 3], keepdim=True) + 1e-8)
 
-        # Normalize x along the spatial dimensions
-        x = x - x.mean([2, 3], keepdim=True)
-        x = x / torch.sqrt(x.var([2, 3], keepdim=True) + 1e-8)
-
-        # Apply scale and shift from style
-        x = x * style[:, 0] + style[:, 1]
-        return x
+#         # Apply scale and shift from style
+#         x = x * style[:, 0] + style[:, 1]
+#         return x
 
 
 class StyleMod(nn.Module):
@@ -271,7 +273,7 @@ class LayerEpilogue(nn.Module):
         self.top_epi = nn.Sequential(OrderedDict(layers))
 
         if use_styles:
-            self.style_mod = AdaIN(
+            self.style_mod = StyleMod(
                 dlatent_size, channels, use_wscale=use_wscale)
         else:
             self.style_mod = None
@@ -323,7 +325,7 @@ class View(nn.Module):
 
 
 class StddevLayer(nn.Module):
-    def __init__(self, group_size=4, num_new_features=1):
+    def __init__(self, group_size=2, num_new_features=1):
         super().__init__()
         self.group_size = group_size
         self.num_new_features = num_new_features
@@ -331,6 +333,7 @@ class StddevLayer(nn.Module):
     def forward(self, x):
         b, c, h, w = x.shape
         group_size = min(self.group_size, b)
+        group_size = 2  # TODO: hardcoded
         y = x.reshape([group_size, -1, self.num_new_features,
                        c // self.num_new_features, h, w])
         y = y - y.mean(0, keepdim=True)
@@ -359,6 +362,7 @@ class Truncation(nn.Module):
     def forward(self, x):
         assert x.dim() == 3, f"Expected 3-dim tensor, got {x.dim()}"
         interp = torch.lerp(self.avg_latent, x, self.threshold)
+
         do_trunc = (torch.arange(x.size(1)) < self.max_layer).view(
             1, -1, 1).to(x.device)
         return torch.where(do_trunc, interp, x)

@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from augmentation.CustomLayers import AdaIN, LayerEpilogue, StyleMod
-from augmentation.ModifiedStyleGAN import GMapping
+from augmentation.StyleGAN import GMapping
 
 
 def test_GMapping():
