@@ -90,13 +90,14 @@ class GMapping(nn.Module):
 
     def forward(self, x):
         # First input: Latent vectors (Z) [mini_batch, latent_size].
+        x = x.view(-1, self.dlatent_size)
         x = self.map(x)
-
+        x = x.view(-1, self.dlatent_broadcast, self.dlatent_size)
         # print(f"x shape after g mapping is {x.shape}")
 
         # Broadcast -> batch_size * dlatent_broadcast * dlatent_size
-        if self.dlatent_broadcast is not None:
-            x = x.unsqueeze(1).expand(-1, self.dlatent_broadcast, -1)
+        # if self.dlatent_broadcast is not None:
+        #     x = x.unsqueeze(1).expand(-1, self.dlatent_broadcast, -1)
         return x
 
 
@@ -270,10 +271,12 @@ class Generator(nn.Module):
         # Setup components.
 
         self.num_layers = (int(np.log2(resolution)) - 1) * 2
+
+        print(f"Number of layers are {self.num_layers}")
         self.g_mapping = GMapping(
             latent_size,
             dlatent_size,
-            # dlatent_broadcast=self.num_layers
+            dlatent_broadcast=self.num_layers
         )
 
         self.g_synthesis = GSynthesis(
@@ -315,7 +318,7 @@ class Generator(nn.Module):
             latents_in = torch.cat([latents_in, embedding], 1)
 
         dlatents_in = self.g_mapping(latents_in)
-        assert dlatents_in.shape == latents_in.shape
+        # assert dlatents_in.shape == latents_in.shape
         # print(f"Latents in shape is {latents_in.shape}")
         if self.training:
             # Update moving average of W(dlatent).
@@ -339,8 +342,8 @@ class Generator(nn.Module):
             # Apply truncation trick.
             if self.truncation is not None:
                 # print(f"dlatents_in shape is {dlatents_in.shape}")
-                if dlatents_in.dim() == 2:
-                    dlatents_in = dlatents_in.unsqueeze(0)
+                # if dlatents_in.dim() == 2:
+                #     dlatents_in = dlatents_in.unsqueeze(0)
                 dlatents_in = self.truncation(dlatents_in)
 
         fake_images = self.g_synthesis(dlatents_in, depth, alpha)
@@ -511,7 +514,7 @@ class Resnet50Styles(nn.Module):
             param.requires_grad = False
         # Global Average Pooling is obtained by AdaptiveAvgPool2d with output size = 1
         self.gap = nn.AdaptiveAvgPool2d((1, 1))
-        self.latent_size = 512  # styles would be 2 * latent_size
+        self.latent_size = 256  # styles would be 2 * latent_size
         self.linear64 = nn.Linear(256, self.latent_size)
         self.linear16 = nn.Linear(1024, self.latent_size)
         self.linear8 = nn.Linear(2048, self.latent_size)
@@ -548,6 +551,7 @@ class Resnet50Styles(nn.Module):
         x4 = x4.view(-1, 1, self.latent_size)
 
         ratio = [2, 2, 3]
+        # ratio = [1, 2, 2]
         x1 = x1.repeat(1, ratio[0], 1)
         x3 = x3.repeat(1, ratio[1], 1)
         x4 = x4.repeat(1, ratio[2], 1)
@@ -650,6 +654,10 @@ class StyleGAN:
 
         # TODO: review this
         # Total = 101
+        # for param in self.gen.parameters():
+        #     param.requires_grad = False
+        # for param in self.dis.parameters():
+        #     param.requires_grad = False
         # gen_freeze_point = 50
         # for i, (name, param) in enumerate(self.gen.named_parameters()):
         #     # if name.startswith('g_mapping'):
@@ -928,31 +936,48 @@ class StyleGAN:
 
                     images = images.to(self.device)
 
-                    # extract the desired features from resnet
-                    first_image = images[0].unsqueeze(0)
-                    second_image = images[1].unsqueeze(0)
-                    self.resnet_style_1 = self.resnet50(first_image)
-                    # TODO: first_image and second_image need to be from the same class
-                    self.resnet_style_2 = self.resnet50(second_image)
-                    # TODO: make this trainable
-                    self.random_style = torch.randn(
-                        1, 4, self.resnet50.latent_size).to(self.device)
+                    styles = []
+                    for image in images:
+                        image = image.unsqueeze(0)
+                        style_1 = self.resnet50(image)
+                        # style_2 = self.resnet50(image)
+                        style_3 = torch.randn(
+                            1, 4, self.resnet50.latent_size).to(self.device)
+                        styles.append(
+                            torch.cat([style_1, style_1, style_3], dim=1))
+                    styles = torch.cat(styles, dim=0)
 
-                    assert self.resnet_style_1.shape == (
-                        1, 7, self.resnet50.latent_size), f"Resnet style 1 is not of shape (7, 256), but {self.resnet_style_1.shape}"
-                    assert self.resnet_style_2.shape == (
-                        1, 7, self.resnet50.latent_size), f"Resnet style 2 is not of shape (7, 256), but {self.resnet_style_2.shape}"
+                    # print(f"Styles shape is {styles.shape}")
+                    # raise Exception("Stop here")
+                    # self.resnet_style_1 = self.resnet50(first_image)
+                    # # TODO: first_image and second_image need to be from the same class
+                    # self.resnet_style_2 = self.resnet50(second_image)
+                    # # TODO: make this trainable
+                    # self.random_style = torch.randn(
+                    #     1, 4, self.resnet50.latent_size).to(self.device)
+
+                    # assert self.resnet_style_1.shape == (
+                    #     1, 7, self.resnet50.latent_size), f"Resnet style 1 is not of shape (7, 256), but {self.resnet_style_1.shape}"
+                    # assert self.resnet_style_2.shape == (
+                    #     1, 7, self.resnet50.latent_size), f"Resnet style 2 is not of shape (7, 256), but {self.resnet_style_2.shape}"
 
                     # gan_input shape: torch.Size([1, 18, 256])
                     # og gan_input shape: torch.Size([4, 512])
 
-                    # _og_gan_input = torch.randn(
+                    # gan_input = torch.randn(
                     #     images.shape[0], self.latent_size).to(self.device)
 
-                    gan_input = torch.cat(
-                        [self.resnet_style_1, self.resnet_style_2, self.random_style], dim=1)
+                    # resnet_styles = torch.cat(
+                    #     [self.resnet_style_1, self.resnet_style_2, self.random_style], dim=1)
 
-                    gan_input = gan_input.repeat(images.shape[0], 1, 1)
+                    # gan_input = resnet_styles.view(-1, self.latent_size)
+                    # gan_input = gan_input.repeat(images.shape[0], 1, 1)
+                    print(f"style shape is {styles.shape}")
+                    gan_input = styles.view(-1, self.latent_size)
+
+                    # print(f"Resnet style shape is {resnet_styles.shape}")
+                    # print(f"Gan input shape is {gan_input.shape}")
+
                     # optimize the discriminator:
                     dis_loss = self.optimize_discriminator(
                         gan_input, images, current_depth, alpha, labels)

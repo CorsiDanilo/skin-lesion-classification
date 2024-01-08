@@ -333,7 +333,6 @@ class StddevLayer(nn.Module):
     def forward(self, x):
         b, c, h, w = x.shape
         group_size = min(self.group_size, b)
-        group_size = 2  # TODO: hardcoded
         y = x.reshape([group_size, -1, self.num_new_features,
                        c // self.num_new_features, h, w])
         y = y - y.mean(0, keepdim=True)

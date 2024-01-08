@@ -14,3 +14,5 @@ results/*
 !**.gitkeep
 augmentation/models/*
 augmentation/StyleGANPytorch/*
+augmentation/samples/**
+**/checkpoints/**
