@@ -808,16 +808,10 @@ class StyleGAN:
         fixed_data = fixed_dataloader.get_train_dataloder()
         batch = next(iter(fixed_data))
         images, _, _ = batch
-        styles = []
-        for image in images:
-            image = image.unsqueeze(0)
-            style_1 = self.resnet50(image)
-            # style_2 = self.resnet50(image)
-            style_3 = torch.randn(
-                1, 4, self.resnet50.latent_size).to(self.device)
-            styles.append(
-                torch.cat([style_1, style_1, style_3], dim=1))
-        styles = torch.cat(styles, dim=0)
+        styles = self.resnet50(images)
+        random_styles = torch.randn(
+            images.shape[0], 4, self.resnet50.latent_size).to(self.device)
+        styles = torch.cat([styles, styles, random_styles], dim=1)
         fixed_input = styles.view(-1, self.latent_size)
 
         fixed_labels = None
@@ -877,17 +871,10 @@ class StyleGAN:
 
                     images = images.to(self.device)
 
-                    styles = []
-                    for image in images:
-                        image = image.unsqueeze(0)
-                        style_1 = self.resnet50(image)
-                        # style_2 = self.resnet50(image)
-                        style_3 = torch.randn(
-                            1, 4, self.resnet50.latent_size).to(self.device)
-                        styles.append(
-                            torch.cat([style_1, style_1, style_3], dim=1))
-                    styles = torch.cat(styles, dim=0)
-
+                    styles = self.resnet50(images)
+                    random_styles = torch.randn(
+                        images.shape[0], 4, self.resnet50.latent_size).to(self.device)
+                    styles = torch.cat([styles, styles, random_styles], dim=1)
                     gan_input = styles.view(-1, self.latent_size)
                     # gan_input = torch.randn(
                     #     images.shape[0], self.latent_size).to(self.device)
