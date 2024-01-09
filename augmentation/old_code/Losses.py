@@ -17,6 +17,7 @@ from torch.nn import BCEWithLogitsLoss
 # Interface for the losses
 # =============================================================
 
+
 class GANLoss:
     """ Base class for all losses
 
@@ -114,6 +115,16 @@ class StandardGAN(GANLoss):
         r_preds = self.dis(real_samps, height, alpha)
         f_preds = self.dis(fake_samps, height, alpha)
 
+        # [Losses.StandardGAN] fake_samps shape is torch.Size([4, 3, 256, 256])
+        # [Losses.StandardGAN] f_preds shape is torch.Size([4, 1])
+        # [Losses.StandardGAN] torch.squeeze(f_preds) shape is torch.Size([4])
+        # [Losses.StandardGAN] torch.zeros(fake_samps.shape[0]) shape is torch.Size([4])
+        # ---------------------------------
+        # [Losses.StandardGAN] real_samps shape is torch.Size([4, 3, 256, 256])
+        # [Losses.StandardGAN] r_preds shape is torch.Size([4, 1])
+        # [Losses.StandardGAN] torch.squeeze(r_preds) shape is torch.Size([4])
+        # [Losses.StandardGAN] torch.zeros(real_samps.shape[0]) shape is torch.Size([4])
+
         # calculate the real loss:
         real_loss = self.criterion(
             torch.squeeze(r_preds),
@@ -128,7 +139,10 @@ class StandardGAN(GANLoss):
         return (real_loss + fake_loss) / 2
 
     def gen_loss(self, _, fake_samps, height, alpha):
-        preds, _, _ = self.dis(fake_samps, height, alpha)
+        dis_output = self.dis(fake_samps, height, alpha)
+        dis_output = dis_output.unsqueeze(-1)
+        # preds, _, _ = dis_output
+        preds = dis_output
         return self.criterion(torch.squeeze(preds),
                               torch.ones(fake_samps.shape[0]).to(fake_samps.device))
 
@@ -197,14 +211,17 @@ class LogisticGAN(GANLoss):
     def R1Penalty(self, real_img, height, alpha):
 
         # TODO: use_loss_scaling, for fp16
-        apply_loss_scaling = lambda x: x * torch.exp(x * torch.Tensor([np.float32(np.log(2.0))]).to(real_img.device))
-        undo_loss_scaling = lambda x: x * torch.exp(-x * torch.Tensor([np.float32(np.log(2.0))]).to(real_img.device))
+        def apply_loss_scaling(x): return x * torch.exp(x *
+                                                        torch.Tensor([np.float32(np.log(2.0))]).to(real_img.device))
+        def undo_loss_scaling(x): return x * torch.exp(-x *
+                                                       torch.Tensor([np.float32(np.log(2.0))]).to(real_img.device))
 
         real_img = torch.autograd.Variable(real_img, requires_grad=True)
         real_logit = self.dis(real_img, height, alpha)
         # real_logit = apply_loss_scaling(torch.sum(real_logit))
         real_grads = torch.autograd.grad(outputs=real_logit, inputs=real_img,
-                                         grad_outputs=torch.ones(real_logit.size()).to(real_img.device),
+                                         grad_outputs=torch.ones(
+                                             real_logit.size()).to(real_img.device),
                                          create_graph=True, retain_graph=True)[0].view(real_img.size(0), -1)
         # real_grads = undo_loss_scaling(real_grads)
         r1_penalty = torch.sum(torch.mul(real_grads, real_grads))
@@ -215,10 +232,12 @@ class LogisticGAN(GANLoss):
         r_preds = self.dis(real_samps, height, alpha)
         f_preds = self.dis(fake_samps, height, alpha)
 
-        loss = torch.mean(nn.Softplus()(f_preds)) + torch.mean(nn.Softplus()(-r_preds))
+        loss = torch.mean(nn.Softplus()(f_preds)) + \
+            torch.mean(nn.Softplus()(-r_preds))
 
         if r1_gamma != 0.0:
-            r1_penalty = self.R1Penalty(real_samps.detach(), height, alpha) * (r1_gamma * 0.5)
+            r1_penalty = self.R1Penalty(
+                real_samps.detach(), height, alpha) * (r1_gamma * 0.5)
             loss += r1_penalty
 
         return loss
