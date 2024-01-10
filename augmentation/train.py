@@ -73,7 +73,7 @@ def main():
                     logger=logger,
                     output=opt.output_dir,
                     num_samples=opt.num_samples,
-                    start_depth=6,
+                    start_depth=4,
                     feedback_factor=opt.feedback_factor,
                     checkpoint_factor=opt.checkpoint_factor)
 

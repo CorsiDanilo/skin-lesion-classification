@@ -8,6 +8,7 @@
 -------------------------------------------------
 """
 
+from torchvision.models import vgg16, VGG16_Weights
 import numpy as np
 import torch
 import torch.nn as nn
@@ -16,6 +17,7 @@ from torch.nn import BCEWithLogitsLoss
 # =============================================================
 # Interface for the losses
 # =============================================================
+
 
 class GANLoss:
     """ Base class for all losses
@@ -197,14 +199,17 @@ class LogisticGAN(GANLoss):
     def R1Penalty(self, real_img, height, alpha):
 
         # TODO: use_loss_scaling, for fp16
-        apply_loss_scaling = lambda x: x * torch.exp(x * torch.Tensor([np.float32(np.log(2.0))]).to(real_img.device))
-        undo_loss_scaling = lambda x: x * torch.exp(-x * torch.Tensor([np.float32(np.log(2.0))]).to(real_img.device))
+        def apply_loss_scaling(x): return x * torch.exp(x *
+                                                        torch.Tensor([np.float32(np.log(2.0))]).to(real_img.device))
+        def undo_loss_scaling(x): return x * torch.exp(-x *
+                                                       torch.Tensor([np.float32(np.log(2.0))]).to(real_img.device))
 
         real_img = torch.autograd.Variable(real_img, requires_grad=True)
         real_logit = self.dis(real_img, height, alpha)
         # real_logit = apply_loss_scaling(torch.sum(real_logit))
         real_grads = torch.autograd.grad(outputs=real_logit, inputs=real_img,
-                                         grad_outputs=torch.ones(real_logit.size()).to(real_img.device),
+                                         grad_outputs=torch.ones(
+                                             real_logit.size()).to(real_img.device),
                                          create_graph=True, retain_graph=True)[0].view(real_img.size(0), -1)
         # real_grads = undo_loss_scaling(real_grads)
         r1_penalty = torch.sum(torch.mul(real_grads, real_grads))
@@ -215,10 +220,12 @@ class LogisticGAN(GANLoss):
         r_preds = self.dis(real_samps, height, alpha)
         f_preds = self.dis(fake_samps, height, alpha)
 
-        loss = torch.mean(nn.Softplus()(f_preds)) + torch.mean(nn.Softplus()(-r_preds))
+        loss = torch.mean(nn.Softplus()(f_preds)) + \
+            torch.mean(nn.Softplus()(-r_preds))
 
         if r1_gamma != 0.0:
-            r1_penalty = self.R1Penalty(real_samps.detach(), height, alpha) * (r1_gamma * 0.5)
+            r1_penalty = self.R1Penalty(
+                real_samps.detach(), height, alpha) * (r1_gamma * 0.5)
             loss += r1_penalty
 
         return loss
@@ -227,3 +234,58 @@ class LogisticGAN(GANLoss):
         f_preds = self.dis(fake_samps, height, alpha)
 
         return torch.mean(nn.Softplus()(-f_preds))
+
+
+# =============================================================
+# Losses for Images2StyleGan
+# =============================================================
+
+
+class VGG16PerceptualLoss(nn.Module):
+    def __init__(self, requires_grad=False):
+        super(VGG16PerceptualLoss, self).__init__()
+        vgg_pretrained_features = vgg16(weights=VGG16_Weights.DEFAULT).features
+        self.MSE_loss = nn.MSELoss(reduction="mean")
+        self.slice1 = torch.nn.Sequential()
+        self.slice2 = torch.nn.Sequential()
+        self.slice3 = torch.nn.Sequential()
+        self.slice4 = torch.nn.Sequential()
+        for x in range(2):
+            self.slice1.add_module(str(x), vgg_pretrained_features[x])
+        for x in range(2, 4):
+            self.slice2.add_module(str(x), vgg_pretrained_features[x])
+        for x in range(4, 14):
+            self.slice3.add_module(str(x), vgg_pretrained_features[x])
+        for x in range(14, 21):
+            self.slice4.add_module(str(x), vgg_pretrained_features[x])
+        if not requires_grad:
+            for param in self.parameters():
+                param.requires_grad = False
+
+    def forward(self, X):
+        h = self.slice1(X)
+        h_relu1_1 = h
+        h = self.slice2(h)
+        h_relu1_2 = h
+        h = self.slice3(h)
+        h_relu3_2 = h
+        h = self.slice4(h)
+        h_relu4_2 = h
+        return h_relu1_1, h_relu1_2, h_relu3_2, h_relu4_2
+
+    def loss_function(self, syn_img, img, img_p, upsample):
+        # UpSample synthesized image to match the input size of VGG-16 input.
+        # Extract mid level features for real and synthesized image and find the MSE loss between them for perceptual loss.
+        # Find MSE loss between the real and synthesized images of actual size
+        syn_img_p = upsample(syn_img)
+        syn0, syn1, syn2, syn3 = self.forward(syn_img_p)
+        r0, r1, r2, r3 = self.forward(img_p)
+        mse = self.MSE_loss(syn_img, img)
+
+        per_loss = 0
+        per_loss += self.MSE_loss(syn0, r0)
+        per_loss += self.MSE_loss(syn1, r1)
+        per_loss += self.MSE_loss(syn2, r2)
+        per_loss += self.MSE_loss(syn3, r3)
+
+        return mse, per_loss

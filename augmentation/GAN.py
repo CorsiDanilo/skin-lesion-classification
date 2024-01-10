@@ -40,8 +40,8 @@ from .CustomLayers import (EqualizedConv2d, EqualizedLinear,
 
 class GMapping(nn.Module):
 
-    def __init__(self, latent_size=256, dlatent_size=256, dlatent_broadcast=None,
-                 mapping_layers=8, mapping_fmaps=256, mapping_lrmul=0.01, mapping_nonlinearity='lrelu',
+    def __init__(self, latent_size=512, dlatent_size=512, dlatent_broadcast=None,
+                 mapping_layers=8, mapping_fmaps=512, mapping_lrmul=0.01, mapping_nonlinearity='lrelu',
                  use_wscale=True, normalize_latents=True, **kwargs):
         """
         Mapping network used in the StyleGAN paper.
@@ -97,18 +97,18 @@ class GMapping(nn.Module):
     def forward(self, x):
         # First input: Latent vectors (Z) [mini_batch, latent_size].
         x = self.map(x)
-        x = x.view(-1, self.dlatent_broadcast, 256)  # hardcoded
+        # x = x.view(-1, self.dlatent_broadcast, 256)  # hardcoded
 
         # Broadcast -> batch_size * dlatent_broadcast * dlatent_size
-        # if self.dlatent_broadcast is not None:
-        #     x = x.unsqueeze(1).expand(-1, self.dlatent_broadcast, -1)
+        if self.dlatent_broadcast is not None:
+            x = x.unsqueeze(1).expand(-1, self.dlatent_broadcast, -1)
         return x
 
 
 class GSynthesis(nn.Module):
 
-    def __init__(self, dlatent_size=256, num_channels=3, resolution=1024,
-                 fmap_base=8192, fmap_decay=1.0, fmap_max=256,
+    def __init__(self, dlatent_size=512, num_channels=3, resolution=1024,
+                 fmap_base=8192, fmap_decay=1.0, fmap_max=512,
                  use_styles=True, const_input_layer=True, use_noise=True, nonlinearity='lrelu',
                  use_wscale=True, use_pixel_norm=False, use_instance_norm=True, blur_filter=None,
                  structure='linear', **kwargs):
@@ -218,7 +218,7 @@ class GSynthesis(nn.Module):
 
 class Generator(nn.Module):
 
-    def __init__(self, resolution, latent_size=256, dlatent_size=256,
+    def __init__(self, resolution, latent_size=512, dlatent_size=512,
                  conditional=False, n_classes=0, truncation_psi=0.7,
                  truncation_cutoff=8, dlatent_avg_beta=0.995,
                  style_mixing_prob=0.9, **kwargs):
@@ -260,6 +260,26 @@ class Generator(nn.Module):
         else:
             self.truncation = None
 
+    def load_checkpoints(self, checkpoint_path):
+        # Load the state dict from the checkpoint
+        checkpoint_state_dict = torch.load(checkpoint_path)
+
+        # Get the state dict of the current model
+        model_state_dict = self.state_dict()
+
+        # Filter out the keys in the checkpoint state dict that are not in the model state dict or have a different size
+        compatible_state_dict = {k: v for k, v in checkpoint_state_dict.items(
+        ) if k in model_state_dict and v.size() == model_state_dict[k].size()}
+
+        non_compatible_state_dict = {k: v for k, v in checkpoint_state_dict.items(
+        ) if k not in model_state_dict or v.size() != model_state_dict[k].size()}
+
+        print("Non compatible state dict keys: ",
+              non_compatible_state_dict.keys())
+
+        # Load the compatible state dict into the model
+        self.load_state_dict(compatible_state_dict, strict=False)
+
     def forward(self, latents_in, depth, alpha, labels_in=None):
         """
         :param latents_in: First input: Latent vectors (Z) [mini_batch, latent_size].
@@ -287,16 +307,16 @@ class Generator(nn.Module):
                 self.truncation.update(dlatents_in[0, 0].detach())
 
             # Perform style mixing regularization.
-            if self.style_mixing_prob is not None and self.style_mixing_prob > 0:
-                latents2 = torch.randn(latents_in.shape).to(latents_in.device)
-                dlatents2 = self.g_mapping(latents2)
-                layer_idx = torch.from_numpy(np.arange(self.num_layers)[np.newaxis, :, np.newaxis]).to(
-                    latents_in.device)
-                cur_layers = 2 * (depth + 1)
-                mixing_cutoff = random.randint(1,
-                                               cur_layers) if random.random() < self.style_mixing_prob else cur_layers
-                dlatents_in = torch.where(
-                    layer_idx < mixing_cutoff, dlatents_in, dlatents2)
+            # if self.style_mixing_prob is not None and self.style_mixing_prob > 0:
+            #     latents2 = torch.randn(latents_in.shape).to(latents_in.device)
+            #     dlatents2 = self.g_mapping(latents2)
+            #     layer_idx = torch.from_numpy(np.arange(self.num_layers)[np.newaxis, :, np.newaxis]).to(
+            #         latents_in.device)
+            #     cur_layers = 2 * (depth + 1)
+            #     mixing_cutoff = random.randint(1,
+            #                                    cur_layers) if random.random() < self.style_mixing_prob else cur_layers
+            #     dlatents_in = torch.where(
+            #         layer_idx < mixing_cutoff, dlatents_in, dlatents2)
 
             # Apply truncation trick.
             if self.truncation is not None:
@@ -310,7 +330,7 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
 
     def __init__(self, resolution, num_channels=3, conditional=False,
-                 n_classes=0, fmap_base=8192, fmap_decay=1.0, fmap_max=256,
+                 n_classes=0, fmap_base=8192, fmap_decay=1.0, fmap_max=512,
                  nonlinearity='lrelu', use_wscale=True, mbstd_group_size=4,
                  mbstd_num_features=1, blur_filter=None, structure='linear',
                  **kwargs):
@@ -462,7 +482,7 @@ class Resnet50Styles(nn.Module):
             param.requires_grad = False
         # Global Average Pooling is obtained by AdaptiveAvgPool2d with output size = 1
         self.gap = nn.AdaptiveAvgPool2d((1, 1))
-        self.latent_size = 256  # styles would be 2 * latent_size
+        self.latent_size = 512  # styles would be 2 * latent_size
         self.linear64 = nn.Linear(256, self.latent_size)
         self.linear16 = nn.Linear(1024, self.latent_size)
         self.linear8 = nn.Linear(2048, self.latent_size)
@@ -498,14 +518,22 @@ class Resnet50Styles(nn.Module):
         x3 = x3.view(-1, 1, self.latent_size)
         x4 = x4.view(-1, 1, self.latent_size)
 
-        # ratio = [2, 2, 3]
-        ratio = [1, 2, 2]
+        ratio = [2, 2, 3]
+        # ratio = [1, 2, 2]
         x1 = x1.repeat(1, ratio[0], 1)
         x3 = x3.repeat(1, ratio[1], 1)
         x4 = x4.repeat(1, ratio[2], 1)
 
-        # return torch.cat([x1, x3, x4], dim=1)
-        return torch.cat([x4, x3, x1], dim=1)
+        # x1 = x1.view(-1, self.latent_size)
+        # x3 = x3.view(-1, self.latent_size)
+        # x4 = x4.view(-1, self.latent_size)
+
+        # avg_weights = [2, 2, 3]
+        # result = x1 * avg_weights[0] + x3 * \
+        #     avg_weights[1] + x4 * avg_weights[2]
+
+        # return result
+        return torch.cat([x1, x3, x4], dim=1)
 
 
 class StyleGAN:
@@ -808,12 +836,14 @@ class StyleGAN:
         fixed_data = fixed_dataloader.get_train_dataloder()
         batch = next(iter(fixed_data))
         images, _, _ = batch
+
         styles = self.resnet50(images)
         random_styles = torch.randn(
             images.shape[0], 4, self.resnet50.latent_size).to(self.device)
-        styles = torch.cat([styles, styles, random_styles], dim=1)
-        fixed_input = styles.view(-1, self.latent_size)
 
+        # fixed_input = torch.mean(
+        #     torch.stack([styles, styles, random_styles]), dim=0)
+        fixed_input = torch.cat([styles, styles, random_styles], dim=1)
         fixed_labels = None
         if self.conditional:
             fixed_labels = torch.linspace(
@@ -871,13 +901,15 @@ class StyleGAN:
 
                     images = images.to(self.device)
 
-                    styles = self.resnet50(images)
-                    random_styles = torch.randn(
-                        images.shape[0], 4, self.resnet50.latent_size).to(self.device)
-                    styles = torch.cat([styles, styles, random_styles], dim=1)
-                    gan_input = styles.view(-1, self.latent_size)
-                    # gan_input = torch.randn(
-                    #     images.shape[0], self.latent_size).to(self.device)
+                    # styles = self.resnet50(images)
+                    # random_styles = torch.randn(
+                    #     images.shape[0], 4, self.resnet50.latent_size).to(self.device)
+
+                    # gan_input = torch.cat(
+                    #     [styles, styles, random_styles], dim=1)
+
+                    gan_input = torch.randn(
+                        images.shape[0], self.latent_size).to(self.device)
 
                     # optimize the discriminator:
                     dis_loss = self.optimize_discriminator(

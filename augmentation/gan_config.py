@@ -7,6 +7,7 @@
 -------------------------------------------------
 """
 
+import os
 from yacs.config import CfgNode as CN
 
 cfg = CN()
@@ -15,7 +16,7 @@ cfg.output_dir = ''
 cfg.device = 'cuda'
 cfg.device_id = '0'
 
-cfg.structure = 'fixed'
+cfg.structure = 'linear'
 cfg.conditional = False
 cfg.n_classes = 0
 cfg.loss = "logistic"
@@ -26,7 +27,7 @@ cfg.ema_decay = 0.999
 
 cfg.num_works = 4
 cfg.num_samples = 36
-cfg.feedback_factor = 100
+cfg.feedback_factor = 30
 cfg.checkpoint_factor = 10
 
 # ---------------------------------------------------------------------------- #
@@ -38,7 +39,7 @@ cfg.sched = CN()
 # res --> [4,8,16,32,64,128,256,512,1024]
 cfg.sched.epochs = [4, 4, 4, 4, 8, 16, 32, 64, 64]
 # batches for oen 1080Ti with 11G memory
-cfg.sched.batch_sizes = [128, 128, 128, 64, 32, 16, 2, 4, 2]
+cfg.sched.batch_sizes = [128, 128, 64, 16, 8, 8, 2, 4, 2]
 cfg.sched.fade_in_percentage = [50, 50, 50, 50, 50, 50, 50, 50, 50]
 
 # TODO
@@ -59,7 +60,7 @@ cfg.model = CN()
 # Options for Generator
 # ---------------------------------------------------------------------------- #
 cfg.model.gen = CN()
-cfg.model.gen.latent_size = 256
+cfg.model.gen.latent_size = 512
 # 8 in original paper
 cfg.model.gen.mapping_layers = 8
 cfg.model.gen.blur_filter = [1, 2, 1]

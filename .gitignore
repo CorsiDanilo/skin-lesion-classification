@@ -16,3 +16,4 @@ augmentation/models/*
 augmentation/StyleGANPytorch/*
 augmentation/samples/**
 **/checkpoints/**
+**/samples/**
