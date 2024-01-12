@@ -194,6 +194,7 @@ class GSynthesis(nn.Module):
         if self.structure == 'fixed':
             x = self.init_block(dlatents_in[:, 0:2])
             for i, block in enumerate(self.blocks):
+                # Inject here other latents to change the style
                 x = block(x, dlatents_in[:, 2 * (i + 1):2 * (i + 2)])
             images_out = self.to_rgb[-1](x)
         elif self.structure == 'linear':

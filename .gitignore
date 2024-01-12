@@ -17,3 +17,4 @@ augmentation/StyleGANPytorch/*
 augmentation/samples/**
 **/checkpoints/**
 **/samples/**
+augmentation/invertor_results/**
