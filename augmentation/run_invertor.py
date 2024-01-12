@@ -30,38 +30,26 @@ def main():
         images, _ = batch
 
         images = images.to(invertor.device)
-        first_image = images[2].unsqueeze(0)
+        first_image = images[0].unsqueeze(0)
+        second_image = images[1].unsqueeze(0)
         break
 
-    invertor.train(first_image)
+    latent_1 = invertor.embed(first_image, "first_image")
+    latent_2 = invertor.embed(second_image, "second_image")
+
+    invertor.style_transfer(latent_1, latent_2)
 
 
-def manipulate_latent():
-    device = select_device()
-    latent_1 = torch.load("latents_1.pt")
-    latent_2 = torch.load("latents_2.pt")
-    latent = (latent_1 + latent_2) / 2
-    gen = Generator(num_channels=3,
-                    dlatent_size=512,
-                    resolution=cfg.dataset.resolution,
-                    structure="linear",
-                    conditional=False,
-                    **cfg.model.gen).to(device)
-    gen.load_checkpoints(os.path.join(
-        "checkpoints", "stylegan_ffhq_1024_gen.pth"))
-
-    gen.eval()
-    gen.g_synthesis.eval()
-
-    g_synthesis = gen.g_synthesis
-
-    img = g_synthesis(dlatents_in=latent, depth=6)
-
-    print(img.shape)
-
-    save_image(img, "manipulated.png")
+def offline_style_transfer():
+    invertor = Invertor(cfg=cfg, depth=6)
+    latent_path = invertor.latents_dir
+    first_latent_path = os.path.join(latent_path, "first_image_latent.pt")
+    second_latent_path = os.path.join(latent_path, "second_image_latent.pt")
+    latent_1 = torch.load(first_latent_path)
+    latent_2 = torch.load(second_latent_path)
+    invertor.style_transfer(latent_1, latent_2)
 
 
 if __name__ == '__main__':
     main()
-    # manipulate_latent()
+    # offline_style_transfer()

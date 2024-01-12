@@ -6,7 +6,7 @@
    Description:  Modified from:
                  https://github.com/akanimax/pro_gan_pytorch
                  https://github.com/lernapparat/lernapparat
-                 https://github.com/NVlabs/stylegan
+                 https://github.com/NVlab/stylegan
 -------------------------------------------------
 """
 from torchvision.models import resnet50, ResNet50_Weights
@@ -16,7 +16,7 @@ import os
 import random
 import time
 import timeit
-from typing import Tuple
+from typing import Optional, Tuple
 import warnings
 from collections import OrderedDict
 
@@ -179,10 +179,18 @@ class GSynthesis(nn.Module):
         # register the temporary upsampler
         self.temporaryUpsampler = lambda x: interpolate(x, scale_factor=2)
 
-    def forward(self, dlatents_in, depth=0, alpha=0., labels_in=None):
+    def forward(self,
+                dlatents_in: torch.Tensor,
+                styled_latents: Optional[torch.Tensor] = None,
+                style_threshold: int = 9,
+                depth=0,
+                alpha=0.,
+                labels_in=None):
         """
             forward pass of the Generator
-            :param dlatents_in: Input: Disentangled latents (W) [mini_batch, num_layers, dlatent_size].
+            :param dlatents_in: Inpu t: Disentangled latents (W) [mini_batch, num_layers, dlatent_size].
+            :param styled_latents?: Optional latents. If they are not None, they will be used in the last `style_threshold` style blocks in order to transfer the style
+            :param style_threshold?: It determines when the dlatents_in will be replaced by the styled_latents. It's applied only ifg also styled_latents is not None. Default: 9
             :param labels_in:
             :param depth: current depth from where output is required
             :param alpha: value of alpha for fade-in effect
@@ -192,12 +200,24 @@ class GSynthesis(nn.Module):
         assert depth < self.depth, "Requested output depth cannot be produced"
 
         if self.structure == 'fixed':
+            if styled_latents is not None and style_threshold is None:
+                raise ValueError(
+                    "If you pass styled_latents, you should also pass style_threshold")
+
             x = self.init_block(dlatents_in[:, 0:2])
             for i, block in enumerate(self.blocks):
-                # Inject here other latents to change the style
-                x = block(x, dlatents_in[:, 2 * (i + 1):2 * (i + 2)])
+                start = 2 * (i + 1)
+                stop = start + 2
+                if styled_latents is not None and style_threshold >= start:
+                    x = block(x, styled_latents[:, start:stop])
+                else:
+                    x = block(x, dlatents_in[:, start:stop])
             images_out = self.to_rgb[-1](x)
+
         elif self.structure == 'linear':
+            if styled_latents is not None:
+                raise NotImplementedError(
+                    "Style transfer is not implemented on linear architecture yet")
             x = self.init_block(dlatents_in[:, 0:2])
 
             if depth > 0:
@@ -281,11 +301,21 @@ class Generator(nn.Module):
         # Load the compatible state dict into the model
         self.load_state_dict(compatible_state_dict, strict=False)
 
-    def forward(self, latents_in, depth, alpha, labels_in=None):
+    def forward(self,
+                latents_in,
+                depth,
+                alpha,
+                styled_latents: Optional[torch.Tensor] = None,
+                style_threshold: int = 9,
+                use_mapping: bool = True,
+                labels_in=None):
         """
         :param latents_in: First input: Latent vectors (Z) [mini_batch, latent_size].
         :param depth: current depth from where output is required
         :param alpha: value of alpha for fade-in effect
+        :param styled_latents?: Optional latents. If they are not None, they will be used in the last `style_threshold` style blocks in order to transfer the style
+        :param style_threshold: It determines when the dlatents_in will be replaced by the styled_latents. It's applied only ifg also styled_latents is not None. Default: 9
+        :param use_mapping: It determines whether to use the mapping network or not. Default: True (Mapping network is not needed in case the embedding happens with Image2StyleGAN)
         :param labels_in: Second input: Conditioning labels [mini_batch, label_size].
         :return:
         """
@@ -299,7 +329,10 @@ class Generator(nn.Module):
             embedding = self.class_embedding(labels_in)
             latents_in = torch.cat([latents_in, embedding], 1)
 
-        dlatents_in = self.g_mapping(latents_in)
+        if use_mapping:
+            dlatents_in = self.g_mapping(latents_in)
+        else:
+            dlatents_in = latents_in
 
         if self.training:
             # Update moving average of W(dlatent).
@@ -323,7 +356,11 @@ class Generator(nn.Module):
             if self.truncation is not None:
                 dlatents_in = self.truncation(dlatents_in)
 
-        fake_images = self.g_synthesis(dlatents_in, depth, alpha)
+        fake_images = self.g_synthesis(dlatents_in=dlatents_in,
+                                       style_threshold=style_threshold,
+                                       styled_latents=styled_latents,
+                                       depth=depth,
+                                       alpha=alpha)
 
         return fake_images
 

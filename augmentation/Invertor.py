@@ -17,12 +17,20 @@ class Invertor():
         self.gen = Generator(num_channels=3,
                              dlatent_size=512,
                              resolution=cfg.dataset.resolution,
-                             structure="linear",
+                             structure="fixed",
                              conditional=False,
                              **cfg.model.gen).to(self.device)
         self.gen.load_checkpoints(os.path.join(
             "checkpoints", "stylegan_ffhq_1024_gen.pth"))
         self.g_synthesis = self.gen.g_synthesis
+        self.current_dir = os.path.dirname(os.path.realpath(__file__))
+        self.results_dir = os.path.join(self.current_dir, "invertor_results")
+        self.images_dir = os.path.join(self.results_dir, "images")
+        self.latents_dir = os.path.join(self.results_dir, "latents")
+        os.makedirs("invertor_results", exist_ok=True)
+
+        os.makedirs(self.images_dir, exist_ok=True)
+        os.makedirs(self.latents_dir, exist_ok=True)
 
     def psnr(self, mse, flag=0):
         # flag = 0 if a single image is used and 1 if loss for a batch of images is to be calculated
@@ -30,7 +38,9 @@ class Invertor():
             psnr = 10 * log10(1 / mse.item())
         return psnr
 
-    def train(self, image):
+    def embed(self,
+              image: torch.Tensor,
+              embedding_name: str):
         upsample = torch.nn.Upsample(scale_factor=256/1024, mode='bilinear')
         img_p = image.clone()
         img_p = upsample(img_p)
@@ -39,7 +49,7 @@ class Invertor():
 
         # since the synthesis network expects 18 w vectors of size 1xlatent_size thus we take latent vector of the same size
         latents = torch.zeros(
-            (1, 18, 512), requires_grad=True, device=self.device)
+            (1, 14, 512), requires_grad=True, device=self.device)
 
         # Optimizer to change latent code in each backward step
         optimizer = Adam(
@@ -48,7 +58,7 @@ class Invertor():
         # Loop to optimise latent vector to match the ted image to input image
         loss_ = []
         loss_psnr = []
-        iterations = 10_000
+        iterations = 3_000
         pbar = tqdm(total=iterations)
         for e in range(iterations):
             optimizer.zero_grad()
@@ -73,30 +83,41 @@ class Invertor():
             pbar.set_postfix(
                 loss=loss.item(), psnr=psnr
             )
-            if (e+1) % 100 == 0:
+
+            FEEDBACK_INTERVAL = 500
+            if (e+1) % FEEDBACK_INTERVAL == 0:
                 print("iter{}: loss -- {},  mse_loss --{},  percep_loss --{}, psnr --{}".format(e +
                                                                                                 1, loss_np, loss_m, loss_p, psnr))
-                current_dir = os.path.dirname(os.path.realpath(__file__))
-                results_dir = os.path.join(current_dir, "invertor_results")
-                images_dir = os.path.join(results_dir, "images")
-                latents_dir = os.path.join(results_dir, "latents")
-                os.makedirs("invertor_results", exist_ok=True)
 
-                os.makedirs(images_dir, exist_ok=True)
-                os.makedirs(latents_dir, exist_ok=True)
-
-                saved_latents_path = os.path.join(latents_dir, "latents.pt")
+                saved_latents_path = os.path.join(
+                    self.latents_dir, f"{embedding_name}.pt")
 
                 torch.save(latents, saved_latents_path)
 
                 syn_img_path = os.path.join(
-                    images_dir, f"syn_img{e+1}.png")
-                original_img_path = os.path.join(
-                    images_dir, f"original_img{e+1}.png")
+                    self.images_dir, f"syn_{embedding_name}_{e+1}.png")
+
+                if (e+1) == FEEDBACK_INTERVAL:
+                    original_img_path = os.path.join(
+                        self.images_dir, f"original_{embedding_name}_{e+1}.png")
 
                 save_image(syn_img.clamp(0, 1), syn_img_path)
                 save_image(image.clamp(0, 1), original_img_path)
         return latents
+
+    def style_transfer(self,
+                       source_latent: torch.Tensor,
+                       style_latent: torch.Tensor):
+        image = self.g_synthesis(dlatents_in=source_latent,
+                                 styled_latents=style_latent,
+                                 style_threshold=7,
+                                 depth=self.depth)
+        style_transfer_path = os.path.join(
+            self.results_dir, "style_transfer_results")
+        os.makedirs(style_transfer_path, exist_ok=True)
+        image_path = os.path.join(style_transfer_path, "transferred_image.png")
+        save_image(image.clamp(0, 1), image_path)
+        return
 
     # def train_hierarchical(self, image):
     #     upsample = torch.nn.Upsample(scale_factor=256/1024, mode='bilinear')
