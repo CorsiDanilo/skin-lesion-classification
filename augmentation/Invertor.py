@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 import torch
 from augmentation.GAN import GSynthesis, Generator, Resnet50Styles
 from torchvision.utils import save_image
@@ -24,6 +25,10 @@ class Invertor():
         self.gen.eval()
         self.g_synthesis = self.gen.g_synthesis
         self.g_synthesis.eval()
+
+        self.resnet50 = Resnet50Styles().to(self.device)
+        self.resnet50.eval()
+
         self.current_dir = os.path.dirname(os.path.realpath(__file__))
         self.results_dir = os.path.join(self.current_dir, "invertor_results")
         self.images_dir = os.path.join(self.results_dir, "images")
@@ -133,6 +138,48 @@ class Invertor():
 
     def generate(self, latent: torch.Tensor):
         return self.g_synthesis(latent)
+
+    def generate_from_resnet(self,
+                             image1: torch.Tensor,
+                             image2: torch.Tensor):
+        style1 = self.resnet50(image1)
+        style2 = self.resnet50(image2)
+        random_styles = torch.randn(
+            1, 4, self.resnet50.latent_size).to(self.device)
+        styles = torch.cat([style1, style2, random_styles], dim=1)
+        image = self.g_synthesis(styles)
+        image = (image+1.0)/2.0
+        save_image(image.clamp(0, 1), "generated_image.png")
+        return image
+
+    def generate_with_noise(self,
+                            latent: torch.Tensor,
+                            latent_2: Optional[torch.Tensor]):
+        noise_layers = None
+        transfer_layers = 5
+        latent.requires_grad = False
+        # print(f"Latent shape is {latent.shape}")
+        # if latent_2 is not None:
+        #     print(f"Latent 2 shape is {latent_2.shape}")
+        if latent_2 is not None and transfer_layers is not None:
+            latent[:, :transfer_layers,
+                   :] = latent_2[:, :transfer_layers, :]
+        if noise_layers is not None:
+            latent = latent[:, noise_layers-18:, :]
+            noise = torch.randn(1, noise_layers, 512).to(self.device)
+            noise = noise * 0.01
+            noised_latent = torch.cat([noise, latent], dim=1)
+            image = self.g_synthesis(noised_latent)
+        else:
+            image = self.g_synthesis(latent)
+        noise = torch.randn(1, 18, 512).to(self.device)
+        # noise = noise * 0.05
+        # latent = latent - noise
+        # image = self.g_synthesis(latent)
+        image = (image+1.0)/2.0
+        save_image(image.clamp(0, 1), "generated_image.png")
+        return image
+
     # def train_hierarchical(self, image):
     #     upsample = torch.nn.Upsample(scale_factor=256/1024, mode='bilinear')
     #     img_p = image.clone()

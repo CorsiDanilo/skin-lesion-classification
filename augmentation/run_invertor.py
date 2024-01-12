@@ -55,10 +55,53 @@ def offline_style_transfer():
     invertor.mix_latents(latent_1, latent_2)
 
 
+def generate_resnet_images():
+    batch_size = 32
+    invertor = Invertor(cfg=cfg)
+
+    fixed_dataloader = ImagesAndSegmentationDataLoader(
+        limit=None,
+        dynamic_load=True,
+        upscale_train=False,
+        normalize=True,
+        normalization_statistics=IMAGENET_STATISTICS,
+        batch_size=batch_size,
+        resize_dim=(
+            cfg.dataset.resolution,
+            cfg.dataset.resolution,
+        )
+    )
+    fixed_data = fixed_dataloader.get_test_dataloader()
+    for batch in fixed_data:
+        images, _ = batch
+
+        images = images.to(invertor.device)
+        first_image = images[0].unsqueeze(0)
+        second_image = images[1].unsqueeze(0)
+        break
+
+    invertor.generate_from_resnet(first_image, second_image)
+
+
+def generate_image_with_noise():
+    invertor = Invertor(cfg=cfg)
+    latent_path = invertor.latents_dir
+    first_latent_path = os.path.join(latent_path, "first_image.pt")
+    second_latent_path = os.path.join(latent_path, "second_image.pt")
+    latent_1 = torch.load(first_latent_path)
+    latent_2 = torch.load(second_latent_path)
+    invertor.generate_with_noise(
+        latent=latent_1, latent_2=latent_2)
+    # invertor.generate_with_noise(
+    #     latent=latent_2, latent_2=latent_1)
+
+
 def embed_full_dataset():
     pass
 
 
 if __name__ == '__main__':
     # main()
-    offline_style_transfer()
+    # offline_style_transfer()
+    # generate_resnet_images()
+    generate_image_with_noise()
