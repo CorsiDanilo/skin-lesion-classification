@@ -11,7 +11,7 @@ from shared.constants import IMAGENET_STATISTICS
 
 def main():
     batch_size = 32
-    invertor = Invertor(cfg=cfg, depth=6)
+    invertor = Invertor(cfg=cfg)
 
     fixed_dataloader = ImagesAndSegmentationDataLoader(
         limit=None,
@@ -41,15 +41,24 @@ def main():
 
 
 def offline_style_transfer():
-    invertor = Invertor(cfg=cfg, depth=6)
+    invertor = Invertor(cfg=cfg)
     latent_path = invertor.latents_dir
-    first_latent_path = os.path.join(latent_path, "first_image_latent.pt")
-    second_latent_path = os.path.join(latent_path, "second_image_latent.pt")
+    first_latent_path = os.path.join(latent_path, "first_image.pt")
+    second_latent_path = os.path.join(latent_path, "second_image.pt")
     latent_1 = torch.load(first_latent_path)
     latent_2 = torch.load(second_latent_path)
-    invertor.style_transfer(latent_1, latent_2)
+    # invertor.style_transfer(latent_1, latent_2)
+    image_1 = invertor.generate(latent_1)
+    image_2 = invertor.generate(latent_2)
+    save_image(image_1, "image_1.png")
+    save_image(image_2, "image_2.png")
+    invertor.mix_latents(latent_1, latent_2)
+
+
+def embed_full_dataset():
+    pass
 
 
 if __name__ == '__main__':
-    main()
-    # offline_style_transfer()
+    # main()
+    offline_style_transfer()

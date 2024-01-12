@@ -305,9 +305,6 @@ class Generator(nn.Module):
                 latents_in,
                 depth,
                 alpha,
-                styled_latents: Optional[torch.Tensor] = None,
-                style_threshold: int = 9,
-                use_mapping: bool = True,
                 labels_in=None):
         """
         :param latents_in: First input: Latent vectors (Z) [mini_batch, latent_size].
@@ -329,10 +326,7 @@ class Generator(nn.Module):
             embedding = self.class_embedding(labels_in)
             latents_in = torch.cat([latents_in, embedding], 1)
 
-        if use_mapping:
-            dlatents_in = self.g_mapping(latents_in)
-        else:
-            dlatents_in = latents_in
+        dlatents_in = self.g_mapping(latents_in)
 
         if self.training:
             # Update moving average of W(dlatent).
@@ -357,8 +351,6 @@ class Generator(nn.Module):
                 dlatents_in = self.truncation(dlatents_in)
 
         fake_images = self.g_synthesis(dlatents_in=dlatents_in,
-                                       style_threshold=style_threshold,
-                                       styled_latents=styled_latents,
                                        depth=depth,
                                        alpha=alpha)
 
@@ -857,31 +849,9 @@ class StyleGAN:
         global_time = time.time()
 
         # create fixed_input for debugging
-        # fixed_input = torch.randn(
-        #     num_samples, self.latent_size).to(self.device)
-        fixed_dataloader = ImagesAndSegmentationDataLoader(
-            limit=None,
-            dynamic_load=True,
-            upscale_train=False,
-            normalize=True,
-            normalization_statistics=IMAGENET_STATISTICS,
-            batch_size=num_samples,
-            resize_dim=(
-                cfg.dataset.resolution,
-                cfg.dataset.resolution,
-            )
-        )
-        fixed_data = fixed_dataloader.get_train_dataloder()
-        batch = next(iter(fixed_data))
-        images, _, _ = batch
+        fixed_input = torch.randn(
+            num_samples, self.latent_size).to(self.device)
 
-        styles = self.resnet50(images)
-        random_styles = torch.randn(
-            images.shape[0], 4, self.resnet50.latent_size).to(self.device)
-
-        # fixed_input = torch.mean(
-        #     torch.stack([styles, styles, random_styles]), dim=0)
-        fixed_input = torch.cat([styles, styles, random_styles], dim=1)
         fixed_labels = None
         if self.conditional:
             fixed_labels = torch.linspace(
@@ -938,13 +908,6 @@ class StyleGAN:
                         images, labels, _ = batch
 
                     images = images.to(self.device)
-
-                    # styles = self.resnet50(images)
-                    # random_styles = torch.randn(
-                    #     images.shape[0], 4, self.resnet50.latent_size).to(self.device)
-
-                    # gan_input = torch.cat(
-                    #     [styles, styles, random_styles], dim=1)
 
                     gan_input = torch.randn(
                         images.shape[0], self.latent_size).to(self.device)

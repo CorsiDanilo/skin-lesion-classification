@@ -10,9 +10,8 @@ from math import log10
 
 
 class Invertor():
-    def __init__(self, cfg, depth):
+    def __init__(self, cfg):
         self.cfg = cfg
-        self.depth = depth
         self.device = select_device()
         self.gen = Generator(num_channels=3,
                              dlatent_size=512,
@@ -22,7 +21,9 @@ class Invertor():
                              **cfg.model.gen).to(self.device)
         self.gen.load_checkpoints(os.path.join(
             "checkpoints", "stylegan_ffhq_1024_gen.pth"))
+        self.gen.eval()
         self.g_synthesis = self.gen.g_synthesis
+        self.g_synthesis.eval()
         self.current_dir = os.path.dirname(os.path.realpath(__file__))
         self.results_dir = os.path.join(self.current_dir, "invertor_results")
         self.images_dir = os.path.join(self.results_dir, "images")
@@ -42,6 +43,7 @@ class Invertor():
               image: torch.Tensor,
               embedding_name: str):
         upsample = torch.nn.Upsample(scale_factor=256/1024, mode='bilinear')
+        assert image.shape == (1, 3, 1024, 1024)
         img_p = image.clone()
         img_p = upsample(img_p)
         # Perceptual loss initialise object
@@ -49,7 +51,7 @@ class Invertor():
 
         # since the synthesis network expects 18 w vectors of size 1xlatent_size thus we take latent vector of the same size
         latents = torch.zeros(
-            (1, 14, 512), requires_grad=True, device=self.device)
+            (1, 18, 512), requires_grad=True, device=self.device)
 
         # Optimizer to change latent code in each backward step
         optimizer = Adam(
@@ -58,13 +60,12 @@ class Invertor():
         # Loop to optimise latent vector to match the ted image to input image
         loss_ = []
         loss_psnr = []
-        iterations = 3_000
+        iterations = 1_000
         pbar = tqdm(total=iterations)
         for e in range(iterations):
             optimizer.zero_grad()
-            syn_img = self.g_synthesis(
-                dlatents_in=latents, depth=self.depth)
-            syn_img = (syn_img+1.0)/2.0
+            syn_img = self.g_synthesis(latents)
+            # syn_img = (syn_img+1.0)/2.0
             mse, per_loss = perceptual.loss_function(
                 syn_img=syn_img,
                 img=image,
@@ -84,7 +85,7 @@ class Invertor():
                 loss=loss.item(), psnr=psnr
             )
 
-            FEEDBACK_INTERVAL = 500
+            FEEDBACK_INTERVAL = 100
             if (e+1) % FEEDBACK_INTERVAL == 0:
                 print("iter{}: loss -- {},  mse_loss --{},  percep_loss --{}, psnr --{}".format(e +
                                                                                                 1, loss_np, loss_m, loss_p, psnr))
@@ -110,8 +111,7 @@ class Invertor():
                        style_latent: torch.Tensor):
         image = self.g_synthesis(dlatents_in=source_latent,
                                  styled_latents=style_latent,
-                                 style_threshold=7,
-                                 depth=self.depth)
+                                 style_threshold=9)
         style_transfer_path = os.path.join(
             self.results_dir, "style_transfer_results")
         os.makedirs(style_transfer_path, exist_ok=True)
@@ -119,6 +119,20 @@ class Invertor():
         save_image(image.clamp(0, 1), image_path)
         return
 
+    def mix_latents(self,
+                    source_latent: torch.Tensor,
+                    style_latent: torch.Tensor):
+        mixed_latent = (source_latent + style_latent) / 2
+        image = self.g_synthesis(mixed_latent)
+        style_transfer_path = os.path.join(
+            self.results_dir, "style_transfer_results")
+        os.makedirs(style_transfer_path, exist_ok=True)
+        image_path = os.path.join(style_transfer_path, "transferred_image.png")
+        save_image(image.clamp(0, 1), image_path)
+        return
+
+    def generate(self, latent: torch.Tensor):
+        return self.g_synthesis(latent)
     # def train_hierarchical(self, image):
     #     upsample = torch.nn.Upsample(scale_factor=256/1024, mode='bilinear')
     #     img_p = image.clone()

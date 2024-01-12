@@ -16,7 +16,7 @@ cfg.output_dir = ''
 cfg.device = 'cuda'
 cfg.device_id = '0'
 
-cfg.structure = 'linear'
+cfg.structure = 'fixed'
 cfg.conditional = False
 cfg.n_classes = 0
 cfg.loss = "logistic"
@@ -37,10 +37,10 @@ cfg.sched = CN()
 
 # example for {depth:9,resolution:1024}
 # res --> [4,8,16,32,64,128,256,512,1024]
-cfg.sched.epochs = [4, 4, 4, 4, 8, 16, 32]
+cfg.sched.epochs = [4, 4, 4, 4, 8, 16, 32, 32, 32, 32]
 # batches for oen 1080Ti with 11G memory
-cfg.sched.batch_sizes = [128, 128, 64, 16, 8, 8, 2]
-cfg.sched.fade_in_percentage = [50, 50, 50, 50, 50, 50, 50]
+cfg.sched.batch_sizes = [128, 128, 64, 16, 8, 8, 2, 2, 2, 2]
+cfg.sched.fade_in_percentage = [50, 50, 50, 50, 50, 50, 50, 50, 50, 50]
 
 # TODO
 # cfg.sched.G_lrate_dict = {128: 0.0015, 256: 0.002, 512: 0.003, 1024: 0.003}
@@ -52,7 +52,7 @@ cfg.sched.fade_in_percentage = [50, 50, 50, 50, 50, 50, 50]
 cfg.dataset = CN()
 cfg.dataset.img_dir = ""
 cfg.dataset.folder = True
-cfg.dataset.resolution = 256
+cfg.dataset.resolution = 1024
 cfg.dataset.channels = 3
 
 cfg.model = CN()
