@@ -19,9 +19,10 @@ class Invertor():
                              resolution=cfg.dataset.resolution,
                              structure="fixed",
                              conditional=False,
+                             #  n_classes=7,
                              **cfg.model.gen).to(self.device)
         self.gen.load_checkpoints(os.path.join(
-            "checkpoints", "stylegan_ffhq_1024_gen.pth"))
+            "checkpoints", "512res_512lat_GAN_GEN_7_14.pth"))
         self.gen.eval()
         self.g_synthesis = self.gen.g_synthesis
         self.g_synthesis.eval()
@@ -47,8 +48,9 @@ class Invertor():
     def embed(self,
               image: torch.Tensor,
               embedding_name: str):
-        upsample = torch.nn.Upsample(scale_factor=256/1024, mode='bilinear')
-        assert image.shape == (1, 3, 1024, 1024)
+        upsample = torch.nn.Upsample(
+            scale_factor=256/self.cfg.dataset.resolution, mode='bilinear')
+        # assert image.shape == (1, 3, 1024, 1024)
         img_p = image.clone()
         img_p = upsample(img_p)
         # Perceptual loss initialise object
@@ -65,17 +67,18 @@ class Invertor():
         # Loop to optimise latent vector to match the ted image to input image
         loss_ = []
         loss_psnr = []
-        iterations = 1_000
+        iterations = 1500
         pbar = tqdm(total=iterations)
         for e in range(iterations):
             optimizer.zero_grad()
             syn_img = self.g_synthesis(latents)
-            # syn_img = (syn_img+1.0)/2.0
+            syn_img = (syn_img+1.0)/2.0
             mse, per_loss = perceptual.loss_function(
                 syn_img=syn_img,
                 img=image,
                 img_p=img_p,
-                upsample=upsample)
+                upsample=upsample
+            )
             psnr = self.psnr(mse, flag=0)
             loss = per_loss + mse
             loss.backward()
@@ -138,6 +141,12 @@ class Invertor():
 
     def generate(self, latent: torch.Tensor):
         return self.g_synthesis(latent)
+
+    def generate_from_label(self, labels_in: torch.Tensor):
+        noise = torch.randn(7, 256).to(self.device)
+        labels_in = labels_in.to(self.device)
+
+        return self.gen(latents_in=noise, labels_in=labels_in, depth=6, alpha=0)
 
     def generate_from_resnet(self,
                              image1: torch.Tensor,

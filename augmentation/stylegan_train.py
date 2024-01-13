@@ -46,6 +46,19 @@ def main():
 
     # Load the compatible state dict into the model
     style_gan.gen.load_state_dict(compatible_state_dict, strict=False)
+
+    # NOTE: this is to restore the train state of the model
+    # device = select_device()
+    # depth = 7
+    # epoch = 15
+    # dis_checkpoint = os.path.join("checkpoints", f"GAN_DIS_{depth}_{epoch}.pth")
+    # gen_checkpoint = os.path.join("checkpoints", f"GAN_GEN_{depth}_{epoch}.pth")
+    # gen_shadow_checkpoint = os.path.join("checkpoints", f"GAN_GEN_SHADOW_{depth}_{epoch}.pth")
+
+    # style_gan.gen.load_state_dict(torch.load_state_dict(gen_checkpoint, map_location=device))
+    # style_gan.dis.load_state_dict(torch.load_state_dict(dis_checkpoint, map_location=device))
+    # style_gan.gen_shadow.load_state_dict(torch.load_state_dict(gen_shadow_checkpoint, map_location=device))
+
     # if args.discriminator_file is not None:
     #     logger.info("Loading discriminator from: %s", args.discriminator_file)
     #     style_gan.dis.load_state_dict(torch.load(args.discriminator_file))

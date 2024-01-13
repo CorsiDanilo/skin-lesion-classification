@@ -278,6 +278,7 @@ class VGG16PerceptualLoss(nn.Module):
         # Extract mid level features for real and synthesized image and find the MSE loss between them for perceptual loss.
         # Find MSE loss between the real and synthesized images of actual size
         syn_img_p = upsample(syn_img)
+        # syn_img_p = syn_img
         syn0, syn1, syn2, syn3 = self.forward(syn_img_p)
         r0, r1, r2, r3 = self.forward(img_p)
         mse = self.MSE_loss(syn_img, img)

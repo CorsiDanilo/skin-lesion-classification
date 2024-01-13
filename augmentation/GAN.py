@@ -21,7 +21,8 @@ import warnings
 from collections import OrderedDict
 
 from tqdm import tqdm
-from shared.constants import IMAGENET_STATISTICS
+from shared.constants import DEFAULT_STATISTICS, IMAGENET_STATISTICS
+from utils.utils import select_device
 from .gan_config import cfg
 import numpy as np
 import torch
@@ -207,7 +208,7 @@ class GSynthesis(nn.Module):
             x = self.init_block(dlatents_in[:, 0:2])
             for i, block in enumerate(self.blocks):
                 start = 2 * (i + 1)
-                stop = start + 2
+                stop = 2 * (i+2)
                 if styled_latents is not None and style_threshold >= start:
                     x = block(x, styled_latents[:, start:stop])
                 else:
@@ -283,7 +284,12 @@ class Generator(nn.Module):
 
     def load_checkpoints(self, checkpoint_path):
         # Load the state dict from the checkpoint
-        checkpoint_state_dict = torch.load(checkpoint_path)
+        self.load_state_dict(torch.load(checkpoint_path,
+                             map_location=torch.device('cpu')))
+        return
+
+        checkpoint_state_dict = torch.load(
+            checkpoint_path, map_location=select_device())
 
         # Get the state dict of the current model
         model_state_dict = self.state_dict()
@@ -324,6 +330,8 @@ class Generator(nn.Module):
         else:
             assert labels_in is not None, "Conditional discriminatin requires labels"
             embedding = self.class_embedding(labels_in)
+            print(f"latents in shape is {latents_in.shape}")
+            print(f"embedding shape is {embedding.shape}")
             latents_in = torch.cat([latents_in, embedding], 1)
 
         dlatents_in = self.g_mapping(latents_in)
@@ -335,16 +343,16 @@ class Generator(nn.Module):
                 self.truncation.update(dlatents_in[0, 0].detach())
 
             # Perform style mixing regularization.
-            # if self.style_mixing_prob is not None and self.style_mixing_prob > 0:
-            #     latents2 = torch.randn(latents_in.shape).to(latents_in.device)
-            #     dlatents2 = self.g_mapping(latents2)
-            #     layer_idx = torch.from_numpy(np.arange(self.num_layers)[np.newaxis, :, np.newaxis]).to(
-            #         latents_in.device)
-            #     cur_layers = 2 * (depth + 1)
-            #     mixing_cutoff = random.randint(1,
-            #                                    cur_layers) if random.random() < self.style_mixing_prob else cur_layers
-            #     dlatents_in = torch.where(
-            #         layer_idx < mixing_cutoff, dlatents_in, dlatents2)
+            if self.style_mixing_prob is not None and self.style_mixing_prob > 0:
+                latents2 = torch.randn(latents_in.shape).to(latents_in.device)
+                dlatents2 = self.g_mapping(latents2)
+                layer_idx = torch.from_numpy(np.arange(self.num_layers)[np.newaxis, :, np.newaxis]).to(
+                    latents_in.device)
+                cur_layers = 2 * (depth + 1)
+                mixing_cutoff = random.randint(1,
+                                               cur_layers) if random.random() < self.style_mixing_prob else cur_layers
+                dlatents_in = torch.where(
+                    layer_idx < mixing_cutoff, dlatents_in, dlatents2)
 
             # Apply truncation trick.
             if self.truncation is not None:
@@ -512,7 +520,7 @@ class Resnet50Styles(nn.Module):
             param.requires_grad = False
         # Global Average Pooling is obtained by AdaptiveAvgPool2d with output size = 1
         self.gap = nn.AdaptiveAvgPool2d((1, 1))
-        self.latent_size = 512  # styles would be 2 * latent_size
+        self.latent_size = 256  # styles would be 2 * latent_size
         self.linear64 = nn.Linear(256, self.latent_size)
         self.linear16 = nn.Linear(1024, self.latent_size)
         self.linear8 = nn.Linear(2048, self.latent_size)
@@ -652,7 +660,7 @@ class StyleGAN:
 
     def __setup_gen_optim(self, learning_rate, beta_1, beta_2, eps):
         self.gen_optim = torch.optim.Adam(
-            [*self.gen.parameters(), *self.resnet50.parameters()],
+            self.gen.parameters(),
             lr=learning_rate, betas=(beta_1, beta_2), eps=eps)
 
     def __setup_dis_optim(self, learning_rate, beta_1, beta_2, eps):
@@ -876,8 +884,8 @@ class StyleGAN:
                 limit=None,
                 dynamic_load=True,
                 upscale_train=False,
-                normalize=True,
-                normalization_statistics=IMAGENET_STATISTICS,
+                normalize=False,
+                # normalization_statistics=DEFAULT_STATISTICS,
                 batch_size=batch_sizes[current_depth],
                 resize_dim=(
                     cfg.dataset.resolution,

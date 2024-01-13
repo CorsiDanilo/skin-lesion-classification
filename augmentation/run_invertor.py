@@ -1,16 +1,14 @@
 import os
 import torch
 from torchvision.utils import save_image
-from .GAN import Generator
-from utils.utils import select_device
 from .Invertor import Invertor
 from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
 from .gan_config import cfg
-from shared.constants import IMAGENET_STATISTICS
+from shared.constants import DEFAULT_STATISTICS, IMAGENET_STATISTICS
 
 
 def main():
-    batch_size = 32
+    batch_size = 8
     invertor = Invertor(cfg=cfg)
 
     fixed_dataloader = ImagesAndSegmentationDataLoader(
@@ -18,7 +16,7 @@ def main():
         dynamic_load=True,
         upscale_train=False,
         normalize=False,
-        normalization_statistics=IMAGENET_STATISTICS,
+        normalization_statistics=DEFAULT_STATISTICS,
         batch_size=batch_size,
         resize_dim=(
             cfg.dataset.resolution,
@@ -27,11 +25,12 @@ def main():
     )
     fixed_data = fixed_dataloader.get_test_dataloader()
     for batch in fixed_data:
-        images, _ = batch
+        images, labels = batch
 
         images = images.to(invertor.device)
-        first_image = images[0].unsqueeze(0)
-        second_image = images[1].unsqueeze(0)
+        first_image = images[5].unsqueeze(0)
+        second_image = [image for (image, label) in zip(
+            images, labels) if image is not first_image and label == labels[5]][0].unsqueeze(0)
         break
 
     latent_1 = invertor.embed(first_image, "first_image")
@@ -40,14 +39,13 @@ def main():
     invertor.style_transfer(latent_1, latent_2)
 
 
-def offline_style_transfer():
+def offline_mix_latents():
     invertor = Invertor(cfg=cfg)
     latent_path = invertor.latents_dir
     first_latent_path = os.path.join(latent_path, "first_image.pt")
     second_latent_path = os.path.join(latent_path, "second_image.pt")
     latent_1 = torch.load(first_latent_path)
     latent_2 = torch.load(second_latent_path)
-    # invertor.style_transfer(latent_1, latent_2)
     image_1 = invertor.generate(latent_1)
     image_2 = invertor.generate(latent_2)
     save_image(image_1, "image_1.png")
@@ -96,12 +94,23 @@ def generate_image_with_noise():
     #     latent=latent_2, latent_2=latent_1)
 
 
+def generate_image_from_labels():
+    invertor = Invertor(cfg=cfg)
+    latents = torch.tensor([0, 1, 2, 3, 4, 5, 6])
+    images = invertor.generate_from_label(latents)
+    for i, image in enumerate(images):
+        save_image(image, f"image_{i}.png")
+    return images
+
+
 def embed_full_dataset():
     pass
 
 
 if __name__ == '__main__':
-    # main()
+    main()
+    # generate_image_from_labels()
     # offline_style_transfer()
     # generate_resnet_images()
-    generate_image_with_noise()
+    # generate_image_with_noise()
+    # offline_mix_latents()
