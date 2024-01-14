@@ -60,15 +60,21 @@ def embed_everything():
                 desc="Embedding images with Images2Stylegan++")
     for dataloader_label in range(8):
         for index, batch in enumerate(train_dataloders[dataloader_label]):
-            images, labels, image_paths = batch
-            for image, label, image_path in zip(images, labels, image_paths):
-                clean_path = image_path.split("/")[-1]
+            images, labels, image_paths, augmented_list = batch
+            for image, label, image_path, augmented in zip(images, labels, image_paths, augmented_list):
+                clean_path = image_path.split("/")[-1].replace(".jpg", "")
+                if augmented:
+                    clean_path = clean_path + "_augmented"
                 assert label == dataloader_label
                 image = image.unsqueeze(0)
                 print(
                     f'Embedding image with path {clean_path}, label {label}')
                 latent, noise_list = invertor.embed_v2(
-                    image, clean_path, save_images=False)
+                    image=image,
+                    name=clean_path,
+                    save_images=False,
+                    w_epochs=1,
+                    n_epochs=1)
             pbar.update(1)
             pbar.set_description_str(
                 f"Class: {dataloader_label}, batch: {index}")
@@ -192,11 +198,4 @@ def embed_full_dataset():
 
 if __name__ == '__main__':
     # main()
-    # generate_image_from_labels()
-    # offline_style_transfer()
-    # generate_resnet_images()
-    # generate_image_with_noise()
-    # offline_mix_latents()
-    # offline_style_transfer_v2()
-    # offline_mix_latents_v2()
     embed_everything()

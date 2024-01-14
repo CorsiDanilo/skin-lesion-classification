@@ -19,12 +19,14 @@ class StyleGANPairsDataset(CustomDataset):
                  metadata: pd.DataFrame,
                  load_data_fn: Callable,
                  resize_dims=(224, 224),
+                 balance_data: bool = False,
+                 balance_downsampling: float = BALANCE_DOWNSAMPLING,
                  dynamic_load: bool = False):
         super().__init__(
             metadata=metadata,
             load_data_fn=load_data_fn,
-            balance_data=False,
-            balance_downsampling=1,
+            balance_data=balance_data,
+            balance_downsampling=balance_downsampling,
             # NOTE: normalization is not needed for StyleGAN images
             normalize=False,
             mean=None,
@@ -89,8 +91,8 @@ class StyleGANPairsDataset(CustomDataset):
     def __getitem__(self, idx):
         if self.dynamic_load:
             result = self.load_data_fn(metadata=self.metadata, idx=idx)
-            image, label, image_path = result
+            image, label, image_path, augmented = result
             image = image.to(self.device)
-            return image, label, image_path
+            return image, label, image_path, augmented
         else:
             raise NotImplementedError()

@@ -39,13 +39,12 @@ class StyleGANDataLoader(DataLoader):
                          batch_size=batch_size,
                          always_rotate=False)
         self.resize_dim = resize_dim
-        # mslanet_augmentation = MSLANetAugmentation(resize_dim=resize_dim)
-        # self.transform = mslanet_augmentation.transform
         self.transform = transforms.Compose([
             transforms.Resize(resize_dim),
             transforms.ToTensor()
         ])
-        # self.image_paths, self.labels = self.create_image_groups(self.train_df)
+        self.augmented_transform = MSLANetAugmentation(
+            resize_dim=resize_dim).transform
         self.split_metadatas = self.split_metadata_by_label(self.train_df)
 
     def split_metadata_by_label(self, metadata: pd.DataFrame) -> Dict[int, pd.DataFrame]:
@@ -58,47 +57,17 @@ class StyleGANDataLoader(DataLoader):
         img = metadata.iloc[idx]
         label = img['label']
         image_path = img['image_path']
+        augmented = img['augmented']
         image = Image.open(image_path)
-        image = self.transform(image)
-
-        return image, label, image_path
-
-    # def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int):
-    #     img = metadata.iloc[idx]
-    #     label = img['label']
-    #     image_path_1, image_path_2 = self.image_paths[idx]
-    #     label = self.labels[idx]
-
-    #     image_1 = Image.open(image_path_1)
-    #     image_2 = Image.open(image_path_2)
-    #     image_1 = self.transform(image_1)
-    #     image_2 = self.transform(image_2)
-
-    #     return (image_1, image_2), label
-
-    # def get_img_path(self, metadata: pd.DataFrame, idx: int):
-    #     img = metadata.iloc[idx]
-    #     return img['image_path']
-
-    # def create_image_groups(self, metadata: pd.DataFrame) -> Tuple[List[Tuple[str, str]], List[int]]:
-    #     image_paths = []
-    #     labels = []
-
-    #     # Split metadata by label
-    #     split_metadatas = self.split_metadata_by_label(metadata)
-
-    #     for label, label_metadata in split_metadatas.items():
-    #         # Get pairs of images for each label
-    #         for i in range(0, len(label_metadata), 2):
-    #             if i + 1 < len(label_metadata):  # Ensure there is a pair
-    #                 image_path_1 = self.get_img_path(label_metadata, i)
-    #                 image_path_2 = self.get_img_path(label_metadata, i+1)
-    #                 image_paths.append((image_path_1, image_path_2))
-    #                 labels.append(label)
-    #     # labels = torch.tensor(labels, dtype=torch.long)
-    #     return image_paths, labels
+        if augmented:
+            image = self.augmented_transform(image)
+        else:
+            image = self.transform(image)
+        return image, label, image_path, augmented
 
     def load_images_and_labels(self, metadata: pd.DataFrame):
+        raise NotImplementedError(
+            "Non-Dynamic load is still not implemented for StyleGAN")
         images = []
         labels = []
 

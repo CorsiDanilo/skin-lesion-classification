@@ -6,7 +6,7 @@ from typing import Tuple
 class MSLANetAugmentation:
     def __init__(self, resize_dim: Tuple[int, int] = (256, 256)):
         self.transform = A.Compose([
-            A.Resize(resize_dim),
+            A.Resize(height=resize_dim[0], width=resize_dim[1]),
             A.Transpose(p=0.5),
             A.VerticalFlip(p=0.5),
             A.HorizontalFlip(p=0.5),
