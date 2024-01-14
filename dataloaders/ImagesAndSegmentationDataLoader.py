@@ -33,7 +33,7 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                  upscale_train: bool = True,
                  normalize: bool = NORMALIZE,
                  normalization_statistics: tuple = None,
-                 batch_size: int = BATCH_SIZE,):
+                 batch_size: int = BATCH_SIZE):
         super().__init__(limit=limit,
                          transform=transform,
                          dynamic_load=dynamic_load,
@@ -75,6 +75,7 @@ class ImagesAndSegmentationDataLoader(DataLoader):
             image = self.transform(image)
         if load_segmentations:
             return image, label, segmentation
+
         return image, label
 
     def load_images_and_labels(self, metadata: pd.DataFrame):

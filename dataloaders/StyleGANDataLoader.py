@@ -61,7 +61,7 @@ class StyleGANDataLoader(DataLoader):
         image = Image.open(image_path)
         image = self.transform(image)
 
-        return image, label
+        return image, label, image_path
 
     # def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int):
     #     img = metadata.iloc[idx]

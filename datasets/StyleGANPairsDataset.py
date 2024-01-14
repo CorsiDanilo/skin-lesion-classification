@@ -89,8 +89,8 @@ class StyleGANPairsDataset(CustomDataset):
     def __getitem__(self, idx):
         if self.dynamic_load:
             result = self.load_data_fn(metadata=self.metadata, idx=idx)
-            image, label = result
+            image, label, image_path = result
             image = image.to(self.device)
-            return image, label
+            return image, label, image_path
         else:
             raise NotImplementedError()

@@ -78,7 +78,7 @@ def test_stylegan_dataloader():
     train_dataloders = dataloader.get_train_dataloder()
     for dataloader_label in tqdm(range(8)):
         for batch in train_dataloders[dataloader_label]:
-            images, labels = batch
+            images, labels, image_path = batch
             assert images.shape == (32, 3, 224, 224)
             assert torch.all(labels == dataloader_label)
         break

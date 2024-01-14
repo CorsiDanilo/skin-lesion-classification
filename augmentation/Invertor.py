@@ -164,7 +164,10 @@ class Invertor():
             #     f"Updating noise layer {i}. From {from_layer} to {to_layer}")
             layer.noise = noise_list[i]
 
-    def embed_v2(self, image, name):
+    def embed_v2(self,
+                 image: torch.Tensor,
+                 name: str,
+                 save_images: bool = True):
         """
         Function taken from https://github.com/Jerry2398/Image2StyleGAN-and-Image2StyleGAN-
         and sligthly modified to fit our needs.
@@ -225,34 +228,13 @@ class Invertor():
                 syn_img_path = os.path.join(
                     self.images_dir, f"syn_{name}_{e+1}.png")
 
-                if (e+1) == FEEDBACK_INTERVAL:
+                if (e+1) == FEEDBACK_INTERVAL and save_images:
                     original_img_path = os.path.join(
                         self.images_dir, f"original_{name}_{e+1}.png")
 
-                save_image(syn_img.clamp(0, 1), syn_img_path)
-                save_image(image.clamp(0, 1), original_img_path)
-
-            # X shape is torch.Size([1, 512, 4, 4]), noise shape is torch.Size([1, 1, 4, 4])
-            # X shape is torch.Size([1, 512, 4, 4]), noise shape is torch.Size([1, 1, 4, 4])
-            # X shape is torch.Size([1, 512, 8, 8]), noise shape is torch.Size([1, 1, 8, 8])
-            # X shape is torch.Size([1, 512, 8, 8]), noise shape is torch.Size([1, 1, 8, 8])
-            # X shape is torch.Size([1, 512, 16, 16]), noise shape is torch.Size([1, 1, 16, 16])
-            # X shape is torch.Size([1, 512, 16, 16]), noise shape is torch.Size([1, 1, 16, 16])
-            # X shape is torch.Size([1, 512, 32, 32]), noise shape is torch.Size([1, 1, 32, 32])
-            # X shape is torch.Size([1, 512, 32, 32]), noise shape is torch.Size([1, 1, 32, 32])
-            # X shape is torch.Size([1, 256, 64, 64]), noise shape is torch.Size([1, 1, 64, 64])
-            # X shape is torch.Size([1, 256, 64, 64]), noise shape is torch.Size([1, 1, 64, 64])
-            # X shape is torch.Size([1, 128, 128, 128]), noise shape is torch.Size([1, 1, 128, 128])
-            # X shape is torch.Size([1, 128, 128, 128]), noise shape is torch.Size([1, 1, 128, 128])
-            # X shape is torch.Size([1, 64, 256, 256]), noise shape is torch.Size([1, 1, 256, 256])
-            # X shape is torch.Size([1, 64, 256, 256]), noise shape is torch.Size([1, 1, 256, 256])
-            # X shape is torch.Size([1, 32, 512, 512]), noise shape is torch.Size([1, 1, 512, 512])
-            # X shape is torch.Size([1, 32, 512, 512]), noise shape is torch.Size([1, 1, 512, 512])
-
-            # if (e + 1) % 500 == 0:
-            #     print("iter{}: loss -- {}".format(e + 1, loss.item()))
-            #     save_image(syn_img.clamp(
-            #         0, 1) "save_images/image2stylegan_v2/image_reconstruct/reconstruct_{}.png".format(e + 1))
+                if save_images:
+                    save_image(syn_img.clamp(0, 1), syn_img_path)
+                    save_image(image.clamp(0, 1), original_img_path)
 
         for e in tqdm(range(w_epochs, w_epochs + n_epochs)):
             n_opt.zero_grad()
@@ -286,12 +268,13 @@ class Invertor():
                 syn_img_path = os.path.join(
                     self.images_dir, f"syn_{name}_{e+1}.png")
 
-                if (e+1) == FEEDBACK_INTERVAL:
+                if (e+1) == FEEDBACK_INTERVAL and save_images:
                     original_img_path = os.path.join(
                         self.images_dir, f"original_{name}_{e+1}.png")
 
-                save_image(syn_img.clamp(0, 1), syn_img_path)
-                save_image(image.clamp(0, 1), original_img_path)
+                if save_images:
+                    save_image(syn_img.clamp(0, 1), syn_img_path)
+                    save_image(image.clamp(0, 1), original_img_path)
 
             # if (e + 1) % 500 == 0:
             #     print("iter{}: loss -- {}".format(e + 1, loss.item()))

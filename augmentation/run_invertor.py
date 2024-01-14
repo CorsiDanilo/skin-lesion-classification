@@ -1,6 +1,9 @@
 import os
 import torch
 from torchvision.utils import save_image
+from tqdm import tqdm
+
+from dataloaders.StyleGANDataLoader import StyleGANDataLoader
 from .Invertor import Invertor
 from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
 from .gan_config import cfg
@@ -37,6 +40,38 @@ def main():
     latent_2, noise_list_2 = invertor.embed_v2(second_image, "second_image")
 
     invertor.style_transfer_v2(latent_1, latent_2, noise_list_1, noise_list_2)
+
+
+def embed_everything():
+    batch_size = 32
+    invertor = Invertor(cfg=cfg)
+
+    dataloader = StyleGANDataLoader(
+        dynamic_load=True,
+        batch_size=batch_size,
+        resize_dim=(
+            cfg.dataset.resolution,
+            cfg.dataset.resolution
+        )
+    )
+    train_dataloders = dataloader.get_train_dataloder()
+    total_iterations = sum(len(loader) for loader in train_dataloders.values())
+    pbar = tqdm(total=total_iterations,
+                desc="Embedding images with Images2Stylegan++")
+    for dataloader_label in range(8):
+        for index, batch in enumerate(train_dataloders[dataloader_label]):
+            images, labels, image_paths = batch
+            for image, label, image_path in zip(images, labels, image_paths):
+                clean_path = image_path.split("/")[-1]
+                assert label == dataloader_label
+                image = image.unsqueeze(0)
+                print(
+                    f'Embedding image with path {clean_path}, label {label}')
+                latent, noise_list = invertor.embed_v2(
+                    image, clean_path, save_images=False)
+            pbar.update(1)
+            pbar.set_description_str(
+                f"Class: {dataloader_label}, batch: {index}")
 
 
 def offline_mix_latents():
@@ -156,7 +191,7 @@ def embed_full_dataset():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
     # generate_image_from_labels()
     # offline_style_transfer()
     # generate_resnet_images()
@@ -164,3 +199,4 @@ if __name__ == '__main__':
     # offline_mix_latents()
     # offline_style_transfer_v2()
     # offline_mix_latents_v2()
+    embed_everything()
