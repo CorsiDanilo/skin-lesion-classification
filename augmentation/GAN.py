@@ -659,9 +659,12 @@ class StyleGAN:
             self.ema_updater(self.gen_shadow, self.gen, beta=0)
 
     def __setup_gen_optim(self, learning_rate, beta_1, beta_2, eps):
-        self.gen_optim = torch.optim.Adam(
-            self.gen.parameters(),
+        self.g_synthesis_optim = torch.optim.Adam(
+            [*self.gen.g_synthesis.parameters(), *self.gen.truncation.parameters()],
             lr=learning_rate, betas=(beta_1, beta_2), eps=eps)
+        self.g_mapping_optim = torch.optim.Adam(
+            self.gen.g_mapping.parameters(),
+            lr=0.01 * learning_rate, betas=(beta_1, beta_2), eps=eps)
 
     def __setup_dis_optim(self, learning_rate, beta_1, beta_2, eps):
         self.dis_optim = torch.optim.Adam(self.dis.parameters(
@@ -784,11 +787,15 @@ class StyleGAN:
                 real_samples, fake_samples, labels, depth, alpha)
 
         # optimize the generator
-        self.gen_optim.zero_grad()
+        self.g_synthesis_optim.zero_grad()
+        self.g_mapping_optim.zero_grad()
+
         loss.backward()
         # Gradient Clipping
         nn.utils.clip_grad_norm_(self.gen.parameters(), max_norm=10.)
-        self.gen_optim.step()
+
+        self.g_synthesis_optim.step()
+        self.g_mapping_optim.step()
 
         # if use_ema is true, apply ema to the generator parameters
         if self.use_ema:
@@ -819,7 +826,7 @@ class StyleGAN:
                    normalize=True, scale_each=True, pad_value=128, padding=1)
 
     def train(self, epochs, batch_sizes, fade_in_percentage, logger, output,
-              num_samples=36, start_depth=0, feedback_factor=100, checkpoint_factor=1):
+              num_samples=36, start_depth=0, feedback_factor=100, checkpoint_factor=1, starting_epoch=1):
         """
         Utility method for training the GAN. Note that you don't have to necessarily use this
         you can use the optimize_generator and optimize_discriminator for your own training routine.
@@ -894,7 +901,7 @@ class StyleGAN:
             )
             data = dataloader.get_train_dataloder()
 
-            for epoch in tqdm(range(1, epochs[current_depth] + 1)):
+            for epoch in tqdm(range(starting_epoch, epochs[current_depth] + 1)):
                 start = timeit.default_timer()  # record time at the start of epoch
 
                 logger.info("Epoch: [%d]" % epoch)
@@ -976,8 +983,8 @@ class StyleGAN:
                     torch.save(self.gen.state_dict(), gen_save_file)
                     logger.info("Saving the model to: %s\n" % gen_save_file)
                     torch.save(self.dis.state_dict(), dis_save_file)
-                    torch.save(self.gen_optim.state_dict(),
-                               gen_optim_save_file)
+                    # torch.save(self.gen_optim.state_dict(),
+                    #            gen_optim_save_file)
                     torch.save(self.dis_optim.state_dict(),
                                dis_optim_save_file)
 

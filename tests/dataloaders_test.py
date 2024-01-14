@@ -1,9 +1,12 @@
+from tqdm import tqdm
+from dataloaders.StyleGANDataLoader import StyleGANDataLoader
 from shared.constants import IMAGENET_STATISTICS
 from dataloaders.SegmentedImagesDataLoader import SegmentedImagesDataLoader
 from dataloaders.DynamicSegmentationDataLoader import DynamicSegmentationDataLoader
 from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
 from shared.enums import DynamicSegmentationStrategy
 import pytest
+import torch
 
 
 @pytest.mark.skip(reason="Deprecated")
@@ -70,5 +73,16 @@ def test_dynamic_segmentation_dataloader():
     assert tr_labels.shape == val_labels.shape == te_labels.shape, f"tr_labels.shape: {tr_labels.shape}, val_labels.shape: {val_labels.shape}, te_labels.shape: {te_labels.shape}"
 
 
+def test_stylegan_dataloader():
+    dataloader = StyleGANDataLoader(dynamic_load=True)
+    train_dataloders = dataloader.get_train_dataloder()
+    for dataloader_label in tqdm(range(8)):
+        for batch in train_dataloders[dataloader_label]:
+            images, labels = batch
+            assert images.shape == (32, 3, 224, 224)
+            assert torch.all(labels == dataloader_label)
+        break
+
+
 if __name__ == "__main__":
-    test_dynamic_segmentation_dataloader()
+    test_stylegan_dataloader()
