@@ -200,11 +200,14 @@ class NoiseLayer(nn.Module):
         if noise is None and self.noise is None:
             noise = torch.randn(x.size(0), 1, x.size(
                 2), x.size(3), device=x.device, dtype=x.dtype)
+
         elif noise is None:
             # here is a little trick: if you get all the noise layers and set each
             # modules .noise attribute, you can have pre-defined noise.
             # Very useful for analysis
             noise = self.noise
+
+        # print(f'X shape is {x.shape}, noise shape is {noise.shape}')
         x = x + self.weight.view(1, -1, 1, 1) * noise
         return x
 

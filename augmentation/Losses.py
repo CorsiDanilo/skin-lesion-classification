@@ -290,3 +290,54 @@ class VGG16PerceptualLoss(nn.Module):
         per_loss += self.MSE_loss(syn3, r3)
 
         return mse, per_loss
+
+
+def W_loss(syn_img, img, MSE_loss, upsample, perceptual, lamb_p, lamb_mse, M_p=None, M_m=None):
+    '''
+    For W_l loss
+    '''
+    # adding mask on image
+    if M_m is not None:
+        mse = MSE_loss(M_m * syn_img, M_m * img)
+    else:
+        mse = MSE_loss(syn_img, img)
+
+    if M_p is not None:
+        syn_img_p = upsample(M_p * syn_img)
+        img_p = upsample(M_p * img)
+    else:
+        syn_img_p = upsample(syn_img)
+        img_p = upsample(img)
+
+    syn0, syn1, syn2, syn3 = perceptual(syn_img_p)
+    r0, r1, r2, r3 = perceptual(img_p)
+
+    per_loss = 0
+    per_loss += MSE_loss(syn0, r0)
+    per_loss += MSE_loss(syn1, r1)
+    per_loss += MSE_loss(syn2, r2)
+    per_loss += MSE_loss(syn3, r3)
+
+    loss = lamb_p * per_loss + lamb_mse * mse
+
+    return loss
+
+
+def Mkn_loss(syn_image, image1, image2, MSE_loss, lamd_mse1, lamb_mse2, M=None):
+    '''
+        For noise optimization loss
+    '''
+    if M is not None:
+        syn_image1 = M * syn_image
+        syn_image2 = (1-M) * syn_image
+        image1 = M * image1
+        image2 = (1-M) * image2
+    else:
+        syn_image1 = syn_image
+        syn_image2 = syn_image
+        image1 = image1
+        image2 = image2
+
+    mse = lamd_mse1 * MSE_loss(syn_image1, image1) + \
+        lamb_mse2 * MSE_loss(syn_image2, image2)
+    return mse

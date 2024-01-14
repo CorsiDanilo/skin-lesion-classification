@@ -1,9 +1,10 @@
 import os
 from typing import Optional
 import torch
-from augmentation.GAN import GSynthesis, Generator, Resnet50Styles
+from augmentation.CustomLayers import NoiseLayer
+from augmentation.GAN import Generator, Resnet50Styles
 from torchvision.utils import save_image
-from augmentation.Losses import VGG16PerceptualLoss
+from augmentation.Losses import VGG16PerceptualLoss, W_loss, Mkn_loss
 from torch.optim import Adam
 from utils.utils import select_device
 from tqdm import tqdm
@@ -14,15 +15,16 @@ class Invertor():
     def __init__(self, cfg):
         self.cfg = cfg
         self.device = select_device()
+        self.resolution = cfg.dataset.resolution
         self.gen = Generator(num_channels=3,
                              dlatent_size=512,
-                             resolution=cfg.dataset.resolution,
+                             resolution=self.resolution,
                              structure="fixed",
                              conditional=False,
                              #  n_classes=7,
                              **cfg.model.gen).to(self.device)
         self.gen.load_checkpoints(os.path.join(
-            "checkpoints", "512res_512lat_GAN_GEN_7_14.pth"))
+            "checkpoints", "512res_512lat_GAN_GEN_7_21.pth"))
         self.gen.eval()
         self.g_synthesis = self.gen.g_synthesis
         self.g_synthesis.eval()
@@ -48,8 +50,13 @@ class Invertor():
     def embed(self,
               image: torch.Tensor,
               embedding_name: str):
+        """
+        Function taken from https://github.com/zaidbhat1234/Image2StyleGAN/blob/main/Image2Style_Implementation.ipynb
+        and sligthly modified to fit our needs.
+        """
+
         upsample = torch.nn.Upsample(
-            scale_factor=256/self.cfg.dataset.resolution, mode='bilinear')
+            scale_factor=256/self.resolution, mode='bilinear')
         # assert image.shape == (1, 3, 1024, 1024)
         img_p = image.clone()
         img_p = upsample(img_p)
@@ -80,7 +87,8 @@ class Invertor():
                 upsample=upsample
             )
             psnr = self.psnr(mse, flag=0)
-            loss = per_loss + mse
+            _lambda = 0.5
+            loss = _lambda * per_loss + (1 - _lambda) * mse
             loss.backward()
             optimizer.step()
             loss_np = loss.detach().cpu().numpy()
@@ -114,12 +122,155 @@ class Invertor():
                 save_image(image.clamp(0, 1), original_img_path)
         return latents
 
+    def embed_v2(self, image, name):
+        """
+        Function taken from https://github.com/Jerry2398/Image2StyleGAN-and-Image2StyleGAN-
+        and sligthly modified to fit our needs.
+        """
+
+        upsample = torch.nn.Upsample(scale_factor=256 / 1024, mode='bilinear')
+        # img_p = image.clone()
+        # img_p = upsample(img_p)
+
+        def update_noise():
+            i = 0
+            for param in list(self.g_synthesis.modules()):
+                if isinstance(param, NoiseLayer):
+                    param.noise = noise_list[i]
+                    i += 1
+
+        perceptual = VGG16PerceptualLoss().to(self.device)
+        # since the synthesis network expects 18 w vectors of size 1x512 thus we take latent vector of the same size
+        w = torch.zeros((1, 18, 512), requires_grad=True, device=self.device)
+
+        # noise 初始化，noise是直接加在feature map上的
+        noise_list = []
+        num_noise_layers = 8
+        for i in range(2, num_noise_layers + 2):
+            noise_list.append(torch.randn(
+                (1, 1, pow(2, i), pow(2, i)), requires_grad=True, device=self.device))
+            noise_list.append(torch.randn(
+                (1, 1, pow(2, i), pow(2, i)), requires_grad=True, device=self.device))
+
+        # for noise in noise_list:
+        #     print(f"My True shape is {noise.shape}")
+
+        # Optimizer to change latent code in each backward step
+        w_opt = Adam({w}, lr=0.01, betas=(0.9, 0.999), eps=1e-8)
+        n_opt = Adam(noise_list, lr=0.01,
+                     betas=(0.9, 0.999), eps=1e-8)
+
+        # 优化w
+        w_epochs = 1500
+        for e in tqdm(range(w_epochs)):
+            w_opt.zero_grad()
+
+            # NOTE: Trick to update the noise, don't know if it works
+            update_noise()
+
+            syn_img = self.g_synthesis(w)
+            syn_img = (syn_img + 1.0) / 2.0
+            loss = W_loss(syn_img=syn_img,
+                          img=image,
+                          MSE_loss=perceptual.MSE_loss,
+                          upsample=upsample,
+                          perceptual=perceptual,
+                          lamb_p=1e-5,
+                          lamb_mse=1e-5)
+            loss.backward()
+            w_opt.step()
+            FEEDBACK_INTERVAL = 100
+            if (e+1) % FEEDBACK_INTERVAL == 0:
+                print(f"iter{e}: loss -- {loss}")
+
+                saved_latents_path = os.path.join(
+                    self.latents_dir, f"{name}.pt")
+
+                torch.save(w, saved_latents_path)
+
+                syn_img_path = os.path.join(
+                    self.images_dir, f"syn_{name}_{e+1}.png")
+
+                if (e+1) == FEEDBACK_INTERVAL:
+                    original_img_path = os.path.join(
+                        self.images_dir, f"original_{name}_{e+1}.png")
+
+                save_image(syn_img.clamp(0, 1), syn_img_path)
+                save_image(image.clamp(0, 1), original_img_path)
+
+            # X shape is torch.Size([1, 512, 4, 4]), noise shape is torch.Size([1, 1, 4, 4])
+            # X shape is torch.Size([1, 512, 4, 4]), noise shape is torch.Size([1, 1, 4, 4])
+            # X shape is torch.Size([1, 512, 8, 8]), noise shape is torch.Size([1, 1, 8, 8])
+            # X shape is torch.Size([1, 512, 8, 8]), noise shape is torch.Size([1, 1, 8, 8])
+            # X shape is torch.Size([1, 512, 16, 16]), noise shape is torch.Size([1, 1, 16, 16])
+            # X shape is torch.Size([1, 512, 16, 16]), noise shape is torch.Size([1, 1, 16, 16])
+            # X shape is torch.Size([1, 512, 32, 32]), noise shape is torch.Size([1, 1, 32, 32])
+            # X shape is torch.Size([1, 512, 32, 32]), noise shape is torch.Size([1, 1, 32, 32])
+            # X shape is torch.Size([1, 256, 64, 64]), noise shape is torch.Size([1, 1, 64, 64])
+            # X shape is torch.Size([1, 256, 64, 64]), noise shape is torch.Size([1, 1, 64, 64])
+            # X shape is torch.Size([1, 128, 128, 128]), noise shape is torch.Size([1, 1, 128, 128])
+            # X shape is torch.Size([1, 128, 128, 128]), noise shape is torch.Size([1, 1, 128, 128])
+            # X shape is torch.Size([1, 64, 256, 256]), noise shape is torch.Size([1, 1, 256, 256])
+            # X shape is torch.Size([1, 64, 256, 256]), noise shape is torch.Size([1, 1, 256, 256])
+            # X shape is torch.Size([1, 32, 512, 512]), noise shape is torch.Size([1, 1, 512, 512])
+            # X shape is torch.Size([1, 32, 512, 512]), noise shape is torch.Size([1, 1, 512, 512])
+
+            # if (e + 1) % 500 == 0:
+            #     print("iter{}: loss -- {}".format(e + 1, loss.item()))
+            #     save_image(syn_img.clamp(
+            #         0, 1) "save_images/image2stylegan_v2/image_reconstruct/reconstruct_{}.png".format(e + 1))
+
+        n_epochs = 1500
+        for e in range(w_epochs, w_epochs + n_epochs):
+            n_opt.zero_grad()
+
+            # NOTE: Trick to update the noise, don't know if it works
+            update_noise()
+
+            syn_img = self.g_synthesis(w)
+            syn_img = (syn_img + 1.0) / 2.0
+            loss = Mkn_loss(syn_image=syn_img,
+                            image1=image,
+                            image2=image,
+                            MSE_loss=perceptual.MSE_loss,
+                            lamb_mse1=1e-5,
+                            lamb_mse2=0)
+            loss.backward()
+            n_opt.step()
+
+            FEEDBACK_INTERVAL = 100
+            if (e+1) % FEEDBACK_INTERVAL == 0:
+                print(f"iter{e}: loss -- {loss}")
+
+                saved_latents_path = os.path.join(
+                    self.latents_dir, f"{name}.pt")
+
+                torch.save(w, saved_latents_path)
+
+                syn_img_path = os.path.join(
+                    self.images_dir, f"syn_{name}_{e+1}.png")
+
+                if (e+1) == FEEDBACK_INTERVAL:
+                    original_img_path = os.path.join(
+                        self.images_dir, f"original_{name}_{e+1}.png")
+
+                save_image(syn_img.clamp(0, 1), syn_img_path)
+                save_image(image.clamp(0, 1), original_img_path)
+
+            # if (e + 1) % 500 == 0:
+            #     print("iter{}: loss -- {}".format(e + 1, loss.item()))
+            #     save_image(syn_img.clamp(
+            #         0, 1), "save_images/image2stylegan_v2/image_reconstruct/reconstruct_{}.png".format(e + 1))
+
+        return w, noise_list
+
     def style_transfer(self,
                        source_latent: torch.Tensor,
                        style_latent: torch.Tensor):
         image = self.g_synthesis(dlatents_in=source_latent,
                                  styled_latents=style_latent,
                                  style_threshold=9)
+        image = (image+1.0)/2.0
         style_transfer_path = os.path.join(
             self.results_dir, "style_transfer_results")
         os.makedirs(style_transfer_path, exist_ok=True)
@@ -132,6 +283,7 @@ class Invertor():
                     style_latent: torch.Tensor):
         mixed_latent = (source_latent + style_latent) / 2
         image = self.g_synthesis(mixed_latent)
+        image = (image+1.0)/2.0
         style_transfer_path = os.path.join(
             self.results_dir, "style_transfer_results")
         os.makedirs(style_transfer_path, exist_ok=True)

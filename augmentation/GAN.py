@@ -284,9 +284,9 @@ class Generator(nn.Module):
 
     def load_checkpoints(self, checkpoint_path):
         # Load the state dict from the checkpoint
-        self.load_state_dict(torch.load(checkpoint_path,
-                             map_location=torch.device('cpu')))
-        return
+        # self.load_state_dict(torch.load(checkpoint_path,
+        #                      map_location=torch.device('cpu')))
+        # return
 
         checkpoint_state_dict = torch.load(
             checkpoint_path, map_location=select_device())
