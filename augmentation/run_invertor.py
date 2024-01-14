@@ -8,7 +8,7 @@ from shared.constants import DEFAULT_STATISTICS, IMAGENET_STATISTICS
 
 
 def main():
-    batch_size = 8
+    batch_size = 16
     invertor = Invertor(cfg=cfg)
 
     fixed_dataloader = ImagesAndSegmentationDataLoader(
@@ -28,15 +28,15 @@ def main():
         images, labels = batch
 
         images = images.to(invertor.device)
-        first_image = images[5].unsqueeze(0)
-        second_image = [image for (image, label) in zip(
-            images, labels) if image is not first_image and label == labels[5]][0].unsqueeze(0)
+        first_image = images[1].unsqueeze(0)
+        second_image = [image for index, (image, label) in enumerate(zip(
+            images, labels)) if index != 1 and label == labels[1]][0].unsqueeze(0)
         break
 
-    latent_1 = invertor.embed_v2(first_image, "first_image")
-    latent_2 = invertor.embed_v2(second_image, "second_image")
+    latent_1, noise_list_1 = invertor.embed_v2(first_image, "first_image")
+    latent_2, noise_list_2 = invertor.embed_v2(second_image, "second_image")
 
-    invertor.style_transfer(latent_1, latent_2)
+    invertor.style_transfer_v2(latent_1, latent_2, noise_list_1, noise_list_2)
 
 
 def offline_mix_latents():
@@ -53,6 +53,22 @@ def offline_mix_latents():
     invertor.mix_latents(latent_1, latent_2)
 
 
+def offline_mix_latents_v2():
+    invertor = Invertor(cfg=cfg)
+    latent_path = invertor.latents_dir
+    first_latent_path = os.path.join(latent_path, "first_image_w.pt")
+    second_latent_path = os.path.join(latent_path, "second_image_w.pt")
+    first_noise_path = os.path.join(latent_path, "first_image_noise.pt")
+    second_noise_path = os.path.join(latent_path, "second_image_noise.pt")
+    latent_1 = torch.load(first_latent_path)
+    latent_2 = torch.load(second_latent_path)
+    noise_list_1 = torch.load(first_noise_path)
+    noise_list_2 = torch.load(second_noise_path)
+    for thresh in [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:
+        invertor.mix_latents_v2(latent_1, latent_2, noise_list_1,
+                                noise_list_2, mix_threshold=thresh)
+
+
 def offline_style_transfer():
     invertor = Invertor(cfg=cfg)
     latent_path = invertor.latents_dir
@@ -65,6 +81,24 @@ def offline_style_transfer():
     save_image(image_1, "image_1.png")
     save_image(image_2, "image_2.png")
     invertor.style_transfer(latent_1, latent_2)
+
+
+def offline_style_transfer_v2():
+    invertor = Invertor(cfg=cfg)
+    latent_path = invertor.latents_dir
+    first_latent_path = os.path.join(latent_path, "first_image_w.pt")
+    second_latent_path = os.path.join(latent_path, "second_image_w.pt")
+    first_noise_path = os.path.join(latent_path, "first_image_noise.pt")
+    second_noise_path = os.path.join(latent_path, "second_image_noise.pt")
+    latent_1 = torch.load(first_latent_path)
+    latent_2 = torch.load(second_latent_path)
+    noise_list_1 = torch.load(first_noise_path)
+    noise_list_2 = torch.load(second_noise_path)
+    image_1 = invertor.generate(latent_1, noise_list_1)
+    image_2 = invertor.generate(latent_2, noise_list_2)
+    save_image(image_1, "image_1_v2.png")
+    save_image(image_2, "image_2_v2.png")
+    invertor.style_transfer_v2(latent_1, latent_2, noise_list_1, noise_list_2)
 
 
 def generate_resnet_images():
@@ -128,3 +162,5 @@ if __name__ == '__main__':
     # generate_resnet_images()
     # generate_image_with_noise()
     # offline_mix_latents()
+    # offline_style_transfer_v2()
+    # offline_mix_latents_v2()
