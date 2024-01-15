@@ -19,11 +19,6 @@ random.seed(RANDOM_SEED)
 
 
 class StyleGANDataLoader(DataLoader):
-    """
-    This class is used to load the images and create the dataloaders.
-    The dataloder will output a tuple of (images, labels, segmentations), if segmentations are available (for training and validation, not for testing).
-    The images are not segmented, and they are resized only if the resize_dim parameter is set.
-    """
 
     def __init__(self,
                  limit: Optional[int] = None,

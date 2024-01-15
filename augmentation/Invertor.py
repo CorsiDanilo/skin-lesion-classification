@@ -2,7 +2,7 @@ import os
 from typing import List, Optional
 import torch
 from augmentation.CustomLayers import NoiseLayer
-from augmentation.GAN import Generator, Resnet50Styles
+from augmentation.GAN import Discriminator, Generator, Resnet50Styles
 from torchvision.utils import save_image
 from augmentation.Losses import VGG16PerceptualLoss, W_loss, Mkn_loss
 from torch.optim import Adam
@@ -22,12 +22,22 @@ class Invertor():
                              structure="fixed",
                              conditional=False,
                              **cfg.model.gen).to(self.device)
-
-        self.checkpoint = checkpoint if checkpoint is not None else "512res_512lat_GAN_GEN_7_21.pth"
+        self.dis = Discriminator(num_channels=3,
+                                 resolution=self.resolution,
+                                 structure="fixed",
+                                 conditional=False,
+                                 **cfg.model.dis).to(self.device)
+        self.gen_checkpoint = checkpoint if checkpoint is not None else "512res_512lat_GAN_GEN_7_50.pth"
+        self.dis_checkpoint = "512res_512lat_GAN_DIS_7_42.pth"
 
         self.gen.load_checkpoints(os.path.join(
-            "checkpoints", self.checkpoint))
+            "checkpoints", self.gen_checkpoint))
+        self.dis.load_state_dict(torch.load(os.path.join(
+            "checkpoints", self.dis_checkpoint), map_location=self.device)
+        )
+
         self.gen.eval()
+        self.dis.eval()
         self.g_synthesis = self.gen.g_synthesis
         self.g_synthesis.eval()
 
@@ -38,8 +48,11 @@ class Invertor():
         self.results_dir = os.path.join(self.current_dir, "invertor_results")
         self.images_dir = os.path.join(self.results_dir, "images")
         self.latents_dir = os.path.join(self.results_dir, "latents")
-        os.makedirs("invertor_results", exist_ok=True)
+        resample_results_path = os.path.join(
+            self.results_dir, "resample_results")
 
+        os.makedirs("invertor_results", exist_ok=True)
+        os.makedirs(resample_results_path, exist_ok=True)
         os.makedirs(self.images_dir, exist_ok=True)
         os.makedirs(self.latents_dir, exist_ok=True)
 
@@ -48,6 +61,15 @@ class Invertor():
         if flag == 0:
             psnr = 10 * log10(1 / mse.item())
         return psnr
+
+    def filter(self, images: torch.Tensor) -> torch.Tensor:
+        """
+        This function takes in input a tensor of images and returns the tensor of images that
+        are valid for the discriminator. It can be used in order to filter good results from
+        synthetic generated samples.
+        """
+        preds = self.dis(images, depth=6)
+        print("preds are: ", preds)
 
     def embed(self,
               image: torch.Tensor,
@@ -67,7 +89,7 @@ class Invertor():
 
         # since the synthesis network expects 18 w vectors of size 1xlatent_size thus we take latent vector of the same size
         latents = torch.zeros(
-            (1, 18, 512), requires_grad=True, device=self.device)
+            (1, 512), requires_grad=True, device=self.device)
 
         # Optimizer to change latent code in each backward step
         optimizer = Adam(
@@ -76,12 +98,12 @@ class Invertor():
         # Loop to optimise latent vector to match the ted image to input image
         loss_ = []
         loss_psnr = []
-        iterations = 1500
+        iterations = 5000
         pbar = tqdm(total=iterations)
         for e in range(iterations):
             optimizer.zero_grad()
-            syn_img = self.g_synthesis(latents)
-            syn_img = (syn_img+1.0)/2.0
+            syn_img = self.gen(latents, depth=6, alpha=1.0)
+            # syn_img = (syn_img+1.0)/2.0
             mse, per_loss = perceptual.loss_function(
                 syn_img=syn_img,
                 img=image,
@@ -124,6 +146,32 @@ class Invertor():
                 save_image(image.clamp(0, 1), original_img_path)
         return latents
 
+    def reset_noise(self,
+                    min_value: Optional[float] = None,
+                    max_value: Optional[float] = None):
+        """
+        Utility function to reset the noise of the NoiseLayers of the generator.
+        """
+        def generate_random_tensor(size, min_value, max_value):
+            return (min_value + torch.rand(size) * (max_value - min_value)).to(self.device)
+        noise_list = []
+        num_noise_layers = 8
+        for i in range(2, num_noise_layers + 2):
+            if min_value is not None and max_value is not None:
+                noise_1 = generate_random_tensor(
+                    (1, 1, pow(2, i), pow(2, i)), min_value, max_value)
+                noise_2 = generate_random_tensor(
+                    (1, 1, pow(2, i), pow(2, i)), min_value, max_value)
+            else:
+                noise_1 = torch.randn(
+                    (1, 1, pow(2, i), pow(2, i))).to(self.device)
+                noise_2 = torch.randn(
+                    (1, 1, pow(2, i), pow(2, i))).to(self.device)
+
+            noise_list.append(noise_1)
+            noise_list.append(noise_2)
+        self.update_noise(noise_list)
+
     def update_noise(self,
                      noise_list: torch.Tensor,
                      from_layer: Optional[int] = None,
@@ -151,8 +199,8 @@ class Invertor():
                  image: torch.Tensor,
                  name: str,
                  save_images: bool = True,
-                 w_epochs: int = 800,
-                 n_epochs: int = 500):
+                 w_epochs: int = 700,
+                 n_epochs: int = 300):
         """
         Function taken from https://github.com/Jerry2398/Image2StyleGAN-and-Image2StyleGAN-
         and sligthly modified to fit our needs.
@@ -162,11 +210,11 @@ class Invertor():
         saved_noise_path = os.path.join(
             self.latents_dir, f"{name}_noise.pt")
 
-        upsample = torch.nn.Upsample(scale_factor=256 / 1024, mode='bilinear')
+        upsample = torch.nn.Upsample(
+            scale_factor=256 / self.resolution, mode='bilinear')
         perceptual = VGG16PerceptualLoss().to(self.device)
         w = torch.zeros((1, 16, 512), requires_grad=True, device=self.device)
 
-        # noise 初始化，noise是直接加在feature map上的
         noise_list = []
         num_noise_layers = 8
         for i in range(2, num_noise_layers + 2):
@@ -180,22 +228,20 @@ class Invertor():
         n_opt = Adam(noise_list, lr=0.01,
                      betas=(0.9, 0.999), eps=1e-8)
 
-        # w_epochs = 800
-        # n_epochs = 500
         for e in tqdm(range(w_epochs)):
             w_opt.zero_grad()
 
-            self.update_noise(noise_list)
+            # self.update_noise(noise_list)
 
             syn_img = self.g_synthesis(w)
-            syn_img = (syn_img + 1.0) / 2.0
+            # syn_img = (syn_img + 1.0) / 2.0 #TODO: removed just to see if it works
             loss = W_loss(syn_img=syn_img,
                           img=image,
                           MSE_loss=perceptual.MSE_loss,
                           upsample=upsample,
                           perceptual=perceptual,
-                          lamb_p=1e-5,
-                          lamb_mse=1e-5)
+                          lamb_p=1,
+                          lamb_mse=1)
             loss.backward()
             w_opt.step()
             FEEDBACK_INTERVAL = 100
@@ -223,12 +269,12 @@ class Invertor():
             self.update_noise(noise_list)
 
             syn_img = self.g_synthesis(w)
-            syn_img = (syn_img + 1.0) / 2.0
+            # syn_img = (syn_img + 1.0) / 2.0
             loss = Mkn_loss(syn_image=syn_img,
                             image1=image,
                             image2=image,
                             MSE_loss=perceptual.MSE_loss,
-                            lamd_mse1=1e-5,
+                            lamd_mse1=1,
                             lamb_mse2=0)
             loss.backward()
             n_opt.step()
@@ -277,18 +323,34 @@ class Invertor():
                           source_latent: torch.Tensor,
                           style_latent: torch.Tensor,
                           noise_list_1: Optional[List[torch.Tensor]],
-                          noise_list_2: Optional[List[torch.Tensor]]):
+                          noise_list_2: Optional[List[torch.Tensor]],
+                          add_random_noise: bool = False):
         if noise_list_1 is not None and noise_list_2 is not None:
             self.update_noise(noise_list_1[:8], from_layer=0, to_layer=7)
-            self.update_noise(noise_list_2[-8:], from_layer=8, to_layer=15)
+            if add_random_noise:
+                random_layers = 6
+                assert random_layers < 8
+                self.update_noise(
+                    noise_list_2[7:16 - random_layers - 1], from_layer=8, to_layer=16 - random_layers - 1)
+                print(
+                    f"Noise list from 7 to 11 shape is {len(noise_list_2[7:16 - random_layers - 1])}")
+                random_noise_list = [torch.randn_like(
+                    noise) for noise in noise_list_2[-random_layers:]]
+                print(f"Random noise list shape is {len(random_noise_list)}")
+                self.update_noise(
+                    random_noise_list, from_layer=16 - random_layers, to_layer=15)
+            else:
+                self.update_noise(noise_list_2[-8:], from_layer=8, to_layer=15)
+
         image = self.g_synthesis(dlatents_in=source_latent,
                                  styled_latents=style_latent,
-                                 style_threshold=9)
+                                 style_threshold=8)
         image = (image+1.0)/2.0
         style_transfer_path = os.path.join(
             self.results_dir, "style_transfer_results")
         os.makedirs(style_transfer_path, exist_ok=True)
-        image_path = os.path.join(style_transfer_path, "transferred_image.png")
+        image_path = os.path.join(
+            style_transfer_path, "transferred_image_new.png")
         save_image(image.clamp(0, 1), image_path)
         return
 
@@ -333,55 +395,55 @@ class Invertor():
         if noise_list is not None:
             self.update_noise(noise_list)
         image = self.g_synthesis(latent)
-        image = (image+1.0)/2.0
+        # image = (image+1.0)/2.0 #TODO: removed just to see if it works
         return image
 
-    # TODO: DO NOT USE
-    def generate_from_label(self, labels_in: torch.Tensor):
-        noise = torch.randn(7, 256).to(self.device)
-        labels_in = labels_in.to(self.device)
+    # # TODO: DO NOT USE
+    # def generate_from_label(self, labels_in: torch.Tensor):
+    #     noise = torch.randn(7, 256).to(self.device)
+    #     labels_in = labels_in.to(self.device)
 
-        return self.gen(latents_in=noise, labels_in=labels_in, depth=6, alpha=0)
+    #     return self.gen(latents_in=noise, labels_in=labels_in, depth=6, alpha=0)
 
-    # TODO: DO NOT USE
-    def generate_from_resnet(self,
-                             image1: torch.Tensor,
-                             image2: torch.Tensor):
-        style1 = self.resnet50(image1)
-        style2 = self.resnet50(image2)
-        random_styles = torch.randn(
-            1, 4, self.resnet50.latent_size).to(self.device)
-        styles = torch.cat([style1, style2, random_styles], dim=1)
-        image = self.g_synthesis(styles)
-        image = (image+1.0)/2.0
-        save_image(image.clamp(0, 1), "generated_image.png")
-        return image
+    # # TODO: DO NOT USE
+    # def generate_from_resnet(self,
+    #                          image1: torch.Tensor,
+    #                          image2: torch.Tensor):
+    #     style1 = self.resnet50(image1)
+    #     style2 = self.resnet50(image2)
+    #     random_styles = torch.randn(
+    #         1, 4, self.resnet50.latent_size).to(self.device)
+    #     styles = torch.cat([style1, style2, random_styles], dim=1)
+    #     image = self.g_synthesis(styles)
+    #     image = (image+1.0)/2.0
+    #     save_image(image.clamp(0, 1), "generated_image.png")
+    #     return image
 
-    # TODO: DO NOT USE
-    def generate_with_noise(self,
-                            latent: torch.Tensor,
-                            latent_2: Optional[torch.Tensor]):
-        noise_layers = None
-        transfer_layers = 5
-        latent.requires_grad = False
-        # print(f"Latent shape is {latent.shape}")
-        # if latent_2 is not None:
-        #     print(f"Latent 2 shape is {latent_2.shape}")
-        if latent_2 is not None and transfer_layers is not None:
-            latent[:, :transfer_layers,
-                   :] = latent_2[:, :transfer_layers, :]
-        if noise_layers is not None:
-            latent = latent[:, noise_layers-18:, :]
-            noise = torch.randn(1, noise_layers, 512).to(self.device)
-            noise = noise * 0.01
-            noised_latent = torch.cat([noise, latent], dim=1)
-            image = self.g_synthesis(noised_latent)
-        else:
-            image = self.g_synthesis(latent)
-        noise = torch.randn(1, 18, 512).to(self.device)
-        # noise = noise * 0.05
-        # latent = latent - noise
-        # image = self.g_synthesis(latent)
-        image = (image+1.0)/2.0
-        save_image(image.clamp(0, 1), "generated_image.png")
-        return image
+    # # TODO: DO NOT USE
+    # def generate_with_noise(self,
+    #                         latent: torch.Tensor,
+    #                         latent_2: Optional[torch.Tensor]):
+    #     noise_layers = None
+    #     transfer_layers = 5
+    #     latent.requires_grad = False
+    #     # print(f"Latent shape is {latent.shape}")
+    #     # if latent_2 is not None:
+    #     #     print(f"Latent 2 shape is {latent_2.shape}")
+    #     if latent_2 is not None and transfer_layers is not None:
+    #         latent[:, :transfer_layers,
+    #                :] = latent_2[:, :transfer_layers, :]
+    #     if noise_layers is not None:
+    #         latent = latent[:, noise_layers-18:, :]
+    #         noise = torch.randn(1, noise_layers, 512).to(self.device)
+    #         noise = noise * 0.01
+    #         noised_latent = torch.cat([noise, latent], dim=1)
+    #         image = self.g_synthesis(noised_latent)
+    #     else:
+    #         image = self.g_synthesis(latent)
+    #     noise = torch.randn(1, 18, 512).to(self.device)
+    #     # noise = noise * 0.05
+    #     # latent = latent - noise
+    #     # image = self.g_synthesis(latent)
+    #     image = (image+1.0)/2.0
+    #     save_image(image.clamp(0, 1), "generated_image.png")
+    #     return image

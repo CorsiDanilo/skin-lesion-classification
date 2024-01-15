@@ -11,9 +11,6 @@ import math
 
 
 class StyleGANPairsDataset(CustomDataset):
-    """
-    Class that defines the HAM10K dataset for the project.
-    """
 
     def __init__(self,
                  metadata: pd.DataFrame,
