@@ -107,11 +107,8 @@ class Invertor():
                     continue
                 if i > to_layer:
                     break
-            # print(
-            #     f"Updating noise layer {i}. From {from_layer} to {to_layer}")
             layer.noise = noise_list[i]
 
-    # TODO: make it work with batch of images
     def embed(self,
               images: torch.Tensor,
               names: List[str],
@@ -226,7 +223,9 @@ class Invertor():
 
         for index, (latents_path, noise_path) in enumerate(zip(saved_latents_paths, saved_noise_paths)):
             torch.save(w[index], latents_path)
-            torch.save(noise_list[index], noise_path)
+
+            formatted_noise_list = [noise[index] for noise in noise_list]
+            torch.save(formatted_noise_list, noise_path)
 
         for index, (original_img_path, syn_img_path) in enumerate(zip(original_img_paths, syn_img_paths)):
             save_image(images[index].clamp(0, 1), original_img_path)
@@ -234,62 +233,62 @@ class Invertor():
 
         return w, noise_list
 
-    def style_transfer(self,
-                       source_latent: torch.Tensor,
-                       style_latent: torch.Tensor,
-                       noise_list_1: Optional[List[torch.Tensor]],
-                       noise_list_2: Optional[List[torch.Tensor]],
-                       add_random_noise: bool = False):
-        if noise_list_1 is not None and noise_list_2 is not None:
-            self.update_noise(noise_list_1[:8], from_layer=0, to_layer=7)
-            if add_random_noise:
-                random_layers = 6
-                assert random_layers < 8
-                self.update_noise(
-                    noise_list_2[7:16 - random_layers - 1], from_layer=8, to_layer=16 - random_layers - 1)
-                print(
-                    f"Noise list from 7 to 11 shape is {len(noise_list_2[7:16 - random_layers - 1])}")
-                random_noise_list = [torch.randn_like(
-                    noise) for noise in noise_list_2[-random_layers:]]
-                print(f"Random noise list shape is {len(random_noise_list)}")
-                self.update_noise(
-                    random_noise_list, from_layer=16 - random_layers, to_layer=15)
-            else:
-                self.update_noise(noise_list_2[-8:], from_layer=8, to_layer=15)
+    # def style_transfer(self,
+    #                    source_latent: torch.Tensor,
+    #                    style_latent: torch.Tensor,
+    #                    noise_list_1: Optional[List[torch.Tensor]],
+    #                    noise_list_2: Optional[List[torch.Tensor]],
+    #                    add_random_noise: bool = False):
+    #     if noise_list_1 is not None and noise_list_2 is not None:
+    #         self.update_noise(noise_list_1[:8], from_layer=0, to_layer=7)
+    #         if add_random_noise:
+    #             random_layers = 6
+    #             assert random_layers < 8
+    #             self.update_noise(
+    #                 noise_list_2[7:16 - random_layers - 1], from_layer=8, to_layer=16 - random_layers - 1)
+    #             print(
+    #                 f"Noise list from 7 to 11 shape is {len(noise_list_2[7:16 - random_layers - 1])}")
+    #             random_noise_list = [torch.randn_like(
+    #                 noise) for noise in noise_list_2[-random_layers:]]
+    #             print(f"Random noise list shape is {len(random_noise_list)}")
+    #             self.update_noise(
+    #                 random_noise_list, from_layer=16 - random_layers, to_layer=15)
+    #         else:
+    #             self.update_noise(noise_list_2[-8:], from_layer=8, to_layer=15)
 
-        image = self.g_synthesis(dlatents_in=source_latent,
-                                 styled_latents=style_latent,
-                                 style_threshold=8)
-        image = (image+1.0)/2.0
-        style_transfer_path = os.path.join(
-            self.results_dir, "style_transfer_results")
-        os.makedirs(style_transfer_path, exist_ok=True)
-        image_path = os.path.join(
-            style_transfer_path, "transferred_image_new.png")
-        save_image(image.clamp(0, 1), image_path)
-        return
+    #     image = self.g_synthesis(dlatents_in=source_latent,
+    #                              styled_latents=style_latent,
+    #                              style_threshold=8)
+    #     image = (image+1.0)/2.0
+    #     style_transfer_path = os.path.join(
+    #         self.results_dir, "style_transfer_results")
+    #     os.makedirs(style_transfer_path, exist_ok=True)
+    #     image_path = os.path.join(
+    #         style_transfer_path, "transferred_image_new.png")
+    #     save_image(image.clamp(0, 1), image_path)
+    #     return
 
-    def mix_latents(self,
-                    source_latent: torch.Tensor,
-                    style_latent: torch.Tensor,
-                    noise_list_1: Optional[List[torch.Tensor]],
-                    noise_list_2: Optional[List[torch.Tensor]],
-                    mix_threshold: float = 0.5):
-        mixed_latent = mix_threshold * source_latent + \
-            (1 - mix_threshold) * style_latent
-        mixed_noise = [mix_threshold * n1 + (1 - mix_threshold) * n2
-                       for n1, n2 in zip(noise_list_1, noise_list_2)]
+    # def mix_latents(self,
+    #                 source_latent: torch.Tensor,
+    #                 style_latent: torch.Tensor,
+    #                 noise_list_1: Optional[List[torch.Tensor]],
+    #                 noise_list_2: Optional[List[torch.Tensor]],
+    #                 mix_threshold: float = 0.5):
+    #     mixed_latent = mix_threshold * source_latent + \
+    #         (1 - mix_threshold) * style_latent
+    #     mixed_noise = [mix_threshold * n1 + (1 - mix_threshold) * n2
+    #                    for n1, n2 in zip(noise_list_1, noise_list_2)]
 
-        self.update_noise(mixed_noise)
-        image = self.g_synthesis(mixed_latent)
-        image = (image+1.0)/2.0
-        style_transfer_path = os.path.join(
-            self.results_dir, "style_transfer_results")
-        os.makedirs(style_transfer_path, exist_ok=True)
-        image_path = os.path.join(
-            style_transfer_path, f"transferred_image_{mix_threshold}.png")
-        save_image(image.clamp(0, 1), image_path)
-        return
+    #     self.update_noise(mixed_noise)
+    #     image = self.g_synthesis(mixed_latent)
+    #     image = (image+1.0)/2.0
+    #     style_transfer_path = os.path.join(
+    #         self.results_dir, "style_transfer_results")
+    #     os.makedirs(style_transfer_path, exist_ok=True)
+    #     image_path = os.path.join(
+    #         style_transfer_path, f"transferred_image_{mix_threshold}.png")
+    #     save_image(image.clamp(0, 1), image_path)
+    #     return
 
     def generate(self,
                  latent: torch.Tensor,
@@ -297,5 +296,4 @@ class Invertor():
         if noise_list is not None:
             self.update_noise(noise_list)
         image = self.g_synthesis(latent)
-        # image = (image+1.0)/2.0 #TODO: removed just to see if it works
         return image

@@ -1,4 +1,5 @@
 import os
+import pickle
 from typing import List
 import torch
 from torchvision.utils import save_image
@@ -8,7 +9,7 @@ from dataloaders.StyleGANDataLoader import StyleGANDataLoader
 from .Invertor import Invertor
 from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
 from .gan_config import cfg
-from shared.constants import DEFAULT_STATISTICS, IMAGENET_STATISTICS
+from shared.constants import DEFAULT_STATISTICS
 
 
 def embed_everything():
@@ -23,7 +24,8 @@ def embed_everything():
 
     If the image is augmented, it will save the files with the suffix "_augmented".
     """
-    batch_size = 2
+
+    batch_size = 16
     invertor = Invertor(cfg=cfg)
 
     dataloader = StyleGANDataLoader(
@@ -35,23 +37,125 @@ def embed_everything():
         )
     )
     train_dataloders = dataloader.get_train_dataloder()
-
+    computed_latents_set = pickle.load(
+        open("computed_latents_set.pkl", "rb"))
+    print(f"Computed latents set length is {len(computed_latents_set)}")
     # Skip label 0 since is the majority class
     for dataloader_label in tqdm(range(1, 8)):
+        processed_images = 0
+
+        for batch in tqdm(train_dataloders[dataloader_label], desc="Checking images already embedded"):
+            images, labels, image_paths, augmented_list = batch
+            for image_path in image_paths:
+                clean_path = image_path.split("/")[-1].replace(".jpg", "")
+                if clean_path in computed_latents_set:
+                    processed_images += 1
+
         for index, batch in enumerate(tqdm(train_dataloders[dataloader_label])):
+            print(f"Currently processed {processed_images} images")
+            if processed_images >= 100:
+                break
             images, labels, image_paths, augmented_list = batch
             clean_paths = [image_path.split(
                 "/")[-1].replace(".jpg", "") for image_path in image_paths]
             clean_paths = [clean_path + "_augmented" if augmented else clean_path for clean_path,
                            augmented in zip(clean_paths, augmented_list)]
+
+            clean_paths = [
+                clean_path for clean_path in clean_paths if clean_path not in computed_latents_set]
+
+            if clean_paths == []:
+                continue
+
+            print(f"Currently processing {len(clean_paths)} images")
             latent, noise_list = invertor.embed(
                 images=images,
                 names=clean_paths,
                 save_images=False,
                 w_epochs=800,
-                n_epochs=500,
+                n_epochs=800,
                 verbose=False,
                 show_pbar=True)
+            processed_images += batch_size
+
+
+def test_noise_saving():
+    invertor = Invertor(cfg=cfg)
+    noise = torch.load(os.path.join(
+        invertor.latents_dir, "ISIC_0024877_noise.pt"), map_location=invertor.device)
+    print(f"Noise type is {type(noise)}")
+    print(f"Noise length is {len(noise)}")
+    for n in noise:
+        print(f"Noise shape is {n.shape}")
+        print(f"Noise dtype is {n.dtype}")
+
+
+def recover_embeddings_state():
+    """
+    Function to recover which images have been already embedded, in case the embedding process is interrupted.
+    """
+    raise NotImplementedError("This function is not implemented yet.")
+
+
+def generate_augmented_images(generation_ratio: int = 8):
+    """
+    Function to generate augmented images from the images' embeddings. 
+    It will also generate the metadata.csv file. 
+
+    :params generation_ratio: the number of augmented images to generate for each image.
+    """
+    invertor = Invertor(cfg=cfg)
+
+    augmented_image_path = os.path.join(
+        invertor.results_dir, "augmented_images")
+    os.makedirs(augmented_image_path, exist_ok=True)
+
+    latent_noise_dict = {}
+    for filename in tqdm(os.listdir(invertor.latents_dir), desc="Loading latents and noise"):
+        if filename.endswith("_w.pt"):
+            image_name = filename.replace("_w.pt", "")
+            noise_name = os.path.join(
+                invertor.latents_dir, image_name + "_noise.pt")
+            latent_name = os.path.join(invertor.latents_dir, filename)
+            latent_noise_dict[image_name] = {
+                "w": latent_name, "noise": noise_name}
+
+    for image_name, latent_noise in tqdm(latent_noise_dict.items(), desc="Generating augmented images"):
+        latent = torch.load(latent_noise["w"], map_location=invertor.device)
+        noise = torch.load(latent_noise["noise"], map_location=invertor.device)
+        latent = latent.unsqueeze(0)
+        invertor.update_noise(noise)
+        for i in range(generation_ratio):
+            latent_variation = latent.clone() + torch.randn_like(latent) * 0.15
+            image = invertor.generate(latent_variation)
+            augmented_image_name = f"{image_name}_augmented_{i}.png"
+            save_image(image, os.path.join(
+                augmented_image_path, augmented_image_name))
+
+
+def create_computed_latents_set():
+    invertor = Invertor(cfg=cfg)
+    set_name = "computed_latents_set.pkl"
+
+    if os.path.exists(set_name):
+        _set = pickle.load(open(set_name, "rb"))
+        print(f"Loaded set from {set_name}, it has length {len(_set)}")
+    else:
+        _set = set()
+    for filename in os.listdir(invertor.latents_dir):
+        if filename.endswith("_w.pt"):
+            image_name = filename.replace("_w.pt", "")
+            _set.add(image_name)
+    print(f"Set length is {len(_set)}")
+    print(f"Set is {_set}")
+    pickle.dump(_set, open("computed_latents_set.pkl", "wb"))
+
+
+def generate_metadata():
+    """
+    Function to generate the metadata csv file from the augmented images.
+    """
+    raise NotImplementedError("This function is not implemented yet.")
 
 
 def generate_similar_images():
@@ -86,40 +190,6 @@ def generate_similar_images():
         image = invertor.generate(variant_latent)
         save_image(
             image, f"augmentation/invertor_results/resample_results/resampled_image_{i}.png")
-
-
-def embed_v1_test():
-    batch_size = 8
-    invertor = Invertor(cfg=cfg)
-
-    fixed_dataloader = ImagesAndSegmentationDataLoader(
-        limit=None,
-        dynamic_load=True,
-        upscale_train=False,
-        normalize=False,
-        normalization_statistics=DEFAULT_STATISTICS,
-        batch_size=batch_size,
-        resize_dim=(
-            cfg.dataset.resolution,
-            cfg.dataset.resolution,
-        )
-    )
-    fixed_data = fixed_dataloader.get_test_dataloader()
-    for batch in fixed_data:
-        images, labels = batch
-
-        images = images.to(invertor.device)
-        image = images[7].unsqueeze(0)
-        break
-
-    latent_1 = invertor.embed(image, "image")
-    # min_noise, max_noise = get_min_max_noise(noise_list_1)
-    # for i in range(num_images_to_generate):
-    #     invertor.reset_noise(min_value=min_noise,
-    #                          max_value=max_noise)
-    #     image = invertor.generate(latent_1)
-    #     save_image(
-    #         image, f"augmentation/invertor_results/resample_results/resampled_image_{i}.png")
 
 
 def embed_and_style_transfer():
@@ -223,3 +293,6 @@ if __name__ == '__main__':
     # resample_image()
     # generate_similar_images()
     embed_everything()
+    # generate_augmented_images()
+    # create_computed_latents_set()
+    # test_noise_saving()
