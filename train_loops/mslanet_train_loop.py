@@ -1,5 +1,5 @@
 from typing import Any, Dict
-from sklearn.metrics import recall_score, accuracy_score
+from sklearn.metrics import confusion_matrix, recall_score, accuracy_score, roc_auc_score
 from utils.utils import save_results, save_model, save_configurations
 from tqdm import tqdm
 import torch
@@ -7,7 +7,7 @@ import torch.nn as nn
 import wandb
 from datetime import datetime
 import copy
-from config import SAVE_MODELS, SAVE_RESULTS, PATH_MODEL_TO_RESUME, RESUME_EPOCH, USE_MULTIPLE_LOSS, MULTIPLE_LOSS_BALANCE
+from config import NUM_CLASSES, SAVE_MODELS, SAVE_RESULTS, PATH_MODEL_TO_RESUME, RESUME_EPOCH, USE_MULTIPLE_LOSS, MULTIPLE_LOSS_BALANCE
 
 
 def train_eval_loop(device,
@@ -58,34 +58,10 @@ def train_eval_loop(device,
             tr_output_low = model(tr_image_low)  # Prediction
             tr_output_high = model(tr_image_high)  # Prediction
 
-            tr_outputs = (
-                tr_output_ori + tr_output_low + tr_output_high) / 3
+            tr_outputs = (tr_output_ori + tr_output_low + tr_output_high) / 3
 
-            # First loss: Multiclassification loss considering all classes
-            tr_epoch_loss_multiclass = criterion(
-                tr_outputs, tr_labels)
-            tr_epoch_loss = tr_epoch_loss_multiclass
-
-            if USE_MULTIPLE_LOSS:
-                tr_labels_binary = torch.zeros_like(
-                    tr_labels, dtype=torch.long).to(device)
-                # Set ground-truth to 1 for classes 2, 3, and 4 (the malignant classes)
-                tr_labels_binary[(tr_labels == 2) | (
-                    tr_labels == 3) | (tr_labels == 4)] = 1
-
-                # Second loss: Binary loss considering only benign/malignant classes
-                tr_outputs_binary = torch.zeros_like(
-                    tr_outputs[:, :2]).to(device)
-                tr_outputs_binary[:, 1] = torch.sum(
-                    tr_outputs[:, [2, 3, 4]], dim=1)
-                tr_outputs_binary[:, 0] = 1 - tr_outputs_binary[:, 1]
-
-                tr_epoch_loss_binary = criterion(
-                    tr_outputs_binary, tr_labels_binary)
-
-                # Sum of the losses (with importance factor)
-                tr_epoch_loss = (tr_epoch_loss * MULTIPLE_LOSS_BALANCE) + \
-                    (tr_epoch_loss_binary * (1 - MULTIPLE_LOSS_BALANCE))
+            # Multiclassification loss considering all classes
+            tr_epoch_loss = criterion(tr_outputs, tr_labels)
 
             optimizer.zero_grad()
             tr_epoch_loss.backward()
@@ -98,17 +74,51 @@ def train_eval_loop(device,
 
                 tr_accuracy = accuracy_score(
                     epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy()) * 100
-                tr_recall = recall_score(
+                tr_sensitivity = recall_score(
                     epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy(), average='macro', zero_division=0) * 100
+                conf_matrix = confusion_matrix(epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy())
+                tr_specificity = conf_matrix[0, 0] / (conf_matrix[0, 0] + conf_matrix[0, 1]) * 100
 
                 if (tr_i+1) % 5 == 0:
-                    print('Training -> Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%, Recall: {:.4f}%'
-                          .format(epoch+1, config["epochs"], tr_i+1, total_step, tr_epoch_loss, tr_accuracy, tr_recall))
+                    print('Training -> Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%, Sensitivity (Recall): {:.4f}%, Specificity: {:.4f}%'
+                          .format(epoch+1, config["epochs"], tr_i+1, total_step, tr_epoch_loss, tr_accuracy, tr_sensitivity, tr_specificity))
+
+                for class_label in range(NUM_CLASSES):
+                    #class_indices = epoch_tr_labels == class_label
+                    #class_preds = epoch_tr_preds[class_indices]
+                    #class_labels = epoch_tr_labels[class_indices]
+                    class_labels_binary = torch.zeros_like(epoch_tr_labels, dtype=torch.long).to(device)
+                    class_labels_binary[(epoch_tr_labels == class_label)] = 1
+
+                    class_preds_binary = torch.zeros_like(epoch_tr_preds, dtype=torch.long).to(device)
+                    class_preds_binary[(epoch_tr_preds == class_label)] = 1
+
+                    if len(class_preds_binary) > 0:
+                        class_accuracy = accuracy_score(
+                            class_labels_binary.cpu().numpy(), class_preds_binary.cpu().numpy()) * 100
+                        class_sensitivity = recall_score(
+                            class_labels_binary.cpu().numpy(), class_preds_binary.cpu().numpy(), average='binary', pos_label=1, zero_division=0) * 100
+                        class_conf_matrix = confusion_matrix(
+                            class_labels_binary.cpu().numpy(), class_preds_binary.cpu().numpy())
+                        if (class_conf_matrix[0, 0] + class_conf_matrix[0, 1]) > 0:
+                            class_specificity = class_conf_matrix[0, 0] / (class_conf_matrix[0, 0] + class_conf_matrix[0, 1]) * 100
+                        else:
+                            class_specificity = 0
+                        if len(set(class_labels_binary.cpu().numpy())) > 1:
+                            class_auc = roc_auc_score(
+                                class_labels_binary.cpu().numpy(), class_preds_binary.cpu().numpy()) * 100
+                        else:
+                            class_auc = 0
+                        
+                        if (tr_i+1) % 5 == 0:
+                            print(f'Class {class_label} - Accuracy: {class_accuracy:.2f}%, Sensitivity: {class_sensitivity:.2f}%, Specificity: {class_specificity:.2f}%, AUC: {class_auc:.2f}%')
+                
 
         if config["use_wandb"]:
             wandb.log({"Training Loss": tr_epoch_loss.item()})
             wandb.log({"Training Accuracy": tr_accuracy})
-            wandb.log({"Training Recall": tr_recall})
+            wandb.log({"Training Sensitivity": tr_sensitivity})
+            wandb.log({"Training Specificity": tr_specificity})
 
         model.eval()
         with torch.no_grad():
@@ -173,11 +183,12 @@ def train_eval_loop(device,
             current_results = {
                 'epoch': epoch+1,
                 'validation_loss': val_epoch_loss.item(),
-                'training_loss': tr_epoch_loss.item(),
                 'validation_accuracy': val_accuracy,
-                'training_accuracy': tr_accuracy,
                 'validation_recall': val_recall,
-                'training_recall': tr_recall
+                'training_loss': tr_epoch_loss.item(),
+                'training_accuracy': tr_accuracy,
+                'training_specificity': tr_specificity,
+                'training_sensitivity': tr_sensitivity
             }
             if SAVE_RESULTS:
                 save_results(data_name, current_results)
