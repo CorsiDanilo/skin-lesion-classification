@@ -27,8 +27,8 @@ class Invertor():
                                  structure="fixed",
                                  conditional=False,
                                  **cfg.model.dis).to(self.device)
-        self.gen_checkpoint = checkpoint if checkpoint is not None else "512res_512lat_GAN_GEN_7_50.pth"
-        self.dis_checkpoint = "512res_512lat_GAN_DIS_7_42.pth"
+        self.gen_checkpoint = checkpoint if checkpoint is not None else "GAN_GEN_7_50.pth"
+        self.dis_checkpoint = "GAN_DIS_7_42.pth"
 
         self.gen.load_checkpoints(os.path.join(
             "checkpoints", self.gen_checkpoint))
@@ -61,90 +61,6 @@ class Invertor():
         if flag == 0:
             psnr = 10 * log10(1 / mse.item())
         return psnr
-
-    def filter(self, images: torch.Tensor) -> torch.Tensor:
-        """
-        This function takes in input a tensor of images and returns the tensor of images that
-        are valid for the discriminator. It can be used in order to filter good results from
-        synthetic generated samples.
-        """
-        preds = self.dis(images, depth=6)
-        print("preds are: ", preds)
-
-    def embed(self,
-              image: torch.Tensor,
-              embedding_name: str):
-        """
-        Function taken from https://github.com/zaidbhat1234/Image2StyleGAN/blob/main/Image2Style_Implementation.ipynb
-        and sligthly modified to fit our needs.
-        """
-
-        upsample = torch.nn.Upsample(
-            scale_factor=256/self.resolution, mode='bilinear')
-        # assert image.shape == (1, 3, 1024, 1024)
-        img_p = image.clone()
-        img_p = upsample(img_p)
-        # Perceptual loss initialise object
-        perceptual = VGG16PerceptualLoss().to(self.device)
-
-        # since the synthesis network expects 18 w vectors of size 1xlatent_size thus we take latent vector of the same size
-        latents = torch.zeros(
-            (1, 512), requires_grad=True, device=self.device)
-
-        # Optimizer to change latent code in each backward step
-        optimizer = Adam(
-            {latents}, lr=0.01, betas=(0.9, 0.999), eps=1e-8)
-
-        # Loop to optimise latent vector to match the ted image to input image
-        loss_ = []
-        loss_psnr = []
-        iterations = 5000
-        pbar = tqdm(total=iterations)
-        for e in range(iterations):
-            optimizer.zero_grad()
-            syn_img = self.gen(latents, depth=6, alpha=1.0)
-            # syn_img = (syn_img+1.0)/2.0
-            mse, per_loss = perceptual.loss_function(
-                syn_img=syn_img,
-                img=image,
-                img_p=img_p,
-                upsample=upsample
-            )
-            psnr = self.psnr(mse, flag=0)
-            _lambda = 0.5
-            loss = _lambda * per_loss + (1 - _lambda) * mse
-            loss.backward()
-            optimizer.step()
-            loss_np = loss.detach().cpu().numpy()
-            loss_p = per_loss.detach().cpu().numpy()
-            loss_m = mse.detach().cpu().numpy()
-            loss_psnr.append(psnr)
-            loss_.append(loss_np)
-            pbar.update(1)
-            pbar.set_postfix(
-                loss=loss.item(), psnr=psnr
-            )
-
-            FEEDBACK_INTERVAL = 100
-            if (e+1) % FEEDBACK_INTERVAL == 0:
-                print("iter{}: loss -- {},  mse_loss --{},  percep_loss --{}, psnr --{}".format(e +
-                                                                                                1, loss_np, loss_m, loss_p, psnr))
-
-                saved_latents_path = os.path.join(
-                    self.latents_dir, f"{embedding_name}.pt")
-
-                torch.save(latents, saved_latents_path)
-
-                syn_img_path = os.path.join(
-                    self.images_dir, f"syn_{embedding_name}_{e+1}.png")
-
-                if (e+1) == FEEDBACK_INTERVAL:
-                    original_img_path = os.path.join(
-                        self.images_dir, f"original_{embedding_name}_{e+1}.png")
-
-                save_image(syn_img.clamp(0, 1), syn_img_path)
-                save_image(image.clamp(0, 1), original_img_path)
-        return latents
 
     def reset_noise(self,
                     min_value: Optional[float] = None,
@@ -195,48 +111,55 @@ class Invertor():
             #     f"Updating noise layer {i}. From {from_layer} to {to_layer}")
             layer.noise = noise_list[i]
 
-    def embed_v2(self,
-                 image: torch.Tensor,
-                 name: str,
-                 save_images: bool = True,
-                 w_epochs: int = 700,
-                 n_epochs: int = 300):
+    # TODO: make it work with batch of images
+    def embed(self,
+              images: torch.Tensor,
+              names: List[str],
+              save_images: bool = True,
+              w_epochs: int = 800,
+              n_epochs: int = 500,
+              verbose: bool = True,
+              show_pbar: bool = True):
         """
         Function taken from https://github.com/Jerry2398/Image2StyleGAN-and-Image2StyleGAN-
         and sligthly modified to fit our needs.
+
+        :param images
         """
-        saved_latents_path = os.path.join(
-            self.latents_dir, f"{name}_w.pt")
-        saved_noise_path = os.path.join(
-            self.latents_dir, f"{name}_noise.pt")
+        batch_size = images.shape[0]
+        saved_latents_paths = [os.path.join(
+            self.latents_dir, f"{name}_w.pt") for name in names]
+        saved_noise_paths = [os.path.join(
+            self.latents_dir, f"{name}_noise.pt") for name in names]
 
         upsample = torch.nn.Upsample(
             scale_factor=256 / self.resolution, mode='bilinear')
+
         perceptual = VGG16PerceptualLoss().to(self.device)
-        w = torch.zeros((1, 16, 512), requires_grad=True, device=self.device)
+        w = torch.zeros((batch_size, 16, 512),
+                        requires_grad=True, device=self.device)
 
         noise_list = []
         num_noise_layers = 8
         for i in range(2, num_noise_layers + 2):
             noise_list.append(torch.randn(
-                (1, 1, pow(2, i), pow(2, i)), requires_grad=True, device=self.device))
+                (batch_size, 1, pow(2, i), pow(2, i)), requires_grad=True, device=self.device))
             noise_list.append(torch.randn(
-                (1, 1, pow(2, i), pow(2, i)), requires_grad=True, device=self.device))
+                (batch_size, 1, pow(2, i), pow(2, i)), requires_grad=True, device=self.device))
 
         # Optimizer to change latent code in each backward step
         w_opt = Adam({w}, lr=0.01, betas=(0.9, 0.999), eps=1e-8)
         n_opt = Adam(noise_list, lr=0.01,
                      betas=(0.9, 0.999), eps=1e-8)
 
-        for e in tqdm(range(w_epochs)):
+        if show_pbar:
+            pbar = tqdm(range(w_epochs + n_epochs))
+        for e in range(w_epochs):
             w_opt.zero_grad()
 
-            # self.update_noise(noise_list)
-
-            syn_img = self.g_synthesis(w)
-            # syn_img = (syn_img + 1.0) / 2.0 #TODO: removed just to see if it works
-            loss = W_loss(syn_img=syn_img,
-                          img=image,
+            syn_imgs = self.g_synthesis(w)
+            loss = W_loss(syn_img=syn_imgs,
+                          img=images,
                           MSE_loss=perceptual.MSE_loss,
                           upsample=upsample,
                           perceptual=perceptual,
@@ -244,87 +167,79 @@ class Invertor():
                           lamb_mse=1)
             loss.backward()
             w_opt.step()
+            pbar.update(1)
             FEEDBACK_INTERVAL = 100
             if (e+1) % FEEDBACK_INTERVAL == 0:
-                print(f"iter{e}: loss -- {loss}")
+                if verbose:
+                    print(f"iter{e}: loss -- {loss}")
 
-                torch.save(w, saved_latents_path)
-                torch.save(noise_list, saved_noise_path)
-
-                syn_img_path = os.path.join(
-                    self.images_dir, f"syn_{name}_{e+1}.png")
+                syn_img_paths = [os.path.join(
+                    self.images_dir, f"syn_{name}_{e+1}.png") for name in names]
 
                 if (e+1) == FEEDBACK_INTERVAL and save_images:
-                    original_img_path = os.path.join(
-                        self.images_dir, f"original_{name}_{e+1}.png")
-                    save_image(image.clamp(0, 1), original_img_path)
+                    original_img_paths = [os.path.join(
+                        self.images_dir, f"original_{name}_{e+1}.png") for name in names]
+
+                    for index, image in enumerate(images):
+                        save_image(image.clamp(0, 1),
+                                   original_img_paths[index])
 
                 if save_images:
-                    save_image(syn_img.clamp(0, 1), syn_img_path)
+                    for index, syn_img in enumerate(syn_imgs):
+                        save_image(syn_img.clamp(0, 1), syn_img_paths[index])
 
-        for e in tqdm(range(w_epochs, w_epochs + n_epochs)):
+        for e in range(w_epochs, w_epochs + n_epochs):
             n_opt.zero_grad()
 
-            # NOTE: Trick to update the noise, don't know if it works
             self.update_noise(noise_list)
 
-            syn_img = self.g_synthesis(w)
-            # syn_img = (syn_img + 1.0) / 2.0
-            loss = Mkn_loss(syn_image=syn_img,
-                            image1=image,
-                            image2=image,
+            syn_imgs = self.g_synthesis(w)
+            loss = Mkn_loss(syn_image=syn_imgs,
+                            image1=images,
+                            image2=images,
                             MSE_loss=perceptual.MSE_loss,
                             lamd_mse1=1,
                             lamb_mse2=0)
             loss.backward()
             n_opt.step()
-
+            pbar.update(1)
             FEEDBACK_INTERVAL = 100
             if (e+1) % FEEDBACK_INTERVAL == 0:
-                print(f"iter{e}: loss -- {loss}")
+                original_img_paths = [os.path.join(
+                    self.images_dir, f"original_{name}_{e+1}.png") for name in names]
 
-                torch.save(w, saved_latents_path)
-                torch.save(noise_list, saved_noise_path)
+                syn_img_paths = [os.path.join(
+                    self.images_dir, f"syn_{name}_{e+1}.png") for name in names]
 
-                syn_img_path = os.path.join(
-                    self.images_dir, f"syn_{name}_{e+1}.png")
+                if verbose:
+                    print(f"iter{e}: loss -- {loss}")
 
                 if (e+1) == FEEDBACK_INTERVAL and save_images:
-                    original_img_path = os.path.join(
-                        self.images_dir, f"original_{name}_{e+1}.png")
+
+                    for index, image in enumerate(images):
+                        save_image(image.clamp(0, 1),
+                                   original_img_paths[index])
 
                 if save_images:
-                    save_image(syn_img.clamp(0, 1), syn_img_path)
-                    save_image(image.clamp(0, 1), original_img_path)
+                    for index, syn_img in enumerate(syn_imgs):
+                        save_image(syn_img.clamp(0, 1), syn_img_paths[index])
 
-        torch.save(w, saved_latents_path)
-        torch.save(noise_list, saved_noise_path)
+        for index, (latents_path, noise_path) in enumerate(zip(saved_latents_paths, saved_noise_paths)):
+            torch.save(w[index], latents_path)
+            torch.save(noise_list[index], noise_path)
+
+        for index, (original_img_path, syn_img_path) in enumerate(zip(original_img_paths, syn_img_paths)):
+            save_image(images[index].clamp(0, 1), original_img_path)
+            save_image(syn_imgs[index].clamp(0, 1), syn_img_path)
 
         return w, noise_list
 
     def style_transfer(self,
                        source_latent: torch.Tensor,
                        style_latent: torch.Tensor,
-                       noise_list: Optional[List[torch.Tensor]] = None):
-        if noise_list is not None:
-            self.update_noise(noise_list)
-        image = self.g_synthesis(dlatents_in=source_latent,
-                                 styled_latents=style_latent,
-                                 style_threshold=8)
-        image = (image+1.0)/2.0
-        style_transfer_path = os.path.join(
-            self.results_dir, "style_transfer_results")
-        os.makedirs(style_transfer_path, exist_ok=True)
-        image_path = os.path.join(style_transfer_path, "transferred_image.png")
-        save_image(image.clamp(0, 1), image_path)
-        return
-
-    def style_transfer_v2(self,
-                          source_latent: torch.Tensor,
-                          style_latent: torch.Tensor,
-                          noise_list_1: Optional[List[torch.Tensor]],
-                          noise_list_2: Optional[List[torch.Tensor]],
-                          add_random_noise: bool = False):
+                       noise_list_1: Optional[List[torch.Tensor]],
+                       noise_list_2: Optional[List[torch.Tensor]],
+                       add_random_noise: bool = False):
         if noise_list_1 is not None and noise_list_2 is not None:
             self.update_noise(noise_list_1[:8], from_layer=0, to_layer=7)
             if add_random_noise:
@@ -356,23 +271,10 @@ class Invertor():
 
     def mix_latents(self,
                     source_latent: torch.Tensor,
-                    style_latent: torch.Tensor):
-        mixed_latent = (source_latent + style_latent) / 2
-        image = self.g_synthesis(mixed_latent)
-        image = (image+1.0)/2.0
-        style_transfer_path = os.path.join(
-            self.results_dir, "style_transfer_results")
-        os.makedirs(style_transfer_path, exist_ok=True)
-        image_path = os.path.join(style_transfer_path, "transferred_image.png")
-        save_image(image.clamp(0, 1), image_path)
-        return
-
-    def mix_latents_v2(self,
-                       source_latent: torch.Tensor,
-                       style_latent: torch.Tensor,
-                       noise_list_1: Optional[List[torch.Tensor]],
-                       noise_list_2: Optional[List[torch.Tensor]],
-                       mix_threshold: float = 0.5):
+                    style_latent: torch.Tensor,
+                    noise_list_1: Optional[List[torch.Tensor]],
+                    noise_list_2: Optional[List[torch.Tensor]],
+                    mix_threshold: float = 0.5):
         mixed_latent = mix_threshold * source_latent + \
             (1 - mix_threshold) * style_latent
         mixed_noise = [mix_threshold * n1 + (1 - mix_threshold) * n2
@@ -397,53 +299,3 @@ class Invertor():
         image = self.g_synthesis(latent)
         # image = (image+1.0)/2.0 #TODO: removed just to see if it works
         return image
-
-    # # TODO: DO NOT USE
-    # def generate_from_label(self, labels_in: torch.Tensor):
-    #     noise = torch.randn(7, 256).to(self.device)
-    #     labels_in = labels_in.to(self.device)
-
-    #     return self.gen(latents_in=noise, labels_in=labels_in, depth=6, alpha=0)
-
-    # # TODO: DO NOT USE
-    # def generate_from_resnet(self,
-    #                          image1: torch.Tensor,
-    #                          image2: torch.Tensor):
-    #     style1 = self.resnet50(image1)
-    #     style2 = self.resnet50(image2)
-    #     random_styles = torch.randn(
-    #         1, 4, self.resnet50.latent_size).to(self.device)
-    #     styles = torch.cat([style1, style2, random_styles], dim=1)
-    #     image = self.g_synthesis(styles)
-    #     image = (image+1.0)/2.0
-    #     save_image(image.clamp(0, 1), "generated_image.png")
-    #     return image
-
-    # # TODO: DO NOT USE
-    # def generate_with_noise(self,
-    #                         latent: torch.Tensor,
-    #                         latent_2: Optional[torch.Tensor]):
-    #     noise_layers = None
-    #     transfer_layers = 5
-    #     latent.requires_grad = False
-    #     # print(f"Latent shape is {latent.shape}")
-    #     # if latent_2 is not None:
-    #     #     print(f"Latent 2 shape is {latent_2.shape}")
-    #     if latent_2 is not None and transfer_layers is not None:
-    #         latent[:, :transfer_layers,
-    #                :] = latent_2[:, :transfer_layers, :]
-    #     if noise_layers is not None:
-    #         latent = latent[:, noise_layers-18:, :]
-    #         noise = torch.randn(1, noise_layers, 512).to(self.device)
-    #         noise = noise * 0.01
-    #         noised_latent = torch.cat([noise, latent], dim=1)
-    #         image = self.g_synthesis(noised_latent)
-    #     else:
-    #         image = self.g_synthesis(latent)
-    #     noise = torch.randn(1, 18, 512).to(self.device)
-    #     # noise = noise * 0.05
-    #     # latent = latent - noise
-    #     # image = self.g_synthesis(latent)
-    #     image = (image+1.0)/2.0
-    #     save_image(image.clamp(0, 1), "generated_image.png")
-    #     return image
