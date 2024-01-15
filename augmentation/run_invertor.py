@@ -24,7 +24,7 @@ def embed_everything():
 
     If the image is augmented, it will save the files with the suffix "_augmented".
     """
-
+    create_computed_latents_set()
     batch_size = 16
     invertor = Invertor(cfg=cfg)
 
@@ -61,9 +61,16 @@ def embed_everything():
             clean_paths = [clean_path + "_augmented" if augmented else clean_path for clean_path,
                            augmented in zip(clean_paths, augmented_list)]
 
-            clean_paths = [
-                clean_path for clean_path in clean_paths if clean_path not in computed_latents_set]
+            new_clean_paths = []
+            new_images = []
+            for image, clean_path in zip(images, clean_paths):
+                if clean_path not in computed_latents_set:
+                    new_images.append(image)
+                    new_clean_paths.append(clean_path)
 
+            clean_paths = new_clean_paths
+            images = torch.stack(new_images)
+            print(f"images shape is {images.shape}")
             if clean_paths == []:
                 continue
 
@@ -72,8 +79,8 @@ def embed_everything():
                 images=images,
                 names=clean_paths,
                 save_images=False,
-                w_epochs=800,
-                n_epochs=800,
+                w_epochs=500,
+                n_epochs=500,
                 verbose=False,
                 show_pbar=True)
             processed_images += batch_size
