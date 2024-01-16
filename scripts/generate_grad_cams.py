@@ -35,7 +35,7 @@ def generate_gradcam_from_dataloader():
         dynamic_load=True,
         normalize=False,
         normalization_statistics=IMAGENET_STATISTICS,
-        batch_size=8,
+        batch_size=2,
         load_synthetic=True,
         return_image_name=True
     )
@@ -56,6 +56,10 @@ def generate_gradcam_from_dataloader():
         for image, label, image_id in zip(images, labels, images_id):
             image = image.to(device)
             image_id = image_id + ".png"
+            if os.path.exists(os.path.join(data_dir, f"gradcam_{low_threshold}", "train", image_id)) and \
+                    os.path.exists(os.path.join(data_dir, f"gradcam_{high_threshold}", "train", image_id)) and \
+            os.path.exists(os.path.join(data_dir, "offline_images", "train", image_id)):
+                continue
             save_gradcam(cam_instance, image, image_id, low_threshold,
                          save_dir=os.path.join(data_dir, f"gradcam_{low_threshold}", "train"))
             save_gradcam(cam_instance, image, image_id, high_threshold,
@@ -68,6 +72,10 @@ def generate_gradcam_from_dataloader():
         for image, label, image_id in zip(images, labels, images_id):
             image = image.to(device)
             image_id = image_id + ".png"
+            if os.path.exists(os.path.join(data_dir, f"gradcam_{low_threshold}", "val", image_id)) and \
+                    os.path.exists(os.path.join(data_dir, f"gradcam_{high_threshold}", "val", image_id)) and \
+            os.path.exists(os.path.join(data_dir, "offline_images", "val", image_id)):
+                continue
             save_gradcam(cam_instance, image, image_id, low_threshold,
                          save_dir=os.path.join(data_dir, f"gradcam_{low_threshold}", "val"))
             save_gradcam(cam_instance, image, image_id, high_threshold,
@@ -80,6 +88,10 @@ def generate_gradcam_from_dataloader():
         for image, label, image_id in zip(images, labels, images_id):
             image = image.to(device)
             image_id = image_id + ".png"
+            if os.path.exists(os.path.join(data_dir, f"gradcam_{low_threshold}", "test", image_id)) and \
+                    os.path.exists(os.path.join(data_dir, f"gradcam_{high_threshold}", "test", image_id)) and \
+            os.path.exists(os.path.join(data_dir, "offline_images", "test", image_id)):
+                continue
             save_gradcam(cam_instance, image, image_id, low_threshold,
                          save_dir=os.path.join(data_dir, f"gradcam_{low_threshold}", "test"))
             save_gradcam(cam_instance, image, image_id, high_threshold,

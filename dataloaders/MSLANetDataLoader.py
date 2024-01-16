@@ -177,6 +177,7 @@ class MSLANetDataLoader(DataLoader):
         return df_train, df_val, df_test
 
     def offline_init_metadata(self, metadata: pd.DataFrame):
+        print(f"OFFLINE INIT METADATA")
         label_dict = {'nv': 0, 'bkl': 1, 'mel': 2,
                       'akiec': 3, 'bcc': 4, 'df': 5, 'vasc': 6}
 
@@ -217,31 +218,31 @@ class MSLANetDataLoader(DataLoader):
         if not self.synthetic_data_dir:
             raise Exception(
                 "Offline gradcam requires loading also synthetic data, please set load_synthetic=True")
-
         df_train['image_path'] = df_train['image_id'].apply(
-            lambda x: os.path.join(train_images_path, x + '.jpg'))
+            lambda x: os.path.join(train_images_path, x + '.png'))
         df_train['image_path_low'] = df_train['image_id'].apply(
-            lambda x: os.path.join(low_gradcam_train_path, x + '.jpg'))
+            lambda x: os.path.join(low_gradcam_train_path, x + '.png'))
         df_train['image_path_high'] = df_train['image_id'].apply(
-            lambda x: os.path.join(high_gradcam_train_path, x + '.jpg'))
+            lambda x: os.path.join(high_gradcam_train_path, x + '.png'))
 
         df_val['image_path'] = df_val['image_id'].apply(
-            lambda x: os.path.join(val_images_path, x + '.jpg'))
+            lambda x: os.path.join(val_images_path, x + '.png'))
         df_val['image_path_low'] = df_val['image_id'].apply(
-            lambda x: os.path.join(low_gradcam_val_path, x + '.jpg'))
+            lambda x: os.path.join(low_gradcam_val_path, x + '.png'))
         df_val['image_path_high'] = df_val['image_id'].apply(
-            lambda x: os.path.join(high_gradcam_val_path, x + '.jpg'))
+            lambda x: os.path.join(high_gradcam_val_path, x + '.png'))
 
         df_test['image_path'] = df_test['image_id'].apply(
-            lambda x: os.path.join(test_images_path, x + '.jpg'))
+            lambda x: os.path.join(test_images_path, x + '.png'))
         df_test['image_path_low'] = df_test['image_id'].apply(
-            lambda x: os.path.join(low_gradcam_test_path, x + '.jpg'))
+            lambda x: os.path.join(low_gradcam_test_path, x + '.png'))
         df_test['image_path_high'] = df_test['image_id'].apply(
-            lambda x: os.path.join(high_gradcam_test_path, x + '.jpg'))
+            lambda x: os.path.join(high_gradcam_test_path, x + '.png'))
 
         synthetic_metadata = pd.read_csv(SYNTHETIC_METADATA_TRAIN_DIR)
 
-        df_train = df_train[["image_id", "dx", "label", "image_path"]]
+        df_train = df_train[["image_id", "dx", "label",
+                             "image_path", "image_path_low", "image_path_high"]]
         df_train["synthetic"] = False
         labels_encoded = synthetic_metadata['dx'].map(label_dict)
         synthetic_metadata['label'] = labels_encoded
