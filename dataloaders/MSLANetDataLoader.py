@@ -7,6 +7,7 @@ import numpy as np
 from typing import Optional
 
 from PIL import Image, ImageDraw
+from torchvision.transforms.transforms import Compose
 from tqdm import tqdm
 from torchvision import transforms
 import pandas as pd
@@ -33,7 +34,9 @@ class MSLANetDataLoader(DataLoader):
                  normalize: bool = NORMALIZE,
                  normalization_statistics: tuple = None,
                  batch_size: int = BATCH_SIZE,
-                 load_synthetic: bool = False):
+                 load_synthetic: bool = False,
+                 online_gradcam: bool = False):
+        self.online_gradcam = online_gradcam
         super().__init__(limit=limit,
                          transform=transform,
                          dynamic_load=dynamic_load,
@@ -56,13 +59,30 @@ class MSLANetDataLoader(DataLoader):
         self.gradcam = GradCAM()
 
     def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int):
+        if self.online_gradcam:
+            return self.online_load_images_and_labels_at_idx(metadata, idx)
+        else:
+            return self.offline_load_images_and_labels_at_idx(metadata, idx)
+
+    def offline_load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int):
+        img = metadata.iloc[idx]
+        label = img['label']
+        image_ori = Image.open(img['image_path'])
+        image_low = Image.open(img['image_path_low'])
+        image_high = Image.open(img['image_path_high'])
+
+        image_ori = self.transform(image_ori)
+        image_low = self.transform(image_low)
+        image_high = self.transform(image_high)
+
+        return (image_ori, image_low, image_high), label
+
+    def online_load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int):
         LOW_THRESHOLD = 70
         HIGH_THRESHOLD = 110
         img = metadata.iloc[idx]
         label = img['label']
         image_ori = Image.open(img['image_path'])
-        # image_low = Image.open(img['image_path_low'])
-        # image_high = Image.open(img['image_path_high'])
         if img["augmented"]:
             image_ori = (np.array(image_ori)).astype(np.uint8)
             image_ori = self.mslanet_transform(image=image_ori)["image"] / 255
@@ -73,11 +93,6 @@ class MSLANetDataLoader(DataLoader):
             image=image_ori, threshold=LOW_THRESHOLD)
         _, image_high, _ = self.gradcam.generate_cam(
             image=image_ori, threshold=HIGH_THRESHOLD)
-        # image_ori = TF.resize(image_ori, size=self.resize_dim,
-        #                       interpolation=Image.BILINEAR)
-        # image_ori = TF.to_tensor(image_ori)
-        # image_low = TF.to_tensor(image_low)
-        # image_high = TF.to_tensor(image_high)
         return (image_ori, image_low, image_high), label
 
     def load_images_and_labels(self, metadata: pd.DataFrame):
@@ -102,26 +117,9 @@ class MSLANetDataLoader(DataLoader):
 
         return (images, images_low, images_high), labels
 
-    def _init_metadata(self,
-                       limit: Optional[int] = None):
-        metadata = pd.read_csv(METADATA_TRAIN_DIR)
-        synthetic_metadata = pd.read_csv(SYNTHETIC_METADATA_TRAIN_DIR)
+    def online_init_metadata(self, metadata: pd.DataFrame):
         label_dict = {'nv': 0, 'bkl': 1, 'mel': 2,
-                      'akiec': 3, 'bcc': 4, 'df': 5, 'vasc': 6}  # 2, 3, 4 malignant, otherwise begign
-        labels_encoded = metadata['dx'].map(label_dict)
-        metadata['label'] = labels_encoded
-
-        print(f"LOADED METADATA HAS LENGTH {len(metadata)}")
-        # if self.load_synthetic and limit is not None:
-        #     limit = limit // 2
-
-        if limit is not None and limit > len(metadata):
-            print(
-                f"Ignoring limit for because it is bigger than the dataset size")
-            limit = None
-        if limit is not None:
-            print(f"---LIMITING REAL DATASET TO {limit} ENTRIES---")
-            metadata = metadata.sample(n=limit, random_state=42)
+                      'akiec': 3, 'bcc': 4, 'df': 5, 'vasc': 6}
         ori_data_dir = DATASET_TRAIN_DIR
         low_data_dir = os.path.join(DATA_DIR, "gradcam_output_70")
         high_data_dir = os.path.join(DATA_DIR, "gradcam_output_110")
@@ -176,6 +174,115 @@ class MSLANetDataLoader(DataLoader):
                     n=limit, random_state=42)
             df_train = pd.concat(
                 [df_train, synthetic_metadata], ignore_index=True)
+        return df_train, df_val, df_test
+
+    def offline_init_metadata(self, metadata: pd.DataFrame):
+        label_dict = {'nv': 0, 'bkl': 1, 'mel': 2,
+                      'akiec': 3, 'bcc': 4, 'df': 5, 'vasc': 6}
+
+        data_dir = os.path.join(DATA_DIR, "offline_computed_dataset")
+
+        train_images_path = os.path.join(data_dir, "offline_images", "train")
+        val_images_path = os.path.join(data_dir, "offline_images", "val")
+        test_images_path = os.path.join(data_dir, "offline_images", "test")
+
+        low_gradcam_train_path = os.path.join(
+            data_dir, "gradcam_70", "train")
+        low_gradcam_val_path = os.path.join(
+            data_dir, "gradcam_70", "val")
+        low_gradcam_test_path = os.path.join(
+            data_dir, "gradcam_70", "test")
+
+        high_gradcam_train_path = os.path.join(
+            data_dir, "gradcam_110", "train")
+        high_gradcam_val_path = os.path.join(
+            data_dir, "gradcam_110", "val")
+        high_gradcam_test_path = os.path.join(
+            data_dir, "gradcam_110", "test")
+
+        assert RANDOM_SEED == 42, "Random seed must be 42 for offline gradcam"
+
+        df_train, df_test = train_test_split(
+            metadata,
+            test_size=0.1,  # 15% test, 85% train
+            random_state=RANDOM_SEED,
+            stratify=metadata['dx'])
+
+        df_train, df_val = train_test_split(
+            df_train,
+            test_size=0.2,  # Of the 85% train, 10% val, 90% train
+            random_state=RANDOM_SEED,
+            stratify=df_train['dx'])
+
+        if not self.synthetic_data_dir:
+            raise Exception(
+                "Offline gradcam requires loading also synthetic data, please set load_synthetic=True")
+
+        df_train['image_path'] = df_train['image_id'].apply(
+            lambda x: os.path.join(train_images_path, x + '.jpg'))
+        df_train['image_path_low'] = df_train['image_id'].apply(
+            lambda x: os.path.join(low_gradcam_train_path, x + '.jpg'))
+        df_train['image_path_high'] = df_train['image_id'].apply(
+            lambda x: os.path.join(high_gradcam_train_path, x + '.jpg'))
+
+        df_val['image_path'] = df_val['image_id'].apply(
+            lambda x: os.path.join(val_images_path, x + '.jpg'))
+        df_val['image_path_low'] = df_val['image_id'].apply(
+            lambda x: os.path.join(low_gradcam_val_path, x + '.jpg'))
+        df_val['image_path_high'] = df_val['image_id'].apply(
+            lambda x: os.path.join(high_gradcam_val_path, x + '.jpg'))
+
+        df_test['image_path'] = df_test['image_id'].apply(
+            lambda x: os.path.join(test_images_path, x + '.jpg'))
+        df_test['image_path_low'] = df_test['image_id'].apply(
+            lambda x: os.path.join(low_gradcam_test_path, x + '.jpg'))
+        df_test['image_path_high'] = df_test['image_id'].apply(
+            lambda x: os.path.join(high_gradcam_test_path, x + '.jpg'))
+
+        synthetic_metadata = pd.read_csv(SYNTHETIC_METADATA_TRAIN_DIR)
+
+        df_train = df_train[["image_id", "dx", "label", "image_path"]]
+        df_train["synthetic"] = False
+        labels_encoded = synthetic_metadata['dx'].map(label_dict)
+        synthetic_metadata['label'] = labels_encoded
+        synthetic_metadata['image_path'] = synthetic_metadata['image_id'].apply(
+            lambda x: os.path.join(self.synthetic_data_dir, x + '.png'))
+
+        synthetic_metadata['image_path'] = synthetic_metadata['image_id'].apply(
+            lambda x: os.path.join(train_images_path, x + '.png'))
+        synthetic_metadata['image_path_low'] = synthetic_metadata['image_id'].apply(
+            lambda x: os.path.join(low_gradcam_train_path, x + '.png'))
+        synthetic_metadata['image_path_high'] = synthetic_metadata['image_id'].apply(
+            lambda x: os.path.join(high_gradcam_train_path, x + '.png'))
+
+        return df_train, df_val, df_test
+
+    def _init_metadata(self,
+                       limit: Optional[int] = None):
+        metadata = pd.read_csv(METADATA_TRAIN_DIR)
+        label_dict = {'nv': 0, 'bkl': 1, 'mel': 2,
+                      'akiec': 3, 'bcc': 4, 'df': 5, 'vasc': 6}  # 2, 3, 4 malignant, otherwise begign
+        labels_encoded = metadata['dx'].map(label_dict)
+        metadata['label'] = labels_encoded
+
+        print(f"LOADED METADATA HAS LENGTH {len(metadata)}")
+
+        if limit is not None and not self.online_gradcam:
+            raise Exception(
+                f"You cannot limit the dataset size when using offline gradcams")
+
+        if limit is not None and limit > len(metadata):
+            print(
+                f"Ignoring limit for because it is bigger than the dataset size")
+            limit = None
+        if limit is not None:
+            print(f"---LIMITING REAL DATASET TO {limit} ENTRIES---")
+            metadata = metadata.sample(n=limit, random_state=42)
+
+        if self.online_gradcam:
+            df_train, df_val, df_test = self.online_init_metadata(metadata)
+        else:
+            df_train, df_val, df_test = self.offline_init_metadata(metadata)
 
         assert len(df_train['label'].unique(
         )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_train['label'].unique())}, increase the limit"
@@ -186,8 +293,8 @@ class MSLANetDataLoader(DataLoader):
         )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_test['label'].unique())}, increase the limit"
 
         df_train["train"] = True
-        # df_val["train"] = False
-        # df_test["train"] = False
+        df_val["train"] = False
+        df_test["train"] = False
 
         print(f"---TRAIN---: {len(df_train)} entries")
         print(f"---VAL---: {len(df_val)} entries")

@@ -48,6 +48,8 @@ def generate_gradcam_from_dataloader():
 
     device = select_device()
     cam_instance = GradCAM().to(device)
+    data_dir = os.path.join(DATA_DIR, "offline_computed_dataset")
+    os.makedirs(data_dir, exist_ok=True)
 
     for batch in tqdm(train_loader, desc=f"Generating GradCAMs for train"):
         images, labels, images_id = batch
@@ -55,11 +57,11 @@ def generate_gradcam_from_dataloader():
             image = image.to(device)
             image_id = image_id + ".png"
             save_gradcam(cam_instance, image, image_id, low_threshold,
-                         save_dir=os.path.join(DATA_DIR, f"train_gradcam_{low_threshold}"))
+                         save_dir=os.path.join(data_dir, f"gradcam_{low_threshold}", "train"))
             save_gradcam(cam_instance, image, image_id, high_threshold,
-                         save_dir=os.path.join(DATA_DIR, f"train_gradcam_{high_threshold}"))
+                         save_dir=os.path.join(data_dir, f"gradcam_{high_threshold}", "train"))
             save_image(image, image_id, save_dir=os.path.join(
-                DATA_DIR, "train_images"))
+                data_dir, "offline_images", "train"))
 
     for batch in tqdm(val_loader, desc=f"Generating GradCAMs for val"):
         images, labels, images_id = batch
@@ -67,11 +69,11 @@ def generate_gradcam_from_dataloader():
             image = image.to(device)
             image_id = image_id + ".png"
             save_gradcam(cam_instance, image, image_id, low_threshold,
-                         save_dir=os.path.join(DATA_DIR, f"val_gradcam_{low_threshold}"))
+                         save_dir=os.path.join(data_dir, f"gradcam_{low_threshold}", "val"))
             save_gradcam(cam_instance, image, image_id, high_threshold,
-                         save_dir=os.path.join(DATA_DIR, f"val_gradcam_{high_threshold}"))
+                         save_dir=os.path.join(data_dir, f"gradcam_{high_threshold}", "val"))
             save_image(image, image_id, save_dir=os.path.join(
-                DATA_DIR, "val_images"))
+                data_dir, "offline_images", "val"))
 
     for batch in tqdm(test_loader, desc=f"Generating GradCAMs for test"):
         images, labels, images_id = batch
@@ -79,11 +81,11 @@ def generate_gradcam_from_dataloader():
             image = image.to(device)
             image_id = image_id + ".png"
             save_gradcam(cam_instance, image, image_id, low_threshold,
-                         save_dir=os.path.join(DATA_DIR, f"test_gradcam_{low_threshold}"))
+                         save_dir=os.path.join(data_dir, f"gradcam_{low_threshold}", "test"))
             save_gradcam(cam_instance, image, image_id, high_threshold,
-                         save_dir=os.path.join(DATA_DIR, f"test_gradcam_{high_threshold}"))
+                         save_dir=os.path.join(data_dir, f"gradcam_{high_threshold}", "test"))
             save_image(image, image_id, save_dir=os.path.join(
-                DATA_DIR, "test_images"))
+                data_dir, "offline_images", "test"))
 
 
 def save_image(image: torch.Tensor, image_name: str, save_dir: str):
