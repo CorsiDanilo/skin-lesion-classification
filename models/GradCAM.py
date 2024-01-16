@@ -1,9 +1,12 @@
+from typing import Optional
+import PIL
 import torch
 from torch import nn
 from torchvision import models, transforms
 from PIL import Image
 import numpy as np
 import cv2
+from torchvision.transforms import ToPILImage
 
 
 class GradCAM(nn.Module):
@@ -34,20 +37,36 @@ class GradCAM(nn.Module):
         self.forward_hook.remove()
         self.backward_hook.remove()
 
-    def generate_cam(self, image_path, threshold):
+    def generate_cam(self,
+                     threshold,
+                     image_path: Optional[str] = None,
+                     image: torch.Tensor = None,
+                     ):
         if threshold < 0 or threshold > 255:
             return ValueError("Threshold must be a value between 0 and 255.")
 
         # Load and preprocess the image
-        img = Image.open(image_path).convert('RGB')
-        transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
-                                 0.229, 0.224, 0.225]),
-        ])
-        input_img = transform(img)
-        input_img = input_img.unsqueeze(0)
+        assert image_path is not None or image is not None, "Either image_path or image must be provided."
+        if image_path is not None:
+            transform = transforms.Compose([
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                    0.229, 0.224, 0.225]),
+            ])
+            img = Image.open(image_path).convert('RGB')
+            input_img = transform(img)
+            input_img = input_img.unsqueeze(0)
+        else:
+            # NOTE: The image that is passed in this way is already normalized.
+            transform = transforms.Compose([
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+            ])
+            img = image
+            to_pil = ToPILImage()
+            img = to_pil(image)
+            input_img = image.unsqueeze(0)
 
         # Get model prediction and compute gradients
         self.model.zero_grad()

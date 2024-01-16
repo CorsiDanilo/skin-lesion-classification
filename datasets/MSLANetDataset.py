@@ -107,7 +107,7 @@ class MSLANetDataset(CustomDataset):
 
             return (image_ori, image_low, image_high), label
         else:
-            raise NotImplementedError()
+            raise NotImplementedError(f"Dynamic load not implemented yet.")
             image = self.images[idx].to(self.device)
             label = self.labels[idx]
             if self.normalize:
