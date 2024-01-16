@@ -76,15 +76,10 @@ def train_eval_loop(device,
                     epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy()) * 100
                 tr_sensitivity = recall_score(
                     epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy(), average='macro', zero_division=0) * 100
-                tr_conf_matrix = confusion_matrix(epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy())
-                if tr_conf_matrix.shape == (2, 2) and (tr_conf_matrix[0, 0] + tr_conf_matrix[0, 1]) > 0:
-                    tr_specificity = tr_conf_matrix[0, 0] / (tr_conf_matrix[0, 0] + tr_conf_matrix[0, 1]) * 100
-                else:
-                    tr_specificity = 0
 
                 if (tr_i+1) % 5 == 0:
-                    print('Training -> Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%, Sensitivity (Recall): {:.4f}%, Specificity: {:.4f}%'
-                          .format(epoch+1, config["epochs"], tr_i+1, total_step, tr_epoch_loss, tr_accuracy, tr_sensitivity, tr_specificity))
+                    print('Training -> Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%, Sensitivity (Recall): {:.4f}%'
+                          .format(epoch+1, config["epochs"], tr_i+1, total_step, tr_epoch_loss, tr_accuracy, tr_sensitivity))
 
                 tr_classes_metrics = {}
                 for class_label in range(NUM_CLASSES):
@@ -124,7 +119,6 @@ def train_eval_loop(device,
             wandb.log({"Training Loss": tr_epoch_loss.item()})
             wandb.log({"Training Accuracy": tr_accuracy})
             wandb.log({"Training Sensitivity": tr_sensitivity})
-            wandb.log({"Training Specificity": tr_specificity})
             wandb.log({"Training Classes Metrics": tr_classes_metrics})
 
         model.eval()
@@ -157,14 +151,9 @@ def train_eval_loop(device,
                 epoch_val_labels.cpu().numpy(), epoch_val_preds.cpu().numpy()) * 100
             val_sensitivity = recall_score(
                     epoch_val_labels.cpu().numpy(), epoch_val_preds.cpu().numpy(), average='macro', zero_division=0) * 100
-            val_conf_matrix = confusion_matrix(epoch_val_labels.cpu().numpy(), epoch_val_preds.cpu().numpy())
-            if val_conf_matrix.shape == (2, 2) and (val_conf_matrix[0, 0] + val_conf_matrix[0, 1]) > 0:
-                val_specificity = val_conf_matrix[0, 0] / (val_conf_matrix[0, 0] + val_conf_matrix[0, 1]) * 100
-            else:
-                val_specificity = 0
 
-            print('Validation -> Epoch [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%, Sensitivity (Recall): {:.4f}%, Specificity: {:.4f}%'
-                  .format(epoch+1, config["epochs"], val_epoch_loss, val_accuracy, val_sensitivity, val_specificity))
+            print('Validation -> Epoch [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%, Sensitivity (Recall): {:.4f}%'
+                  .format(epoch+1, config["epochs"], val_epoch_loss, val_accuracy, val_sensitivity))
 
             val_classes_metrics = {}
             for class_label in range(NUM_CLASSES):
@@ -200,7 +189,6 @@ def train_eval_loop(device,
                 wandb.log({"Validation Loss": val_epoch_loss.item()})
                 wandb.log({"Validation Accuracy": val_accuracy})
                 wandb.log({"Validation Recall": val_sensitivity})
-                wandb.log({"Validation Specificity": val_specificity})
                 wandb.log({"Validation Classes Metrics": val_classes_metrics})
 
             if best_accuracy is None or val_accuracy < best_accuracy:
@@ -210,12 +198,10 @@ def train_eval_loop(device,
                 'epoch': epoch+1,
                 'validation_loss': val_epoch_loss.item(),
                 'validation_accuracy': val_accuracy,
-                'validation_specificity': val_specificity,
                 'validation_sensitivity': val_sensitivity,
                 'validation_classes_metrics': val_classes_metrics,
                 'training_loss': tr_epoch_loss.item(),
                 'training_accuracy': tr_accuracy,
-                'training_specificity': tr_specificity,
                 'training_sensitivity': tr_sensitivity,
                 'training_classes_metrics': tr_classes_metrics
             }
