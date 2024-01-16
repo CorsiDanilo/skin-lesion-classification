@@ -35,7 +35,8 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                  normalization_statistics: tuple = None,
                  batch_size: int = BATCH_SIZE,
                  load_segmentations: bool = True,
-                 load_synthetic: bool = True):
+                 load_synthetic: bool = True,
+                 return_image_name: bool = False):
         super().__init__(limit=limit,
                          transform=transform,
                          dynamic_load=dynamic_load,
@@ -47,6 +48,9 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                          load_synthetic=load_synthetic)
         self.resize_dim = resize_dim
         self.load_segmentations = load_segmentations
+        self.return_image_name = return_image_name
+
+        assert return_image_name or load_segmentations, "Returning both image name and segmentation is still not supported"
         if self.resize_dim is not None:
             self.stateful_transform = StatefulTransform(
                 height=resize_dim[0],
@@ -86,6 +90,9 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                 image = self.transform(image)
         if load_segmentations:
             return image, label, segmentation
+
+        if self.return_image_name:
+            return image, label, img["image_id"]
         return image, label
 
     def load_images_and_labels(self, metadata: pd.DataFrame):

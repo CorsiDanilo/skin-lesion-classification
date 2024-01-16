@@ -83,13 +83,16 @@ def train_eval_loop(device,
 
                 tr_classes_metrics = {}
                 for class_label in range(NUM_CLASSES):
-                    #class_indices = epoch_tr_labels == class_label
-                    #class_preds = epoch_tr_preds[class_indices]
-                    #class_labels = epoch_tr_labels[class_indices]
-                    tr_class_labels_binary = torch.zeros_like(epoch_tr_labels, dtype=torch.long).to(device)
-                    tr_class_labels_binary[(epoch_tr_labels == class_label)] = 1
+                    # class_indices = epoch_tr_labels == class_label
+                    # class_preds = epoch_tr_preds[class_indices]
+                    # class_labels = epoch_tr_labels[class_indices]
+                    tr_class_labels_binary = torch.zeros_like(
+                        epoch_tr_labels, dtype=torch.long).to(device)
+                    tr_class_labels_binary[(
+                        epoch_tr_labels == class_label)] = 1
 
-                    tr_class_preds_binary = torch.zeros_like(epoch_tr_preds, dtype=torch.long).to(device)
+                    tr_class_preds_binary = torch.zeros_like(
+                        epoch_tr_preds, dtype=torch.long).to(device)
                     tr_class_preds_binary[(epoch_tr_preds == class_label)] = 1
 
                     if len(tr_class_preds_binary) > 0:
@@ -100,7 +103,8 @@ def train_eval_loop(device,
                         tr_class_conf_matrix = confusion_matrix(
                             tr_class_labels_binary.cpu().numpy(), tr_class_preds_binary.cpu().numpy())
                         if tr_class_conf_matrix.shape == (2, 2) and (tr_class_conf_matrix[0, 0] + tr_class_conf_matrix[0, 1]) > 0:
-                            tr_class_specificity = tr_class_conf_matrix[0, 0] / (tr_class_conf_matrix[0, 0] + tr_class_conf_matrix[0, 1]) * 100
+                            tr_class_specificity = tr_class_conf_matrix[0, 0] / (
+                                tr_class_conf_matrix[0, 0] + tr_class_conf_matrix[0, 1]) * 100
                         else:
                             tr_class_specificity = 0
                         if len(set(tr_class_labels_binary.cpu().numpy())) > 1:
@@ -109,11 +113,13 @@ def train_eval_loop(device,
                         else:
                             tr_class_auc = 0
 
-                        tr_class_metrics = {"accuracy": tr_class_accuracy, "sensitivity": tr_class_sensitivity, "specificity": tr_class_specificity, "auc": tr_class_auc}
+                        tr_class_metrics = {"accuracy": tr_class_accuracy, "sensitivity": tr_class_sensitivity,
+                                            "specificity": tr_class_specificity, "auc": tr_class_auc}
                         tr_classes_metrics[class_label] = tr_class_metrics
-                        
+
                         if (tr_i+1) % 5 == 0:
-                            print(f'Class {class_label} - Accuracy: {tr_class_accuracy:.2f}%, Sensitivity: {tr_class_sensitivity:.2f}%, Specificity: {tr_class_specificity:.2f}%, AUC: {tr_class_auc:.2f}%')
+                            print(
+                                f'Class {class_label} - Accuracy: {tr_class_accuracy:.2f}%, Sensitivity: {tr_class_sensitivity:.2f}%, Specificity: {tr_class_specificity:.2f}%, AUC: {tr_class_auc:.2f}%')
 
         if config["use_wandb"]:
             wandb.log({"Training Loss": tr_epoch_loss.item()})
@@ -150,17 +156,19 @@ def train_eval_loop(device,
             val_accuracy = accuracy_score(
                 epoch_val_labels.cpu().numpy(), epoch_val_preds.cpu().numpy()) * 100
             val_sensitivity = recall_score(
-                    epoch_val_labels.cpu().numpy(), epoch_val_preds.cpu().numpy(), average='macro', zero_division=0) * 100
+                epoch_val_labels.cpu().numpy(), epoch_val_preds.cpu().numpy(), average='macro', zero_division=0) * 100
 
             print('Validation -> Epoch [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%, Sensitivity (Recall): {:.4f}%'
                   .format(epoch+1, config["epochs"], val_epoch_loss, val_accuracy, val_sensitivity))
 
             val_classes_metrics = {}
             for class_label in range(NUM_CLASSES):
-                val_class_labels_binary = torch.zeros_like(epoch_val_labels, dtype=torch.long).to(device)
+                val_class_labels_binary = torch.zeros_like(
+                    epoch_val_labels, dtype=torch.long).to(device)
                 val_class_labels_binary[(epoch_val_labels == class_label)] = 1
 
-                val_class_preds_binary = torch.zeros_like(epoch_val_preds, dtype=torch.long).to(device)
+                val_class_preds_binary = torch.zeros_like(
+                    epoch_val_preds, dtype=torch.long).to(device)
                 val_class_preds_binary[(epoch_val_preds == class_label)] = 1
 
                 if len(val_class_preds_binary) > 0:
@@ -171,7 +179,8 @@ def train_eval_loop(device,
                     val_class_conf_matrix = confusion_matrix(
                         val_class_labels_binary.cpu().numpy(), val_class_preds_binary.cpu().numpy())
                     if val_class_conf_matrix.shape == (2, 2) and (val_class_conf_matrix[0, 0] + val_class_conf_matrix[0, 1]) > 0:
-                        val_class_specificity = val_class_conf_matrix[0, 0] / (val_class_conf_matrix[0, 0] + val_class_conf_matrix[0, 1]) * 100
+                        val_class_specificity = val_class_conf_matrix[0, 0] / (
+                            val_class_conf_matrix[0, 0] + val_class_conf_matrix[0, 1]) * 100
                     else:
                         val_class_specificity = 0
                     if len(set(val_class_labels_binary.cpu().numpy())) > 1:
@@ -180,9 +189,10 @@ def train_eval_loop(device,
                     else:
                         val_class_auc = 0
 
-                    val_class_metrics = {"accuracy": val_class_accuracy, "sensitivity": val_class_sensitivity, "specificity": val_class_specificity, "auc": val_class_auc}
+                    val_class_metrics = {"accuracy": val_class_accuracy, "sensitivity": val_class_sensitivity,
+                                         "specificity": val_class_specificity, "auc": val_class_auc}
                     val_classes_metrics[class_label] = val_class_metrics
-                    
+
                     print(f'Class {class_label} - Accuracy: {val_class_accuracy:.2f}%, Sensitivity: {val_class_sensitivity:.2f}%, Specificity: {val_class_specificity:.2f}%, AUC: {val_class_auc:.2f}%')
 
             if config["use_wandb"]:

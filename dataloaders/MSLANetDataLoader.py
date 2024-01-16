@@ -182,8 +182,8 @@ class MSLANetDataLoader(DataLoader):
         assert len(df_val['label'].unique(
         )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_val['label'].unique())}, increase the limit"
         # TODO: Uncomment
-        # assert len(df_test['label'].unique(
-        # )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_test['label'].unique())}, increase the limit"
+        assert len(df_test['label'].unique(
+        )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_test['label'].unique())}, increase the limit"
 
         df_train["train"] = True
         # df_val["train"] = False

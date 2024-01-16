@@ -88,7 +88,7 @@ class GradCAM(nn.Module):
         cam /= cam.max()
 
         # Convert CAM to a numpy array
-        cam_np = (cam.detach().numpy()[0, 0, :, :])*255
+        cam_np = (cam.cpu().detach().numpy()[0, 0, :, :])*255
         binary_mask = (cam_np > threshold).astype(
             np.uint8)*255  # Apply thresholding
         # Find contours in the binary mask
