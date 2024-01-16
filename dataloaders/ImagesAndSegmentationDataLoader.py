@@ -1,8 +1,9 @@
+import numpy as np
 from augmentation.StatefulTransform import StatefulTransform
+from augmentation.Augmentations import MSLANetAugmentation
 from dataloaders.DataLoader import DataLoader
 from typing import Optional, Tuple
 import torch
-import numpy as np
 
 from typing import Optional
 
@@ -10,7 +11,6 @@ from PIL import Image
 from tqdm import tqdm
 from torchvision import transforms
 import pandas as pd
-import torchvision.transforms.functional as TF
 from config import BATCH_SIZE, IMAGE_SIZE, NORMALIZE, RANDOM_SEED
 import random
 
@@ -61,6 +61,9 @@ class ImagesAndSegmentationDataLoader(DataLoader):
             self.stateful_transform = StatefulTransform(
                 always_rotate=self.always_rotate)
 
+        self.mslanet_transform = MSLANetAugmentation(
+            resize_dim=self.resize_dim).transform
+
     def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int):
         img = metadata.iloc[idx]
         load_segmentations = "train" in img and self.load_segmentations
@@ -76,10 +79,13 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                 segmentation = self.transform(segmentation)
         # Only load images
         else:
-            image = self.transform(image)
+            if img["augmented"]:
+                image = (np.array(image)).astype(np.uint8)
+                image = self.mslanet_transform(image=image)["image"] / 255
+            else:
+                image = self.transform(image)
         if load_segmentations:
             return image, label, segmentation
-
         return image, label
 
     def load_images_and_labels(self, metadata: pd.DataFrame):

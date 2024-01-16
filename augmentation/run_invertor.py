@@ -4,7 +4,7 @@ from typing import List
 import torch
 from torchvision.utils import save_image
 from tqdm import tqdm
-from config import DATA_DIR, METADATA_TRAIN_DIR
+from config import AUGMENTED_IMAGES_DIR, DATA_DIR, METADATA_TRAIN_DIR, SYNTHETIC_METADATA_TRAIN_DIR
 import pandas as pd
 from dataloaders.StyleGANDataLoader import StyleGANDataLoader
 from .Invertor import Invertor
@@ -129,8 +129,14 @@ def generate_augmented_images(generation_ratio: int = 8):
                 "w": latent_name, "noise": noise_name}
 
     for image_name, latent_noise in tqdm(latent_noise_dict.items(), desc="Generating augmented images"):
-        latent = torch.load(latent_noise["w"], map_location=invertor.device)
-        noise = torch.load(latent_noise["noise"], map_location=invertor.device)
+        try:
+            latent = torch.load(
+                latent_noise["w"], map_location=invertor.device)
+            noise = torch.load(
+                latent_noise["noise"], map_location=invertor.device)
+        except RuntimeError as e:
+            print(f"Runtime error for {image_name}: {e}")
+            continue
         latent = latent.unsqueeze(0)
         invertor.update_noise(noise)
         for i in range(generation_ratio):
@@ -165,13 +171,11 @@ def generate_metadata():
     invertor = Invertor(cfg=cfg)
     og_metadata = pd.read_csv(METADATA_TRAIN_DIR)
     new_metadata = {}
-    for filename in tqdm(os.listdir(invertor.augmented_images_dir), desc="Generating metadata"):
+    for filename in tqdm(os.listdir(AUGMENTED_IMAGES_DIR), desc="Generating metadata"):
+        if not filename.endswith(".png"):
+            continue
         image_name = f'{filename.split("_")[0]}_{filename.split("_")[1]}'
-        # print(f"Image name is {image_name}")
-        dx = og_metadata[og_metadata["image_id"] ==
-                         image_name]["dx"].values[0]
-        # label = og_metadata[og_metadata["image_id"] ==
-        #                     image_name]["label"].values[0]
+        dx = og_metadata[og_metadata["image_id"] == image_name]["dx"].values[0]
         augmented_image_name = filename.replace(".png", "")
         new_metadata[filename] = {
             "dx": dx, "image_id": augmented_image_name, "synthetic": True}
@@ -179,16 +183,15 @@ def generate_metadata():
     new_metadata = pd.DataFrame.from_dict(new_metadata, orient="index")
     new_metadata.reset_index(inplace=True)
     new_metadata.drop(columns=["index"], inplace=True)
-    new_metadata.to_csv(os.path.join(
-        DATA_DIR, "metadata_synthetic.csv"))
+    new_metadata.to_csv(SYNTHETIC_METADATA_TRAIN_DIR)
 
-    clean_og_metadata = og_metadata[["image_id", "dx"]]
-    clean_og_metadata['synthetic'] = False
-    union_metadata = pd.concat([clean_og_metadata, new_metadata])
-    union_metadata.reset_index(inplace=True)
-    union_metadata.drop(columns=["index"], inplace=True)
-    union_metadata.to_csv(os.path.join(
-        DATA_DIR, "metadata_union.csv"))
+    # clean_og_metadata = og_metadata[["image_id", "dx"]]
+    # clean_og_metadata['synthetic'] = False
+    # union_metadata = pd.concat([clean_og_metadata, new_metadata])
+    # union_metadata.reset_index(inplace=True)
+    # union_metadata.drop(columns=["index"], inplace=True)
+    # union_metadata.to_csv(os.path.join(
+    #     DATA_DIR, "HAM10000_metadata_augmented_train.csv"))
 
 
 def generate_similar_images():
@@ -327,6 +330,7 @@ if __name__ == '__main__':
     # generate_similar_images()
     # embed_everything()
     generate_metadata()
+    # generate_augmented_images()
     # generate_augmented_images()
     # create_computed_latents_set()
     # test_noise_saving()

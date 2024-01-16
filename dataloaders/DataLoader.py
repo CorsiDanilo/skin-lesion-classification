@@ -5,7 +5,7 @@ from typing import Optional
 import os
 import pandas as pd
 import torch
-from config import AUGMENTED_IMAGES_DIR, AUGMENTED_METADATA_TRAIN_DIR, IMAGE_SIZE, DATASET_TRAIN_DIR, METADATA_TRAIN_DIR, NORMALIZE, SEGMENTATION_DIR, BATCH_SIZE, RANDOM_SEED
+from config import AUGMENTED_IMAGES_DIR, IMAGE_SIZE, DATASET_TRAIN_DIR, METADATA_TRAIN_DIR, NORMALIZE, SEGMENTATION_DIR, BATCH_SIZE, RANDOM_SEED, SYNTHETIC_METADATA_TRAIN_DIR
 from shared.constants import DEFAULT_STATISTICS
 from typing import Optional, Tuple
 from sklearn.model_selection import train_test_split
@@ -59,8 +59,8 @@ class DataLoader(ABC):
     def _init_metadata(self,
                        limit: Optional[int] = None):
 
-        metadata = pd.read_csv(METADATA_TRAIN_DIR) if not self.load_synthetic else pd.read_csv(
-            AUGMENTED_METADATA_TRAIN_DIR)
+        metadata = pd.read_csv(METADATA_TRAIN_DIR)
+        synthetic_metadata = pd.read_csv(SYNTHETIC_METADATA_TRAIN_DIR)
         label_dict = {'nv': 0, 'bkl': 1, 'mel': 2,
                       'akiec': 3, 'bcc': 4, 'df': 5, 'vasc': 6}  # 2, 3, 4 malignant, otherwise begign
         labels_encoded = metadata['dx'].map(label_dict)
@@ -74,14 +74,14 @@ class DataLoader(ABC):
         if limit is not None:
             print(f"---LIMITING DATASET TO {limit} ENTRIES---")
             metadata = metadata.sample(n=limit, random_state=42)
-        metadata['image_path'] = metadata.apply(
-            lambda row: os.path.join(self.synthetic_data_dir if row['synthetic'] else self.data_dir,
-                                     row['image_id'] + '.jpg' if not row['synthetic'] else row['image_id'] + '.png'), axis=1)
+        # metadata['image_path'] = metadata.apply(
+        #     lambda row: os.path.join(self.synthetic_data_dir if row['synthetic'] else self.data_dir,
+        #                              row['image_id'] + '.jpg' if not row['synthetic'] else row['image_id'] + '.png'), axis=1)
+        metadata['image_path'] = metadata['image_id'].apply(
+            lambda x: os.path.join(self.data_dir, x + '.jpg'))
 
         metadata['segmentation_path'] = metadata['image_id'].apply(
             lambda x: os.path.join(SEGMENTATION_DIR, x + '_segmentation.png'))
-        # metadata['segmentation_bbox_path'] = metadata['image_id'].apply(
-        # lambda x: os.path.join(SEGMENTATION_WITH_BOUNDING_BOX_DIR, x + '_segmentation.png'))
 
         df_train, df_test = train_test_split(
             metadata,
@@ -95,13 +95,28 @@ class DataLoader(ABC):
             random_state=RANDOM_SEED,
             stratify=df_train['dx'])
 
+        if self.load_synthetic:
+            # Merge train dataset with synthetic dataset (I want to use the synthetic dataset only for training)
+            print(f"---LOADING SYNTHETIC DATA IN THE TRAINING SET---")
+            df_train = df_train[["image_id", "dx", "label", "image_path"]]
+            df_train["synthetic"] = False
+            labels_encoded = synthetic_metadata['dx'].map(label_dict)
+            synthetic_metadata['label'] = labels_encoded
+            synthetic_metadata['image_path'] = synthetic_metadata['image_id'].apply(
+                lambda x: os.path.join(self.synthetic_data_dir, x + '.png'))
+            df_train = pd.concat(
+                [df_train, synthetic_metadata], ignore_index=True)
+
+        # print(
+        #     f"Label distribution after augmentation for df_train is {df_train['label'].value_counts()}")
+
         assert len(df_train['label'].unique(
         )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_train['label'].unique())}, increase the limit"
         assert len(df_val['label'].unique(
         )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_val['label'].unique())}, increase the limit"
         # TODO: Uncomment
-        # assert len(df_test['label'].unique(
-        # )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_test['label'].unique())}, increase the limit"
+        assert len(df_test['label'].unique(
+        )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_test['label'].unique())}, increase the limit"
 
         df_train["train"] = True
         # df_val["train"] = False
@@ -109,8 +124,8 @@ class DataLoader(ABC):
 
         # Remove segmentation path from test and val just to be sure not to use them
         # TODO: Uncomment
-        # df_val.drop(columns=['segmentation_path'], inplace=True)
-        # df_test.drop(columns=['segmentation_path'], inplace=True)
+        df_val.drop(columns=['segmentation_path'], inplace=True)
+        df_test.drop(columns=['segmentation_path'], inplace=True)
 
         print(f"---TRAIN---: {len(df_train)} entries")
         print(f"---VAL---: {len(df_val)} entries")

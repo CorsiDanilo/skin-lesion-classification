@@ -14,8 +14,8 @@ SEGMENTATION_DIR = os.path.join(
 # DATA_DIR, 'HAM10000_segmentations_lesion_tschandl_with_bounding_box_450_600')
 METADATA_TRAIN_DIR = os.path.join(
     DATA_DIR, 'HAM10000_metadata_train.csv')
-AUGMENTED_METADATA_TRAIN_DIR = os.path.join(
-    DATA_DIR, 'metadata_union.csv')
+SYNTHETIC_METADATA_TRAIN_DIR = os.path.join(
+    DATA_DIR, 'synthetic_metadata_train.csv')
 # METADATA_NO_DUPLICATES_DIR = os.path.join(
 # DATA_DIR, 'HAM10000_metadata_train.csv')
 # METADATA_TEST_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_test.csv')
