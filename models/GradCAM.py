@@ -9,11 +9,15 @@ import numpy as np
 import cv2
 from torchvision.transforms import ToPILImage
 
+from utils.utils import select_device
+
 
 class GradCAM(nn.Module):
     def __init__(self):
         super(GradCAM, self).__init__()
-        self.model = models.resnet50(weights=ResNet50_Weights.DEFAULT)
+        self.device = select_device()
+        self.model = models.resnet50(
+            weights=ResNet50_Weights.DEFAULT).to(self.device)
         self.target_layer = "layer4"
         self.model.eval()
         self.feature_maps = None
