@@ -17,23 +17,18 @@ def main():
         print(f"--Model-- Architecture: {model}")
 
     config = {
-        "learning_rate": LR,
-        "architecture": "MSLANet",
-        "epochs": N_EPOCHS,
+        'learning_rate': LR,
+        'architecture': "MSLANet",
+        'epochs': N_EPOCHS,
         'reg': REG,
         'batch_size': BATCH_SIZE,
         "num_classes": NUM_CLASSES,
-        "dataset": "HAM10K",
+        "dataset": "ISIC-2018",
         "optimizer": "AdamW",
         "dataset_limit": DATASET_LIMIT,
         "normalize": NORMALIZE,
         "resumed": RESUME,
         "from_epoch": RESUME_EPOCH,
-        "balance_downsampling": BALANCE_DOWNSAMPLING,
-        "initialization": "default",
-        'segmentation_strategy': "CAM",
-        "oversample_train": OVERSAMPLE_TRAIN,
-        "multiple_loss": USE_MULTIPLE_LOSS,
         "use_wandb": USE_WANDB,
     }
 
