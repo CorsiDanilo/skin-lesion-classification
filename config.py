@@ -24,8 +24,8 @@ SYNTHETIC_METADATA_TRAIN_DIR = os.path.join(
 # ---Library Configurations--- #
 USE_WANDB = False  # Use wandb for logging
 # DirectML library for AMD gpu on Windows (set to false if you want to use cpu or standard CUDA)
-USE_DML = False
-USE_MPS = True  # Use MPS gpu for MacOS
+USE_DML = True
+USE_MPS = False  # Use MPS gpu for MacOS
 
 # ---Train Configurations--- #
 RANDOM_SEED = 42  # Random seed
@@ -40,7 +40,7 @@ REG = 0.03  # Weight decay
 # Architecture used for training: resnet34, densenet121, inception_v3, standard, pretrained, efficient
 ARCHITECTURE = "resnet34"
 DATASET_LIMIT = None  # Value (0, dataset_length) used to limit the dataset
-DROPOUT_P = 0.5  # Dropout probability
+DROPOUT_P = 0.3  # Dropout probability
 # Used in MSLANet to apply several parallel classification layers with a dropout in it. Predictions are averaged to get the final result.
 NUM_DROPOUT_LAYERS = 1
 NORMALIZE = True  # True if data must be normalized, False otherwise
