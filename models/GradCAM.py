@@ -3,6 +3,7 @@ import PIL
 import torch
 from torch import nn
 from torchvision import models, transforms
+from torchvision.models import ResNet50_Weights
 from PIL import Image
 import numpy as np
 import cv2
@@ -12,7 +13,7 @@ from torchvision.transforms import ToPILImage
 class GradCAM(nn.Module):
     def __init__(self):
         super(GradCAM, self).__init__()
-        self.model = models.resnet50(pretrained=True)
+        self.model = models.resnet50(weights=ResNet50_Weights.DEFAULT)
         self.target_layer = "layer4"
         self.model.eval()
         self.feature_maps = None

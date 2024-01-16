@@ -41,6 +41,14 @@ class MSLANetDataset(CustomDataset):
         if not dynamic_load:
             self.load_images_and_labels()
 
+    def load_images_and_labels(self):
+        result = self.load_data_fn(metadata=self.metadata)
+        (images_ori, images_low, images_high), labels = result
+        self.images_ori = images_ori
+        self.images_low = images_low
+        self.images_high = images_high
+        self.labels = labels
+
     def balance_dataset(self):
         print(
             "--Data Balance-- balance_data set to True. Training data will be balanced.")
@@ -107,13 +115,12 @@ class MSLANetDataset(CustomDataset):
 
             return (image_ori, image_low, image_high), label
         else:
-            raise NotImplementedError(f"Dynamic load not implemented yet.")
-            image = self.images[idx].to(self.device)
+            image_ori = self.images_ori[idx].to(self.device)
+            image_low = self.images_low[idx].to(self.device)
+            image_high = self.images_high[idx].to(self.device)
             label = self.labels[idx]
             if self.normalize:
-                image = (image - self.mean) / self.std
-            try:
-                segmentation = self.segmentations[idx].to(self.device)
-                return image, label, segmentation
-            except:
-                return image, label
+                image_ori = (image_ori - self.mean) / self.std
+                image_low = (image_low - self.mean) / self.std
+                image_high = (image_high - self.mean) / self.std
+            return (image_ori, image_low, image_high), label

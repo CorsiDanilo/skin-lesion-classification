@@ -12,7 +12,8 @@ def main():
 
     device = select_device()
 
-    model = MSLANet(num_classes=NUM_CLASSES, dropout_num=NUM_DROPOUT_LAYERS, dropout_p=DROPOUT_P).to(device)
+    model = MSLANet(num_classes=NUM_CLASSES,
+                    dropout_num=NUM_DROPOUT_LAYERS, dropout_p=DROPOUT_P).to(device)
     if PRINT_MODEL_ARCHITECTURE:
         print(f"--Model-- Architecture: {model}")
 
@@ -38,6 +39,7 @@ def main():
         normalize=NORMALIZE,
         normalization_statistics=IMAGENET_STATISTICS,
         batch_size=BATCH_SIZE,
+        load_synthetic=False
     )
     train_loader = dataloader.get_train_dataloder()
     val_loader = dataloader.get_val_dataloader()
