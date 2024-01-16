@@ -77,7 +77,7 @@ def train_eval_loop(device,
                 tr_sensitivity = recall_score(
                     epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy(), average='macro', zero_division=0) * 100
                 tr_conf_matrix = confusion_matrix(epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy())
-                if (tr_conf_matrix[0, 0] + tr_conf_matrix[0, 1]) > 0:
+                if tr_conf_matrix.shape == (2, 2) and (tr_conf_matrix[0, 0] + tr_conf_matrix[0, 1]) > 0:
                     tr_specificity = tr_conf_matrix[0, 0] / (tr_conf_matrix[0, 0] + tr_conf_matrix[0, 1]) * 100
                 else:
                     tr_specificity = 0
@@ -104,7 +104,7 @@ def train_eval_loop(device,
                             tr_class_labels_binary.cpu().numpy(), tr_class_preds_binary.cpu().numpy(), average='binary', pos_label=1, zero_division=0) * 100
                         tr_class_conf_matrix = confusion_matrix(
                             tr_class_labels_binary.cpu().numpy(), tr_class_preds_binary.cpu().numpy())
-                        if (tr_class_conf_matrix[0, 0] + tr_class_conf_matrix[0, 1]) > 0:
+                        if tr_class_conf_matrix.shape == (2, 2) and (tr_class_conf_matrix[0, 0] + tr_class_conf_matrix[0, 1]) > 0:
                             tr_class_specificity = tr_class_conf_matrix[0, 0] / (tr_class_conf_matrix[0, 0] + tr_class_conf_matrix[0, 1]) * 100
                         else:
                             tr_class_specificity = 0
@@ -158,7 +158,7 @@ def train_eval_loop(device,
             val_sensitivity = recall_score(
                     epoch_val_labels.cpu().numpy(), epoch_val_preds.cpu().numpy(), average='macro', zero_division=0) * 100
             val_conf_matrix = confusion_matrix(epoch_val_labels.cpu().numpy(), epoch_val_preds.cpu().numpy())
-            if (val_conf_matrix[0, 0] + val_conf_matrix[0, 1]) > 0:
+            if val_conf_matrix.shape == (2, 2) and (val_conf_matrix[0, 0] + val_conf_matrix[0, 1]) > 0:
                 val_specificity = val_conf_matrix[0, 0] / (val_conf_matrix[0, 0] + val_conf_matrix[0, 1]) * 100
             else:
                 val_specificity = 0
@@ -181,7 +181,7 @@ def train_eval_loop(device,
                         val_class_labels_binary.cpu().numpy(), val_class_preds_binary.cpu().numpy(), average='binary', pos_label=1, zero_division=0) * 100
                     val_class_conf_matrix = confusion_matrix(
                         val_class_labels_binary.cpu().numpy(), val_class_preds_binary.cpu().numpy())
-                    if (val_class_conf_matrix[0, 0] + val_class_conf_matrix[0, 1]) > 0:
+                    if val_class_conf_matrix.shape == (2, 2) and (val_class_conf_matrix[0, 0] + val_class_conf_matrix[0, 1]) > 0:
                         val_class_specificity = val_class_conf_matrix[0, 0] / (val_class_conf_matrix[0, 0] + val_class_conf_matrix[0, 1]) * 100
                     else:
                         val_class_specificity = 0

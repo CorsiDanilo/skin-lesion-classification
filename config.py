@@ -39,10 +39,10 @@ LR_DECAY = 0.85  # Learning rate decay
 REG = 0.03  # Weight decay
 # Architecture used for training: resnet34, densenet121, inception_v3, standard, pretrained, efficient
 ARCHITECTURE = "resnet34"
-DATASET_LIMIT = None  # Value (0, dataset_length) used to limit the dataset
+DATASET_LIMIT = 200  # Value (0, dataset_length) used to limit the dataset
 DROPOUT_P = 0.5  # Dropout probability
 # Used in MSLANet to apply several parallel classification layers with a dropout in it. Predictions are averaged to get the final result.
-NUM_DROPOUT_LAYERS = 5
+NUM_DROPOUT_LAYERS = 1
 NORMALIZE = True  # True if data must be normalized, False otherwise
 # True if oversampling (with data augmentation) must be applied, False otherwise
 

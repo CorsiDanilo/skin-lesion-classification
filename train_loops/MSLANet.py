@@ -1,6 +1,5 @@
 import torch
 from config import ARCHITECTURE, PRINT_MODEL_ARCHITECTURE, BALANCE_DOWNSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, DATASET_LIMIT, DROPOUT_P, NUM_DROPOUT_LAYERS, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, OVERSAMPLE_TRAIN, USE_MULTIPLE_LOSS, USE_WANDB
-from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
 from dataloaders.MSLANetDataLoader import MSLANetDataLoader
 from models.MSLANet import MSLANet
 from shared.constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
@@ -33,14 +32,12 @@ def main():
         "use_wandb": USE_WANDB,
     }
 
-    dataloader = ImagesAndSegmentationDataLoader(
+    dataloader = MSLANetDataLoader(
+        limit=DATASET_LIMIT,
         dynamic_load=True,
-        load_synthetic=True,
-        load_segmentations=False,
-        normalize=False,
+        normalize=NORMALIZE,
         normalization_statistics=IMAGENET_STATISTICS,
-        batch_size=32,
-        upscale_train=True,
+        batch_size=BATCH_SIZE,
     )
     train_loader = dataloader.get_train_dataloder()
     val_loader = dataloader.get_val_dataloader()
