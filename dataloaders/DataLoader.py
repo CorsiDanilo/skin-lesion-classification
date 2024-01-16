@@ -5,7 +5,7 @@ from typing import Optional
 import os
 import pandas as pd
 import torch
-from config import IMAGE_SIZE, DATASET_TRAIN_DIR, METADATA_TRAIN_DIR, NORMALIZE, SEGMENTATION_DIR, BATCH_SIZE, RANDOM_SEED
+from config import AUGMENTED_IMAGES_DIR, AUGMENTED_METADATA_TRAIN_DIR, IMAGE_SIZE, DATASET_TRAIN_DIR, METADATA_TRAIN_DIR, NORMALIZE, SEGMENTATION_DIR, BATCH_SIZE, RANDOM_SEED
 from shared.constants import DEFAULT_STATISTICS
 from typing import Optional, Tuple
 from sklearn.model_selection import train_test_split
@@ -26,7 +26,8 @@ class DataLoader(ABC):
                  normalization_statistics: tuple = None,
                  batch_size: int = BATCH_SIZE,
                  always_rotate: bool = False,
-                 data_dir: str = DATASET_TRAIN_DIR,):
+                 data_dir: str = DATASET_TRAIN_DIR,
+                 load_synthetic: bool = False):
         super().__init__()
         self.limit = limit
         self.transform = transform
@@ -36,6 +37,8 @@ class DataLoader(ABC):
         self.normalization_statistics = normalization_statistics
         self.batch_size = batch_size
         self.data_dir = data_dir
+        self.synthetic_data_dir = AUGMENTED_IMAGES_DIR
+        self.load_synthetic = load_synthetic
         if self.transform is None:
             self.transform = transforms.Compose([
                 transforms.ToTensor()
@@ -55,7 +58,9 @@ class DataLoader(ABC):
 
     def _init_metadata(self,
                        limit: Optional[int] = None):
-        metadata = pd.read_csv(METADATA_TRAIN_DIR)
+
+        metadata = pd.read_csv(METADATA_TRAIN_DIR) if not self.load_synthetic else pd.read_csv(
+            AUGMENTED_METADATA_TRAIN_DIR)
         label_dict = {'nv': 0, 'bkl': 1, 'mel': 2,
                       'akiec': 3, 'bcc': 4, 'df': 5, 'vasc': 6}  # 2, 3, 4 malignant, otherwise begign
         labels_encoded = metadata['dx'].map(label_dict)
@@ -69,8 +74,9 @@ class DataLoader(ABC):
         if limit is not None:
             print(f"---LIMITING DATASET TO {limit} ENTRIES---")
             metadata = metadata.sample(n=limit, random_state=42)
-        metadata['image_path'] = metadata['image_id'].apply(
-            lambda x: os.path.join(self.data_dir, x + '.jpg'))
+        metadata['image_path'] = metadata.apply(
+            lambda row: os.path.join(self.synthetic_data_dir if row['synthetic'] else self.data_dir,
+                                     row['image_id'] + '.jpg' if not row['synthetic'] else row['image_id'] + '.png'), axis=1)
 
         metadata['segmentation_path'] = metadata['image_id'].apply(
             lambda x: os.path.join(SEGMENTATION_DIR, x + '_segmentation.png'))

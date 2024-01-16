@@ -33,7 +33,9 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                  upscale_train: bool = True,
                  normalize: bool = NORMALIZE,
                  normalization_statistics: tuple = None,
-                 batch_size: int = BATCH_SIZE):
+                 batch_size: int = BATCH_SIZE,
+                 load_segmentations: bool = True,
+                 load_synthetic: bool = True):
         super().__init__(limit=limit,
                          transform=transform,
                          dynamic_load=dynamic_load,
@@ -41,8 +43,10 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                          normalize=normalize,
                          normalization_statistics=normalization_statistics,
                          batch_size=batch_size,
-                         always_rotate=False)
+                         always_rotate=False,
+                         load_synthetic=load_synthetic)
         self.resize_dim = resize_dim
+        self.load_segmentations = load_segmentations
         if self.resize_dim is not None:
             self.stateful_transform = StatefulTransform(
                 height=resize_dim[0],
@@ -59,7 +63,7 @@ class ImagesAndSegmentationDataLoader(DataLoader):
 
     def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int):
         img = metadata.iloc[idx]
-        load_segmentations = "train" in img
+        load_segmentations = "train" in img and self.load_segmentations
         label = img['label']
         image = Image.open(img['image_path'])
         if load_segmentations:
@@ -84,7 +88,7 @@ class ImagesAndSegmentationDataLoader(DataLoader):
         labels = []
 
         for index, (row_index, img) in tqdm(enumerate(metadata.iterrows()), desc=f'Loading images'):
-            load_segmentations = "train" in img
+            load_segmentations = "train" in img and self.load_segmentations
             if load_segmentations:
                 image, label, segmentation = self.load_images_and_labels_at_idx(
                     idx=index, metadata=metadata)
