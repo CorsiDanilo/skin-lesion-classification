@@ -48,6 +48,8 @@ class Invertor():
         self.results_dir = os.path.join(self.current_dir, "invertor_results")
         self.images_dir = os.path.join(self.results_dir, "images")
         self.latents_dir = os.path.join(self.results_dir, "latents")
+        self.augmented_images_dir = os.path.join(
+            self.results_dir, "augmented_images")
         resample_results_path = os.path.join(
             self.results_dir, "resample_results")
 
@@ -143,6 +145,8 @@ class Invertor():
                 (batch_size, 1, pow(2, i), pow(2, i)), requires_grad=True, device=self.device))
             noise_list.append(torch.randn(
                 (batch_size, 1, pow(2, i), pow(2, i)), requires_grad=True, device=self.device))
+
+        self.update_noise(noise_list)
 
         # Optimizer to change latent code in each backward step
         w_opt = Adam({w}, lr=0.01, betas=(0.9, 0.999), eps=1e-8)

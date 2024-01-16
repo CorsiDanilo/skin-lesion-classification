@@ -4,7 +4,8 @@ from typing import List
 import torch
 from torchvision.utils import save_image
 from tqdm import tqdm
-
+from config import DATA_DIR, METADATA_TRAIN_DIR
+import pandas as pd
 from dataloaders.StyleGANDataLoader import StyleGANDataLoader
 from .Invertor import Invertor
 from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
@@ -41,7 +42,7 @@ def embed_everything():
         open("computed_latents_set.pkl", "rb"))
     print(f"Computed latents set length is {len(computed_latents_set)}")
     # Skip label 0 since is the majority class
-    for dataloader_label in tqdm(range(1, 8)):
+    for dataloader_label in tqdm(range(1, 7)):
         processed_images = 0
 
         for batch in tqdm(train_dataloders[dataloader_label], desc="Checking images already embedded"):
@@ -83,7 +84,7 @@ def embed_everything():
                 n_epochs=500,
                 verbose=False,
                 show_pbar=True)
-            processed_images += batch_size
+            processed_images += images.shape[0]
 
 
 def test_noise_saving():
@@ -154,7 +155,6 @@ def create_computed_latents_set():
             image_name = filename.replace("_w.pt", "")
             _set.add(image_name)
     print(f"Set length is {len(_set)}")
-    print(f"Set is {_set}")
     pickle.dump(_set, open("computed_latents_set.pkl", "wb"))
 
 
@@ -162,7 +162,33 @@ def generate_metadata():
     """
     Function to generate the metadata csv file from the augmented images.
     """
-    raise NotImplementedError("This function is not implemented yet.")
+    invertor = Invertor(cfg=cfg)
+    og_metadata = pd.read_csv(METADATA_TRAIN_DIR)
+    new_metadata = {}
+    for filename in tqdm(os.listdir(invertor.augmented_images_dir), desc="Generating metadata"):
+        image_name = f'{filename.split("_")[0]}_{filename.split("_")[1]}'
+        # print(f"Image name is {image_name}")
+        dx = og_metadata[og_metadata["image_id"] ==
+                         image_name]["dx"].values[0]
+        # label = og_metadata[og_metadata["image_id"] ==
+        #                     image_name]["label"].values[0]
+        augmented_image_name = filename.replace(".png", "")
+        new_metadata[filename] = {
+            "dx": dx, "image_id": augmented_image_name, "synthetic": True}
+
+    new_metadata = pd.DataFrame.from_dict(new_metadata, orient="index")
+    new_metadata.reset_index(inplace=True)
+    new_metadata.drop(columns=["index"], inplace=True)
+    new_metadata.to_csv(os.path.join(
+        DATA_DIR, "metadata_synthetic.csv"))
+
+    clean_og_metadata = og_metadata[["image_id", "dx"]]
+    clean_og_metadata['synthetic'] = False
+    union_metadata = pd.concat([clean_og_metadata, new_metadata])
+    union_metadata.reset_index(inplace=True)
+    union_metadata.drop(columns=["index"], inplace=True)
+    union_metadata.to_csv(os.path.join(
+        DATA_DIR, "metadata_union.csv"))
 
 
 def generate_similar_images():
@@ -299,7 +325,8 @@ def resample_image():
 if __name__ == '__main__':
     # resample_image()
     # generate_similar_images()
-    embed_everything()
+    # embed_everything()
+    generate_metadata()
     # generate_augmented_images()
     # create_computed_latents_set()
     # test_noise_saving()
