@@ -47,7 +47,6 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
             normalize=normalize,
             normalization_statistics=normalization_statistics,
             batch_size=batch_size,
-
         )
     else:
         raise NotImplementedError(

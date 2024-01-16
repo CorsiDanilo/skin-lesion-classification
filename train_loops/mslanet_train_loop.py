@@ -27,7 +27,7 @@ def train_eval_loop(device,
             resume=resume,
         )
 
-    criterion = nn.CrossEntropyLoss() # Loss function
+    criterion = nn.CrossEntropyLoss()  # Loss function
 
     if resume:
         data_name = PATH_MODEL_TO_RESUME
@@ -48,15 +48,18 @@ def train_eval_loop(device,
         model.train()
         epoch_tr_preds = torch.tensor([]).to(device)
         epoch_tr_labels = torch.tensor([]).to(device)
-        for tr_i, tr_batch in enumerate(tqdm(train_loader, desc="Training", leave=False)):
-            if len(tr_batch) == 3:
-                tr_images, tr_labels, _ = tr_batch
-            else:
-                tr_images, tr_labels = tr_batch
-            tr_images = tr_images.to(device)
+        for tr_i, ((tr_image_ori, tr_image_low, tr_image_high), tr_labels) in enumerate(tqdm(train_loader, desc="Training", leave=False)):
+            tr_image_ori = tr_image_ori.to(device)
+            tr_image_low = tr_image_low.to(device)
+            tr_image_high = tr_image_high.to(device)
             tr_labels = tr_labels.to(device)
 
-            tr_outputs = model(tr_images)  # Prediction
+            tr_output_ori = model(tr_image_ori)  # Prediction
+            tr_output_low = model(tr_image_low)  # Prediction
+            tr_output_high = model(tr_image_high)  # Prediction
+
+            tr_outputs = (
+                tr_output_ori + tr_output_low + tr_output_high) / 3
 
             # First loss: Multiclassification loss considering all classes
             tr_epoch_loss_multiclass = criterion(
@@ -81,7 +84,8 @@ def train_eval_loop(device,
                     tr_outputs_binary, tr_labels_binary)
 
                 # Sum of the losses (with importance factor)
-                tr_epoch_loss = (tr_epoch_loss * MULTIPLE_LOSS_BALANCE) + (tr_epoch_loss_binary * (1 - MULTIPLE_LOSS_BALANCE))
+                tr_epoch_loss = (tr_epoch_loss * MULTIPLE_LOSS_BALANCE) + \
+                    (tr_epoch_loss_binary * (1 - MULTIPLE_LOSS_BALANCE))
 
             optimizer.zero_grad()
             tr_epoch_loss.backward()
@@ -93,13 +97,13 @@ def train_eval_loop(device,
                 epoch_tr_labels = torch.cat((epoch_tr_labels, tr_labels), 0)
 
                 tr_accuracy = accuracy_score(
-                epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy()) * 100
+                    epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy()) * 100
                 tr_recall = recall_score(
                     epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy(), average='macro', zero_division=0) * 100
 
                 if (tr_i+1) % 5 == 0:
                     print('Training -> Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Accuracy: {:.4f}%, Recall: {:.4f}%'
-                            .format(epoch+1, config["epochs"], tr_i+1, total_step, tr_epoch_loss, tr_accuracy, tr_recall))
+                          .format(epoch+1, config["epochs"], tr_i+1, total_step, tr_epoch_loss, tr_accuracy, tr_recall))
 
         if config["use_wandb"]:
             wandb.log({"Training Loss": tr_epoch_loss.item()})
@@ -110,15 +114,19 @@ def train_eval_loop(device,
         with torch.no_grad():
             epoch_val_preds = torch.tensor([]).to(device)
             epoch_val_labels = torch.tensor([]).to(device)
-            for val_i, val_batch in enumerate(val_loader):
-                if len(val_batch) == 3:
-                    val_images, val_labels, _ = val_batch
-                else:
-                    val_images, val_labels = val_batch
-                val_images = val_images.to(device)
+            for val_i, ((val_image_ori, val_image_low, val_image_high), val_labels) in enumerate(val_loader):
+                val_image_ori = val_image_ori.to(device)
+                val_image_low = val_image_low.to(device)
+                val_image_high = val_image_high.to(device)
                 val_labels = val_labels.to(device)
 
-                val_outputs = model(val_images).to(device)
+                val_output_ori = model(val_image_ori)  # Prediction
+                val_output_low = model(val_image_low)  # Prediction
+                val_output_high = model(val_image_high)  # Prediction
+
+                val_outputs = (
+                    val_output_ori + val_output_low + val_output_high) / 3
+
                 val_preds = torch.argmax(val_outputs, -1).detach()
                 epoch_val_preds = torch.cat((epoch_val_preds, val_preds), 0)
                 epoch_val_labels = torch.cat((epoch_val_labels, val_labels), 0)
@@ -177,5 +185,3 @@ def train_eval_loop(device,
                 save_model(data_name, model, epoch)
             if epoch == config["epochs"]-1 and SAVE_MODELS:
                 save_model(data_name, best_model, epoch=None, is_best=True)
-
-        #scheduler.step()

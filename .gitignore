@@ -12,3 +12,9 @@ boxes_outputs
 results/*
 !results/README.md
 !**.gitkeep
+augmentation/models/*
+augmentation/StyleGANPytorch/*
+augmentation/samples/**
+**/checkpoints/**
+**/samples/**
+augmentation/invertor_results/**
