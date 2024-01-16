@@ -15,15 +15,17 @@ class MSLANetAugmentation:
             A.MotionBlur(blur_limit=7, p=0.5),
             A.MedianBlur(blur_limit=7, p=0.5),
             A.GaussNoise(var_limit=(10.0, 50.0), p=0.5),
-            A.OpticalDistortion(distort_limit=1.0, p=0.5),
-            A.GridDistortion(num_steps=5, distort_limit=1., p=0.5),
-            A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, p=0.5),
+
+            A.OpticalDistortion(distort_limit=0.1, p=0.5),
+            A.GridDistortion(num_steps=5, distort_limit=0.1, p=0.5),
+            A.ElasticTransform(alpha=0.5, sigma=25, alpha_affine=25, p=0.5),
+
             A.CLAHE(clip_limit=4.0, p=0.5),
             A.HueSaturationValue(hue_shift_limit=20,
                                  sat_shift_limit=30, val_shift_limit=20, p=0.5),
             A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.1,
                                rotate_limit=45, p=0.5),
-            A.Cutout(num_holes=8, max_h_size=8,
-                     max_w_size=8, fill_value=0, p=0.5),
+            A.Cutout(num_holes=8, max_h_size=15,
+                     max_w_size=15, fill_value=0, p=0.5),
             ToTensorV2()
         ])

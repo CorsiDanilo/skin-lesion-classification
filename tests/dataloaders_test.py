@@ -49,6 +49,31 @@ def test_images_and_segmentation_dataloader():
     assert tr_labels.shape == val_labels.shape == te_labels.shape, f"tr_labels.shape: {tr_labels.shape}, val_labels.shape: {val_labels.shape}, te_labels.shape: {te_labels.shape}"
 
 
+def test_images_and_segmentation_dataloader_augmented():
+    dataloder = ImagesAndSegmentationDataLoader(
+        dynamic_load=True,
+        normalization_statistics=IMAGENET_STATISTICS,
+        load_segmentations=False)
+    train_dataloder = dataloder.get_train_dataloder()
+    val_dataloder = dataloder.get_val_dataloader()
+    test_dataloader = dataloder.get_test_dataloader()
+    assert len(train_dataloder) > 0
+    assert len(val_dataloder) > 0
+    train_batch = next(iter(train_dataloder))
+    assert len(train_batch) == 2
+    val_batch = next(iter(val_dataloder))
+    assert len(val_batch) == 2
+    test_batch = next(iter(test_dataloader))
+    assert len(test_batch) == 2
+    tr_images, tr_labels = train_batch
+    val_images, val_labels = val_batch
+    te_images, te_labels, = test_batch
+    # assert tr_images.shape == val_images.shape == te_images.shape, f"tr_images.shape: {tr_images.shape}, val_images.shape: {val_images.shape}, te_images.shape: {te_images.shape}"
+    # assert tr_segmentations.shape == val_segmentations.shape == te_segmentations.shape, f"tr_segmentations.shape: {tr_segmentations.shape}, val_segmentations.shape: {val_segmentations.shape}, te_segmentations.shape: {te_segmentations.shape}"
+    # assert tr_labels.shape == val_labels.shape == te_labels.shape, f"tr_labels.shape: {tr_labels.shape}, val_labels.shape: {val_labels.shape}, te_labels.shape: {te_labels.shape}"
+    print(f"tr_images.shape: {tr_images.shape}")
+
+
 def test_dynamic_segmentation_dataloader():
     dataloader = DynamicSegmentationDataLoader(
         dynamic_load=True,
@@ -85,4 +110,4 @@ def test_stylegan_dataloader():
 
 
 if __name__ == "__main__":
-    test_stylegan_dataloader()
+    test_images_and_segmentation_dataloader_augmented()

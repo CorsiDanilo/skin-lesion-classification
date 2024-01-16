@@ -16,6 +16,9 @@ Inside of the `data` folder there should be three elements:
 -   `HAM10000_images_train`: the directory containing the train images (Original name of the folder is `HAM10000_images_part_1` and `HAM10000_images_part_2`)
 -   `HAM10000_segmentations_lesion_tschandl`: the directory containing the masks for the images
 -   `HAM10000_metadata_train.csv`: the .csv file containing the metadata for the train images (labels and other info). (Original name of the file is `HAM10000_metadata`)
+-   `HAM10000_augmented_images`: The directory containing the GAN generated images to augment the training set
+-   `synthetic_metadata_train.csv`: The .csv file containing the metadata for the GAN generated images.
+
 
 Moreover, in order to used SAM it is necessary to put the `sam_checkpoints.pt` file inside the `checkpoints` folder.
 

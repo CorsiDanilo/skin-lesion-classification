@@ -6,6 +6,7 @@ from shared.enums import DynamicSegmentationStrategy, SegmentationStrategy
 DATA_DIR = 'data'
 PATH_TO_SAVE_RESULTS = 'results'
 DATASET_TRAIN_DIR = os.path.join(DATA_DIR, "HAM10000_images_train")
+AUGMENTED_IMAGES_DIR = os.path.join(DATA_DIR, "HAM10000_augmented_images")
 # DATASET_TEST_DIR = os.path.join(DATA_DIR, "HAM10000_images_test")
 SEGMENTATION_DIR = os.path.join(
     DATA_DIR, 'HAM10000_segmentations_lesion_tschandl')
@@ -13,6 +14,8 @@ SEGMENTATION_DIR = os.path.join(
 # DATA_DIR, 'HAM10000_segmentations_lesion_tschandl_with_bounding_box_450_600')
 METADATA_TRAIN_DIR = os.path.join(
     DATA_DIR, 'HAM10000_metadata_train.csv')
+SYNTHETIC_METADATA_TRAIN_DIR = os.path.join(
+    DATA_DIR, 'synthetic_metadata_train.csv')
 # METADATA_NO_DUPLICATES_DIR = os.path.join(
 # DATA_DIR, 'HAM10000_metadata_train.csv')
 # METADATA_TEST_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_test.csv')
