@@ -58,6 +58,10 @@ class MSLANetDataLoader(DataLoader):
         ])
         self.gradcam = GradCAM()
 
+        if not self.online_gradcam and self.upscale_train:
+            raise Exception(
+                "Upscale already happens with offline data, please set upscale_train=False")
+
     def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int):
         if self.online_gradcam:
             return self.online_load_images_and_labels_at_idx(metadata, idx)
@@ -255,6 +259,9 @@ class MSLANetDataLoader(DataLoader):
             lambda x: os.path.join(low_gradcam_train_path, x + '.png'))
         synthetic_metadata['image_path_high'] = synthetic_metadata['image_id'].apply(
             lambda x: os.path.join(high_gradcam_train_path, x + '.png'))
+
+        df_train = pd.concat(
+            [df_train, synthetic_metadata], ignore_index=True)
 
         return df_train, df_val, df_test
 

@@ -40,7 +40,8 @@ def main():
         normalization_statistics=IMAGENET_STATISTICS,
         batch_size=BATCH_SIZE,
         load_synthetic=True,
-        online_gradcam=False
+        online_gradcam=False,
+        upscale_train=False
     )
     train_loader = dataloader.get_train_dataloder()
     val_loader = dataloader.get_val_dataloader()

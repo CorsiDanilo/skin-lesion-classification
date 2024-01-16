@@ -1,4 +1,6 @@
 from tqdm import tqdm
+from config import BATCH_SIZE, DATASET_LIMIT, NORMALIZE
+from dataloaders.MSLANetDataLoader import MSLANetDataLoader
 from dataloaders.StyleGANDataLoader import StyleGANDataLoader
 from shared.constants import IMAGENET_STATISTICS
 from dataloaders.SegmentedImagesDataLoader import SegmentedImagesDataLoader
@@ -109,5 +111,24 @@ def test_stylegan_dataloader():
         break
 
 
+def test_offline_mslanet_dataloader():
+    dataloader = MSLANetDataLoader(
+        limit=None,
+        dynamic_load=True,
+        normalize=True,
+        normalization_statistics=IMAGENET_STATISTICS,
+        batch_size=16,
+        load_synthetic=True,
+        online_gradcam=False,
+        upscale_train=False
+    )
+    train_loader = dataloader.get_train_dataloder()
+    train_images = 0
+    for batch in tqdm(train_loader):
+        images = batch[0]
+        train_images += len(images)
+    print(f"train_images: {train_images}")
+
+
 if __name__ == "__main__":
-    test_images_and_segmentation_dataloader_augmented()
+    test_offline_mslanet_dataloader()
