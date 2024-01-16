@@ -112,12 +112,15 @@ class MSLANetDataLoader(DataLoader):
         metadata['label'] = labels_encoded
 
         print(f"LOADED METADATA HAS LENGTH {len(metadata)}")
+        # if self.load_synthetic and limit is not None:
+        #     limit = limit // 2
+
         if limit is not None and limit > len(metadata):
             print(
                 f"Ignoring limit for because it is bigger than the dataset size")
             limit = None
         if limit is not None:
-            print(f"---LIMITING DATASET TO {limit} ENTRIES---")
+            print(f"---LIMITING REAL DATASET TO {limit} ENTRIES---")
             metadata = metadata.sample(n=limit, random_state=42)
         ori_data_dir = DATASET_TRAIN_DIR
         low_data_dir = os.path.join(DATA_DIR, "gradcam_output_70")
@@ -163,6 +166,14 @@ class MSLANetDataLoader(DataLoader):
             synthetic_metadata['image_path_high'] = synthetic_metadata['image_id'].apply(
                 lambda x: os.path.join(augmented_high_data_dir, x + '.png'))
 
+            if limit is not None and limit > len(synthetic_metadata):
+                print(
+                    f"Ignoring limit for because it is bigger than the dataset size")
+                limit = None
+            if limit is not None:
+                print(f"---LIMITING SYNTHETIC DATASET TO {limit} ENTRIES---")
+                synthetic_metadata = synthetic_metadata.sample(
+                    n=limit, random_state=42)
             df_train = pd.concat(
                 [df_train, synthetic_metadata], ignore_index=True)
 
