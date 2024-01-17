@@ -68,8 +68,11 @@ class CustomDataset(Dataset, ABC):
             elif len(result) == 2:
                 image, label = result
             else:
-                raise ValueError(
-                    "load_data_fn must return a tuple of length 2 or 3.")
+                # raise ValueError(
+                #     "load_data_fn must return a tuple of length 2 or 3.")
+                image = result[0]
+                label = result[1]
+                rest = result[2:]
 
             image = image.to(self.device)
 
@@ -77,7 +80,10 @@ class CustomDataset(Dataset, ABC):
                 image = (image - self.mean) / self.std
             if len(result) == 3:
                 return image, label, segmentation
-            return image, label
+            elif len(result) == 2:
+                return image, label
+            else:
+                return image, label, *rest
         else:
             image = self.images[idx].to(self.device)
             label = self.labels[idx]

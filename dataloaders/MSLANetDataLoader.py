@@ -181,43 +181,43 @@ class MSLANetDataLoader(DataLoader):
         return df_train, df_val, df_test
 
     def offline_init_metadata(self, metadata: pd.DataFrame):
-        print(f"OFFLINE INIT METADATA")
+
+        data_dir = os.path.join(DATA_DIR, "offline_computed_dataset")
+        offline_images_dir = os.path.join(data_dir, "offline_images")
+        low_threshold_dir = os.path.join(data_dir, "gradcam_70")
+        high_threshold_dir = os.path.join(
+            data_dir, "gradcam_110")
+        train_images_path = os.path.join(offline_images_dir, "train")
+        val_images_path = os.path.join(offline_images_dir, "val")
+        test_images_path = os.path.join(offline_images_dir, "test")
+        df_train_path = os.path.join(data_dir, "metadata_train.csv")
+        df_val_path = os.path.join(data_dir, "metadata_val.csv")
+        df_test_path = os.path.join(data_dir, "metadata_test.csv")
+
+        df_train = pd.read_csv(df_train_path)
+        df_val = pd.read_csv(df_val_path)
+        df_test = pd.read_csv(df_test_path)
+
         label_dict = {'nv': 0, 'bkl': 1, 'mel': 2,
                       'akiec': 3, 'bcc': 4, 'df': 5, 'vasc': 6}
 
-        data_dir = os.path.join(DATA_DIR, "offline_computed_dataset")
+        labels_encoded = df_train['dx'].map(label_dict)
+        df_train['label'] = labels_encoded
 
-        train_images_path = os.path.join(data_dir, "offline_images", "train")
-        val_images_path = os.path.join(data_dir, "offline_images", "val")
-        test_images_path = os.path.join(data_dir, "offline_images", "test")
+        labels_encoded = df_val['dx'].map(label_dict)
+        df_val['label'] = labels_encoded
 
-        low_gradcam_train_path = os.path.join(
-            data_dir, "gradcam_70", "train")
-        low_gradcam_val_path = os.path.join(
-            data_dir, "gradcam_70", "val")
-        low_gradcam_test_path = os.path.join(
-            data_dir, "gradcam_70", "test")
+        labels_encoded = df_test['dx'].map(label_dict)
+        df_test['label'] = labels_encoded
+
+        low_gradcam_train_path = os.path.join(low_threshold_dir, "train")
+        low_gradcam_val_path = os.path.join(low_threshold_dir, "val")
+        low_gradcam_test_path = os.path.join(low_threshold_dir, "test")
 
         high_gradcam_train_path = os.path.join(
-            data_dir, "gradcam_110", "train")
-        high_gradcam_val_path = os.path.join(
-            data_dir, "gradcam_110", "val")
-        high_gradcam_test_path = os.path.join(
-            data_dir, "gradcam_110", "test")
-
-        assert RANDOM_SEED == 42, "Random seed must be 42 for offline gradcam"
-
-        df_train, df_test = train_test_split(
-            metadata,
-            test_size=0.1,  # 15% test, 85% train
-            random_state=RANDOM_SEED,
-            stratify=metadata['dx'])
-
-        df_train, df_val = train_test_split(
-            df_train,
-            test_size=0.2,  # Of the 85% train, 10% val, 90% train
-            random_state=RANDOM_SEED,
-            stratify=df_train['dx'])
+            high_threshold_dir, "train")
+        high_gradcam_val_path = os.path.join(high_threshold_dir, "val")
+        high_gradcam_test_path = os.path.join(high_threshold_dir, "test")
 
         if not self.synthetic_data_dir:
             raise Exception(
@@ -243,25 +243,25 @@ class MSLANetDataLoader(DataLoader):
         df_test['image_path_high'] = df_test['image_id'].apply(
             lambda x: os.path.join(high_gradcam_test_path, x + '.png'))
 
-        synthetic_metadata = pd.read_csv(SYNTHETIC_METADATA_TRAIN_DIR)
+        # synthetic_metadata = pd.read_csv(SYNTHETIC_METADATA_TRAIN_DIR)
 
-        df_train = df_train[["image_id", "dx", "label",
-                             "image_path", "image_path_low", "image_path_high"]]
-        df_train["synthetic"] = False
-        labels_encoded = synthetic_metadata['dx'].map(label_dict)
-        synthetic_metadata['label'] = labels_encoded
-        synthetic_metadata['image_path'] = synthetic_metadata['image_id'].apply(
-            lambda x: os.path.join(self.synthetic_data_dir, x + '.png'))
+        # df_train = df_train[["image_id", "dx", "label",
+        #                      "image_path", "image_path_low", "image_path_high"]]
+        # df_train["synthetic"] = False
+        # labels_encoded = synthetic_metadata['dx'].map(label_dict)
+        # synthetic_metadata['label'] = labels_encoded
+        # synthetic_metadata['image_path'] = synthetic_metadata['image_id'].apply(
+        #     lambda x: os.path.join(self.synthetic_data_dir, x + '.png'))
 
-        synthetic_metadata['image_path'] = synthetic_metadata['image_id'].apply(
-            lambda x: os.path.join(train_images_path, x + '.png'))
-        synthetic_metadata['image_path_low'] = synthetic_metadata['image_id'].apply(
-            lambda x: os.path.join(low_gradcam_train_path, x + '.png'))
-        synthetic_metadata['image_path_high'] = synthetic_metadata['image_id'].apply(
-            lambda x: os.path.join(high_gradcam_train_path, x + '.png'))
+        # synthetic_metadata['image_path'] = synthetic_metadata['image_id'].apply(
+        #     lambda x: os.path.join(train_images_path, x + '.png'))
+        # synthetic_metadata['image_path_low'] = synthetic_metadata['image_id'].apply(
+        #     lambda x: os.path.join(low_gradcam_train_path, x + '.png'))
+        # synthetic_metadata['image_path_high'] = synthetic_metadata['image_id'].apply(
+        #     lambda x: os.path.join(high_gradcam_train_path, x + '.png'))
 
-        df_train = pd.concat(
-            [df_train, synthetic_metadata], ignore_index=True)
+        # df_train = pd.concat(
+        #     [df_train, synthetic_metadata], ignore_index=True)
 
         return df_train, df_val, df_test
 
