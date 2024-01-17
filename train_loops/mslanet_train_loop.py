@@ -49,9 +49,10 @@ def train_eval_loop(device,
         epoch_tr_preds = torch.tensor([]).to(device)
         epoch_tr_labels = torch.tensor([]).to(device)
         train_loader_steps = len(train_loader)
+        train_iterator = iter(train_loader)
         for tr_i in tqdm(range(train_loader_steps), desc="Training"):
             try:
-                batch = next(iter(train_loader))
+                batch = next(train_iterator)
                 (tr_image_ori, tr_image_low, tr_image_high), tr_labels = batch
                 tr_image_ori = tr_image_ori.to(device)
                 tr_image_low = tr_image_low.to(device)
@@ -142,9 +143,10 @@ def train_eval_loop(device,
             epoch_val_preds = torch.tensor([]).to(device)
             epoch_val_labels = torch.tensor([]).to(device)
             val_loader_steps = len(val_loader)
+            val_iterator = iter(val_loader)
             for val_i in tqdm(range(val_loader_steps), desc="Validation"):
                 try:
-                    val_batch = next(iter(val_loader))
+                    val_batch = next(val_iterator)
                     (val_image_ori, val_image_low,
                      val_image_high), val_labels = val_batch
 
