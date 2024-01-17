@@ -31,6 +31,8 @@ def main():
         "resumed": RESUME,
         "from_epoch": RESUME_EPOCH,
         "use_wandb": USE_WANDB,
+        "dropout_layer": NUM_DROPOUT_LAYERS,
+        "dropout_p": DROPOUT_P,
     }
 
     dataloader = MSLANetDataLoader(

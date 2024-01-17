@@ -198,7 +198,7 @@ def train_eval_loop(device,
             if config["use_wandb"]:
                 wandb.log({"Validation Loss": val_epoch_loss.item()})
                 wandb.log({"Validation Accuracy": val_accuracy})
-                wandb.log({"Validation Recall": val_sensitivity})
+                wandb.log({"Validation Sensitivity": val_sensitivity})
                 wandb.log({"Validation Classes Metrics": val_classes_metrics})
 
             if best_accuracy is None or val_accuracy < best_accuracy:

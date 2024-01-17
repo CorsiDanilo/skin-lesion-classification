@@ -22,7 +22,7 @@ SYNTHETIC_METADATA_TRAIN_DIR = os.path.join(
 
 
 # ---Library Configurations--- #
-USE_WANDB = False  # Use wandb for logging
+USE_WANDB = True  # Use wandb for logging
 # DirectML library for AMD gpu on Windows (set to false if you want to use cpu or standard CUDA)
 USE_DML = False
 USE_MPS = True  # Use MPS gpu for MacOS
@@ -47,7 +47,7 @@ NORMALIZE = True  # True if data must be normalized, False otherwise
 # True if oversampling (with data augmentation) must be applied, False otherwise
 
 # TODO: removed to compare resnet34 without oversampling and MSLANet without oversampling
-OVERSAMPLE_TRAIN = True
+OVERSAMPLE_TRAIN = False
 # Proporsion used to downsample the majority. Applied only if OVERSAMPLE_TRAIN=True (1=Do not remove any examples from majority class).
 BALANCE_DOWNSAMPLING = 1
 
