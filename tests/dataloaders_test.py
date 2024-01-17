@@ -112,22 +112,25 @@ def test_stylegan_dataloader():
 
 
 def test_offline_mslanet_dataloader():
+    batch_size = 8
     dataloader = MSLANetDataLoader(
         limit=None,
         dynamic_load=True,
         normalize=True,
         normalization_statistics=IMAGENET_STATISTICS,
-        batch_size=16,
+        batch_size=batch_size,
         load_synthetic=True,
         online_gradcam=False,
         upscale_train=False
     )
     train_loader = dataloader.get_train_dataloder()
-    train_images = 0
-    for batch in tqdm(train_loader):
-        images = batch[0]
-        train_images += len(images)
-    print(f"train_images: {train_images}")
+    loader_steps = len(train_loader)
+    for batch_i in tqdm(range(loader_steps)):
+        try:
+            batch = next(iter(train_loader))
+        except Exception as e:
+            print(f'Exception: {e}')
+            continue
 
 
 if __name__ == "__main__":

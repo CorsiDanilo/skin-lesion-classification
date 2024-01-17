@@ -35,7 +35,7 @@ def generate_gradcam_from_dataloader():
         normalize=False,
         normalization_statistics=IMAGENET_STATISTICS,
         batch_size=2,
-        load_synthetic=True,
+        load_synthetic=False,
         return_image_name=True,
         upscale_train=True,
         shuffle_train=False  # NOTE: this is crucial to restore the process.
@@ -49,7 +49,7 @@ def generate_gradcam_from_dataloader():
 
     device = select_device()
     cam_instance = GradCAM().to(device)
-    data_dir = os.path.join(DATA_DIR, "offline_computed_dataset")
+    data_dir = os.path.join(DATA_DIR, "offline_computed_dataset_no_synthetic")
     os.makedirs(data_dir, exist_ok=True)
 
     augmentation_tracking = {}
