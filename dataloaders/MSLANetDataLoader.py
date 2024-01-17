@@ -58,9 +58,14 @@ class MSLANetDataLoader(DataLoader):
         ])
         self.gradcam = GradCAM()
 
-        if not self.online_gradcam and self.upscale_train:
-            raise Exception(
-                "Upscale already happens with offline data, please set upscale_train=False")
+        if not self.online_gradcam:
+            if self.upscale_train:
+                raise ValueError(
+                    "Upscale already happens with offline data, please set upscale_train=False")
+
+            if not self.load_synthetic:
+                raise NotImplementedError(
+                    "Offline gradcam without synthetic data hasn't been implemented, please set load_synthetic=True")
 
     def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int):
         if self.online_gradcam:
