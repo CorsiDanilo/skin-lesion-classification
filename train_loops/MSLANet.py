@@ -14,8 +14,8 @@ def main():
 
     device = select_device()
 
-    #model = MSLANet(num_classes=NUM_CLASSES, dropout_num=NUM_DROPOUT_LAYERS, dropout_p=DROPOUT_P).to(device)
-    model = ResNet34Pretrained(num_classes=NUM_CLASSES, hidden_layers=HIDDEN_SIZE, dropout_p=DROPOUT_P).to(device)
+    model = MSLANet(num_classes=NUM_CLASSES, dropout_num=NUM_DROPOUT_LAYERS, dropout_p=DROPOUT_P).to(device)
+    #model = ResNet34Pretrained(num_classes=NUM_CLASSES, hidden_layers=HIDDEN_SIZE, dropout_p=DROPOUT_P).to(device)
     if PRINT_MODEL_ARCHITECTURE:
         print(f"--Model-- Architecture: {model}")
 
