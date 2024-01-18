@@ -1,7 +1,9 @@
 import torch
 from config import ARCHITECTURE, PRINT_MODEL_ARCHITECTURE, BALANCE_DOWNSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, DATASET_LIMIT, DROPOUT_P, NUM_DROPOUT_LAYERS, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, OVERSAMPLE_TRAIN, USE_MULTIPLE_LOSS, USE_WANDB
 from dataloaders.MSLANetDataLoader import MSLANetDataLoader
+from models import ResNet34Pretrained
 from models.MSLANet import MSLANet
+from models.ResNet34Pretrained import ResNet34Pretrained
 from shared.constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
 from utils.utils import select_device, set_seed
 from train_loops.mslanet_train_loop import train_eval_loop
@@ -12,8 +14,8 @@ def main():
 
     device = select_device()
 
-    model = MSLANet(num_classes=NUM_CLASSES,
-                    dropout_num=NUM_DROPOUT_LAYERS, dropout_p=DROPOUT_P).to(device)
+    #model = MSLANet(num_classes=NUM_CLASSES, dropout_num=NUM_DROPOUT_LAYERS, dropout_p=DROPOUT_P).to(device)
+    model = ResNet34Pretrained(num_classes=NUM_CLASSES, hidden_layers=HIDDEN_SIZE, dropout_p=DROPOUT_P).to(device)
     if PRINT_MODEL_ARCHITECTURE:
         print(f"--Model-- Architecture: {model}")
 
