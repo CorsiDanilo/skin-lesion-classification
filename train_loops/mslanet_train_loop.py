@@ -48,6 +48,7 @@ def train_eval_loop(device,
         model.train()
         epoch_tr_preds = torch.tensor([]).to(device)
         epoch_tr_labels = torch.tensor([]).to(device)
+        epoch_tr_scores = torch.tensor([]).to(device)
         for tr_i, tr_batch in enumerate(tqdm(train_loader, desc="Training", leave=False)):
             (tr_image_ori, tr_image_low, tr_image_high), tr_labels = tr_batch
             tr_image_ori = tr_image_ori.to(device)
@@ -73,6 +74,9 @@ def train_eval_loop(device,
                 epoch_tr_preds = torch.cat((epoch_tr_preds, tr_preds), 0)
                 epoch_tr_labels = torch.cat(
                     (epoch_tr_labels, tr_labels), 0)
+                
+                tr_outputs = tr_outputs.t()
+                epoch_tr_scores = torch.cat((epoch_tr_scores, tr_outputs), 1)
 
                 tr_accuracy = accuracy_score(
                     epoch_tr_labels.cpu().numpy(), epoch_tr_preds.cpu().numpy()) * 100
@@ -97,6 +101,8 @@ def train_eval_loop(device,
                         epoch_tr_preds, dtype=torch.long).to(device)
                     tr_class_preds_binary[(
                         epoch_tr_preds == class_label)] = 1
+                    
+                    epoch_tr_scores_class = epoch_tr_scores[class_label]
 
                     if len(tr_class_preds_binary) > 0:
                         tr_class_accuracy = accuracy_score(
@@ -112,7 +118,7 @@ def train_eval_loop(device,
                             tr_class_specificity = 0
                         if len(set(tr_class_labels_binary.cpu().numpy())) > 1:
                             tr_class_auc = roc_auc_score(
-                                tr_class_labels_binary.cpu().numpy(), tr_class_preds_binary.cpu().numpy()) * 100
+                                tr_class_labels_binary.cpu().numpy(), epoch_tr_scores_class.cpu().numpy()) * 100
                         else:
                             tr_class_auc = 0
 
@@ -134,32 +140,34 @@ def train_eval_loop(device,
         with torch.no_grad():
             epoch_val_preds = torch.tensor([]).to(device)
             epoch_val_labels = torch.tensor([]).to(device)
-            val_loader_steps = len(val_loader)
-            for val_i, val_batch in enumerate(tqdm(val_loader, desc="Validation", leave=False)):
+            epoch_val_scores = torch.tensor([]).to(device)
+            for _, val_batch in enumerate(tqdm(val_loader, desc="Validation", leave=False)):
                 (val_image_ori, val_image_low, val_image_high), val_labels = val_batch
 
                 val_image_ori = val_image_ori.to(device)
-                #val_image_low = val_image_low.to(device)
-                #val_image_high = val_image_high.to(device)
+                val_image_low = val_image_low.to(device)
+                val_image_high = val_image_high.to(device)
                 val_labels = val_labels.to(device)
 
-                val_output_ori = model(val_image_ori)  # Prediction
-                #val_output_low = model(val_image_low)  # Prediction
-                #val_output_high = model(val_image_high)  # Prediction
+                val_output_ori = model(val_image_ori)  # Prediction original image
+                val_output_low = model(val_image_low)  # Prediction gradcam 70
+                val_output_high = model(val_image_high)  # Prediction gradcam 110
 
-                #val_outputs = (val_output_ori + val_output_low + val_output_high) / 3
-                val_outputs = val_output_ori
+                val_outputs = (val_output_ori + val_output_low + val_output_high) / 3
+
+                # First loss: Multiclassification loss considering all classes
+                val_epoch_loss_multiclass = criterion(
+                    val_outputs, val_labels)
+                val_epoch_loss = val_epoch_loss_multiclass
 
                 val_preds = torch.argmax(val_outputs, -1).detach()
                 epoch_val_preds = torch.cat(
                     (epoch_val_preds, val_preds), 0)
                 epoch_val_labels = torch.cat(
                     (epoch_val_labels, val_labels), 0)
-
-                # First loss: Multiclassification loss considering all classes
-                val_epoch_loss_multiclass = criterion(
-                    val_outputs, val_labels)
-                val_epoch_loss = val_epoch_loss_multiclass
+                
+                val_outputs = val_outputs.t()
+                epoch_val_scores = torch.cat((epoch_val_scores, val_outputs), 1)
 
             val_accuracy = accuracy_score(
                 epoch_val_labels.cpu().numpy(), epoch_val_preds.cpu().numpy()) * 100
@@ -179,6 +187,8 @@ def train_eval_loop(device,
                     epoch_val_preds, dtype=torch.long).to(device)
                 val_class_preds_binary[(epoch_val_preds == class_label)] = 1
 
+                epoch_val_scores_class = epoch_val_scores[class_label]
+
                 if len(val_class_preds_binary) > 0:
                     val_class_accuracy = accuracy_score(
                         val_class_labels_binary.cpu().numpy(), val_class_preds_binary.cpu().numpy()) * 100
@@ -193,7 +203,7 @@ def train_eval_loop(device,
                         val_class_specificity = 0
                     if len(set(val_class_labels_binary.cpu().numpy())) > 1:
                         val_class_auc = roc_auc_score(
-                            val_class_labels_binary.cpu().numpy(), val_class_preds_binary.cpu().numpy()) * 100
+                            val_class_labels_binary.cpu().numpy(), epoch_val_scores_class.cpu().numpy()) * 100
                     else:
                         val_class_auc = 0
 
