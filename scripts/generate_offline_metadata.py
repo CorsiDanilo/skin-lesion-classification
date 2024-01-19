@@ -43,6 +43,6 @@ def generate(images_dir: str, new_metadata_dir: str):
 
 
 if __name__ == "__main__":
-    # generate(train_dir, new_metadata_train_dir)
+    generate(train_dir, new_metadata_train_dir)
     generate(val_dir, new_metadata_val_dir)
     generate(test_dir, new_metadata_test_dir)

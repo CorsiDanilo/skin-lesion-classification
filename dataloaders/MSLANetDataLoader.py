@@ -13,7 +13,7 @@ from torchvision import transforms
 import pandas as pd
 import torchvision.transforms.functional as TF
 from augmentation.Augmentations import MSLANetAugmentation
-from config import BATCH_SIZE, DATA_DIR, DATASET_TRAIN_DIR, IMAGE_SIZE, METADATA_TRAIN_DIR, NORMALIZE, RANDOM_SEED, SYNTHETIC_METADATA_TRAIN_DIR
+from config import BATCH_SIZE, DATA_DIR, DATASET_TRAIN_DIR, IMAGE_SIZE, METADATA_TRAIN_DIR, NORMALIZE, NUM_CLASSES, RANDOM_SEED, SYNTHETIC_METADATA_TRAIN_DIR
 import random
 
 from dataloaders.DataLoader import DataLoader
@@ -203,11 +203,20 @@ class MSLANetDataLoader(DataLoader):
         df_val = pd.read_csv(df_val_path)
         df_test = pd.read_csv(df_test_path)
 
+        # Sample and keep the dataset balanced
+        if self.limit is not None:
+            limit_per_class = self.limit // NUM_CLASSES
+            df_train = df_train.groupby('dx', group_keys=False).apply(
+                lambda x: x.sample(min(len(x), limit_per_class), random_state=RANDOM_SEED))
+
         label_dict = {'nv': 0, 'bkl': 1, 'mel': 2,
                       'akiec': 3, 'bcc': 4, 'df': 5, 'vasc': 6}
 
         labels_encoded = df_train['dx'].map(label_dict)
         df_train['label'] = labels_encoded
+
+        assert len(df_train['label'].unique(
+        )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_train['label'].unique())}, increase the limit"
 
         labels_encoded = df_val['dx'].map(label_dict)
         df_val['label'] = labels_encoded
@@ -280,9 +289,9 @@ class MSLANetDataLoader(DataLoader):
 
         print(f"LOADED METADATA HAS LENGTH {len(metadata)}")
 
-        if limit is not None and not self.online_gradcam:
-            raise Exception(
-                f"You cannot limit the dataset size when using offline gradcams")
+        # if limit is not None and not self.online_gradcam:
+        #     raise Exception(
+        #         f"You cannot limit the dataset size when using offline gradcams")
 
         if limit is not None and limit > len(metadata):
             print(
