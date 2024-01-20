@@ -29,14 +29,14 @@ USE_MPS = True  # Use MPS gpu for MacOS
 
 # ---Train Configurations--- #
 RANDOM_SEED = 42  # Random seed
-BATCH_SIZE = 50  # Batch size
+BATCH_SIZE = 256  # Batch size
 INPUT_SIZE = 3  # Input size
 NUM_CLASSES = 7  # Number of classes for classification
 HIDDEN_SIZE = [256, 128]  # Hidden layers configurations
-N_EPOCHS = 30  # Number of epochs
+N_EPOCHS = 40  # Number of epochs
 LR = 1e-4  # Learning rate
 LR_DECAY = 0.85  # Learning rate decay
-REG = 0.03  # Weight decay
+REG = 0.01  # Weight decay
 # Architecture used for training: resnet34, densenet121, inception_v3, standard, pretrained, efficient
 ARCHITECTURE = "resnet50"
 DATASET_LIMIT = None  # Value (0, dataset_length) used to limit the dataset
