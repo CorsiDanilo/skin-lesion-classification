@@ -1,4 +1,7 @@
 import os
+
+import numpy as np
+from augmentation.Augmentations import Augmentations
 from config import BATCH_SIZE, IMAGE_SIZE, KEEP_BACKGROUND, NORMALIZE
 from dataloaders.DataLoader import DataLoader
 from typing import Optional
@@ -10,7 +13,6 @@ from PIL import Image
 from tqdm import tqdm
 from torchvision import transforms
 import pandas as pd
-from dataloaders.ImagesAndSegmentationDataLoader import StatefulTransform
 from models.SAM import SAM
 from shared.enums import DynamicSegmentationStrategy
 from train_loops.SAM_pretrained import preprocess_images
@@ -48,11 +50,10 @@ class DynamicSegmentationDataLoader(DataLoader):
                          load_synthetic=load_synthetic)
         self.segmentation_strategy = segmentation_strategy
         self.load_synthetic = load_synthetic
-        self.segmentation_transform = transforms.Compose([
-            transforms.ToTensor()
-        ])
-        self.stateful_transform = StatefulTransform(
-            always_rotate=self.always_rotate)
+        self.stateful_transform = Augmentations(
+            resize_dim=None,
+            additional_targets={"image": "image", "mask": "mask"})
+        self.image_only_transform = Augmentations(resize_dim=None)
         if self.segmentation_strategy == DynamicSegmentationStrategy.OPENCV.value:
             print(f"NOOOOOO, DON'T USE OPEN_CV AS A STRATEGY, IT'S DEPRECATED!! ò_ó")
         self.keep_background = keep_background
@@ -79,7 +80,10 @@ class DynamicSegmentationDataLoader(DataLoader):
 
         if not segmentation_available:
             image = Image.open(img['image_path'])
-            image = TF.to_tensor(image)
+            if img["synthetic"]:
+                image = TF.resize(image, (450, 600))
+            image = (np.array(image)).astype(np.uint8)
+            image = self.image_only_transform(image=image)["image"] / 255
             if self.segmentation_strategy == DynamicSegmentationStrategy.OPENCV.value:
                 # NOTE: This is deprecated, use SAM instead
                 segmented_image = bounding_box_pipeline(
@@ -98,8 +102,13 @@ class DynamicSegmentationDataLoader(DataLoader):
 
         ti, ts = Image.open(img['image_path']), Image.open(
             img['segmentation_path']).convert('1')
-        # ti, ts = TF.to_tensor(ti), TF.to_tensor(ts)
-        ti, ts = self.stateful_transform(ti, ts)
+
+        ti = (np.array(ti)).astype(np.uint8)
+        ts = (np.array(ts)).astype(np.uint8)
+        transformed = self.stateful_transform(image=ti, mask=ts)
+        ti = transformed["image"] / 255
+        ts = (transformed["mask"])
+
         if img["augmented"]:
             if not self.keep_background:
                 ti *= ts
@@ -138,6 +147,8 @@ class DynamicSegmentationDataLoader(DataLoader):
     def crop_to_background(self, images: torch.Tensor,
                            segmentations: torch.Tensor,
                            resize: bool = True):
+        if segmentations.ndim == 4:
+            segmentations = segmentations.squeeze(0)
         bboxes = [get_bounding_boxes_from_segmentation(
             mask)[0] for mask in segmentations]
 

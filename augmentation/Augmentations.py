@@ -1,13 +1,18 @@
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from typing import Tuple
+from typing import Any, Tuple, Optional
 
 
-class MSLANetAugmentation:
-    def __init__(self, resize_dim: Tuple[int, int] = (256, 256)):
-        self.transform = A.Compose([
-            A.Resize(height=resize_dim[0], width=resize_dim[1]),
-            A.Transpose(p=0.5),
+class Augmentations:
+    def __init__(self, resize_dim: Optional[Tuple[int, int]] = (256, 256), additional_targets: dict = {}):
+        transforms = []
+        if resize_dim is not None:
+            transforms.append(
+                A.Resize(height=resize_dim[0], width=resize_dim[1]))
+            transforms.append(
+                A.Transpose(p=0.5)
+            )
+        transforms.extend([
             A.VerticalFlip(p=0.5),
             A.HorizontalFlip(p=0.5),
             A.RandomBrightnessContrast(
@@ -29,3 +34,8 @@ class MSLANetAugmentation:
                      max_w_size=15, fill_value=0, p=0.5),
             ToTensorV2()
         ])
+        self.transform = A.Compose(
+            transforms, additional_targets=additional_targets)
+
+    def __call__(self, *args: Any, **kwargs: Any):
+        return self.transform(*args, **kwargs)

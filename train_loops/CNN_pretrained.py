@@ -1,5 +1,6 @@
 import torch
 from config import ARCHITECTURE, LOAD_SYNTHETIC, PRINT_MODEL_ARCHITECTURE, BALANCE_DOWNSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, OVERSAMPLE_TRAIN, USE_MULTIPLE_LOSS, USE_WANDB
+from models.ResNet50Pretrained import ResNet50Pretrained
 from shared.constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
 from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device, set_seed
@@ -12,6 +13,9 @@ from models.InceptionV3Pretrained import InceptionV3Pretrained
 def get_model(device):
     if ARCHITECTURE == "resnet34":
         model = ResNet34Pretrained(
+            HIDDEN_SIZE, NUM_CLASSES).to(device)
+    elif ARCHITECTURE == "resnet50":
+        model = ResNet50Pretrained(
             HIDDEN_SIZE, NUM_CLASSES).to(device)
     elif ARCHITECTURE == "densenet121":
         model = DenseNetPretrained(

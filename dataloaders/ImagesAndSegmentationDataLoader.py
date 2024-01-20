@@ -1,6 +1,6 @@
 import numpy as np
 from augmentation.StatefulTransform import StatefulTransform
-from augmentation.Augmentations import MSLANetAugmentation
+from augmentation.Augmentations import Augmentations
 from dataloaders.DataLoader import DataLoader
 from typing import Optional, Tuple
 import torch
@@ -70,7 +70,7 @@ class ImagesAndSegmentationDataLoader(DataLoader):
             self.stateful_transform = StatefulTransform(
                 always_rotate=self.always_rotate)
 
-        self.mslanet_transform = MSLANetAugmentation(
+        self.mslanet_transform = Augmentations(
             resize_dim=self.resize_dim).transform
 
     def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int):
