@@ -1,5 +1,5 @@
 import torch
-from config import ARCHITECTURE, PRINT_MODEL_ARCHITECTURE, BALANCE_DOWNSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, OVERSAMPLE_TRAIN, USE_MULTIPLE_LOSS, USE_WANDB
+from config import ARCHITECTURE, LOAD_SYNTHETIC, PRINT_MODEL_ARCHITECTURE, BALANCE_DOWNSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, OVERSAMPLE_TRAIN, USE_MULTIPLE_LOSS, USE_WANDB
 from shared.constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
 from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device, set_seed
@@ -81,7 +81,8 @@ def main():
         "oversample_train": OVERSAMPLE_TRAIN,
         "multiple_loss": USE_MULTIPLE_LOSS,
         "use_wandb": USE_WANDB,
-        "keep_background": KEEP_BACKGROUND
+        "keep_background": KEEP_BACKGROUND,
+        "load_synthetic": LOAD_SYNTHETIC,
     }
 
     dataloader = get_dataloder_from_strategy(
@@ -93,7 +94,8 @@ def main():
         normalize=NORMALIZE,
         normalization_statistics=get_normalization_statistics(),
         batch_size=BATCH_SIZE,
-        keep_background=KEEP_BACKGROUND,)
+        keep_background=KEEP_BACKGROUND,
+        load_synthetic=LOAD_SYNTHETIC)
     train_loader = dataloader.get_train_dataloder()
     val_loader = dataloader.get_val_dataloader()
 

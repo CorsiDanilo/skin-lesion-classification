@@ -98,7 +98,8 @@ class DataLoader(ABC):
         if self.load_synthetic:
             # Merge train dataset with synthetic dataset (I want to use the synthetic dataset only for training)
             print(f"---LOADING SYNTHETIC DATA IN THE TRAINING SET---")
-            df_train = df_train[["image_id", "dx", "label", "image_path"]]
+            df_train = df_train[["image_id", "dx", "label",
+                                 "image_path", "segmentation_path"]]
             df_train["synthetic"] = False
             labels_encoded = synthetic_metadata['dx'].map(label_dict)
             synthetic_metadata['label'] = labels_encoded

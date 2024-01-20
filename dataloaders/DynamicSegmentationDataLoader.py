@@ -1,3 +1,4 @@
+import os
 from config import BATCH_SIZE, IMAGE_SIZE, KEEP_BACKGROUND, NORMALIZE
 from dataloaders.DataLoader import DataLoader
 from typing import Optional
@@ -34,7 +35,8 @@ class DynamicSegmentationDataLoader(DataLoader):
                  normalize: bool = NORMALIZE,
                  keep_background: Optional[bool] = KEEP_BACKGROUND,
                  normalization_statistics: tuple = None,
-                 batch_size: int = BATCH_SIZE):
+                 batch_size: int = BATCH_SIZE,
+                 load_synthetic: bool = False):
         super().__init__(limit=limit,
                          transform=transform,
                          dynamic_load=dynamic_load,
@@ -42,19 +44,15 @@ class DynamicSegmentationDataLoader(DataLoader):
                          normalize=normalize,
                          normalization_statistics=normalization_statistics,
                          batch_size=batch_size,
-                         always_rotate=False)  # TODO: see if is better True or False here
+                         always_rotate=False,
+                         load_synthetic=load_synthetic)
         self.segmentation_strategy = segmentation_strategy
+        self.load_synthetic = load_synthetic
         self.segmentation_transform = transforms.Compose([
             transforms.ToTensor()
         ])
         self.stateful_transform = StatefulTransform(
             always_rotate=self.always_rotate)
-        # self.transform = transforms.Compose([
-        #     transforms.RandomVerticalFlip(),
-        #     transforms.RandomHorizontalFlip(),
-        #     transforms.RandomRotation(90),
-        #     transforms.ToTensor()
-        # ])
         if self.segmentation_strategy == DynamicSegmentationStrategy.OPENCV.value:
             print(f"NOOOOOO, DON'T USE OPEN_CV AS A STRATEGY, IT'S DEPRECATED!! ò_ó")
         self.keep_background = keep_background
@@ -77,7 +75,7 @@ class DynamicSegmentationDataLoader(DataLoader):
     def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int, transform: transforms.Compose = None):
         img = metadata.iloc[idx]
         label = img['label']
-        segmentation_available = "train" in img
+        segmentation_available = img['train'] and not img["synthetic"]
 
         if not segmentation_available:
             image = Image.open(img['image_path'])
