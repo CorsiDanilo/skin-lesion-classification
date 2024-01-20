@@ -29,7 +29,7 @@ USE_MPS = False  # Use MPS gpu for MacOS
 
 # ---Train Configurations--- #
 RANDOM_SEED = 42  # Random seed
-BATCH_SIZE = 50  # Batch size
+BATCH_SIZE = 32  # Batch size
 INPUT_SIZE = 3  # Input size
 NUM_CLASSES = 7  # Number of classes for classification
 HIDDEN_SIZE = [256, 128]  # Hidden layers configurations
@@ -43,7 +43,7 @@ DATASET_LIMIT = None  # Value (0, dataset_length) used to limit the dataset
 DROPOUT_P = 0.3  # Dropout probability
 # Used in MSLANet to apply several parallel classification layers with a dropout in it. Predictions are averaged to get the final result.
 NUM_DROPOUT_LAYERS = 1
-NORMALIZE = False  # True if data must be normalized, False otherwise
+NORMALIZE = True  # True if data must be normalized, False otherwise
 # True if oversampling (with data augmentation) must be applied, False otherwise
 
 # TODO: removed to compare resnet34 without oversampling and MSLANet without oversampling
