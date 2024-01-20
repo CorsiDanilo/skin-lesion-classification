@@ -13,6 +13,9 @@ from torchvision import transforms
 import pandas as pd
 from config import BATCH_SIZE, IMAGE_SIZE, NORMALIZE, RANDOM_SEED
 import random
+from datasets.HAM10K import HAM10K
+
+from utils.utils import calculate_normalization_statistics
 
 random.seed(RANDOM_SEED)
 
@@ -35,7 +38,9 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                  normalization_statistics: tuple = None,
                  batch_size: int = BATCH_SIZE,
                  load_segmentations: bool = True,
-                 load_synthetic: bool = True):
+                 load_synthetic: bool = True,
+                 return_image_name: bool = False,
+                 shuffle_train: bool = True):
         super().__init__(limit=limit,
                          transform=transform,
                          dynamic_load=dynamic_load,
@@ -47,6 +52,10 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                          load_synthetic=load_synthetic)
         self.resize_dim = resize_dim
         self.load_segmentations = load_segmentations
+        self.return_image_name = return_image_name
+        self.shuffle_train = shuffle_train
+
+        assert return_image_name or load_segmentations, "Returning both image name and segmentation is still not supported"
         if self.resize_dim is not None:
             self.stateful_transform = StatefulTransform(
                 height=resize_dim[0],
@@ -86,6 +95,9 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                 image = self.transform(image)
         if load_segmentations:
             return image, label, segmentation
+
+        if self.return_image_name:
+            return image, label, img["image_id"], img["augmented"]
         return image, label
 
     def load_images_and_labels(self, metadata: pd.DataFrame):
@@ -114,3 +126,33 @@ class ImagesAndSegmentationDataLoader(DataLoader):
         if load_segmentations:
             return images, labels, segmentations
         return images, labels
+
+    def get_train_dataloder(self) -> Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader]:
+        if self.normalize:
+            print(
+                "--Normalization-- Normalization flag set to True: Images will be normalized with z-score normalization")
+            if self.normalization_statistics is None:
+                self.normalization_statistics = calculate_normalization_statistics(
+                    self.train_df)
+                print(
+                    "--Normalization-- Statistics not provided. They will be computed on the training set.")
+            print(
+                f"--Normalization-- Statistics for normalization (per channel) -> Mean: {self.normalization_statistics[0].view(-1)}, Variance: {self.normalization_statistics[1].view(-1)}, Epsilon (adjustment value): 0.01")
+
+        train_dataset = HAM10K(
+            self.train_df,
+            load_data_fn=self.load_data,
+            normalize=self.normalize,
+            mean=self.normalization_statistics[0] if self.normalize else None,
+            std=self.normalization_statistics[1] if self.normalize else None,
+            balance_data=self.upscale_train,
+            resize_dims=IMAGE_SIZE,
+            dynamic_load=self.dynamic_load)
+        train_dataloader = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=self.batch_size,
+            shuffle=self.shuffle_train,
+            pin_memory=False,
+        )
+        print(f"Train dataloader has shuffle train on? {self.shuffle_train}")
+        return train_dataloader

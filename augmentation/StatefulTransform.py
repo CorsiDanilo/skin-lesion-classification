@@ -6,23 +6,6 @@ from PIL import Image, ImageDraw
 from torchvision import transforms
 import torchvision.transforms.functional as TF
 
-# - [ ] Transpose,
-# - [x] VerticalFlip,
-# - [x] HorizontalFlip,
-# - [ ] Random Brightness,
-# - [ ] Random Contrast,
-# - [ ] Motion Blurring,
-# - [ ] Median Blurring,
-# - [ ] Gaussian Blurring,
-# - [ ] Gaussian Noise,
-# - [ ] Optical Distortion,
-# - [ ] Grid Distortion,
-# - [ ] Elastic Transformation,
-# - [ ] Adaptive Histogram Equalization with Limited Contrast (AHELC),
-# - [ ] Random Hue Saturation Value (RHSV),
-# - [ ] Shift Scale Rotation (SSR),
-# - [x] CutOut.
-
 
 class StatefulTransform:
     def __init__(self,

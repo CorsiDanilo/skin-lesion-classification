@@ -16,12 +16,11 @@ import os
 import random
 import time
 import timeit
-from typing import Optional, Tuple
+from typing import Optional
 import warnings
 from collections import OrderedDict
 
 from tqdm import tqdm
-from shared.constants import DEFAULT_STATISTICS, IMAGENET_STATISTICS
 from utils.utils import select_device
 from .gan_config import cfg
 import numpy as np
