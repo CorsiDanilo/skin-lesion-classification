@@ -62,7 +62,7 @@ class DynamicSegmentationDataLoader(DataLoader):
             print(f"NOOOOOO, DON'T USE OPEN_CV AS A STRATEGY, IT'S DEPRECATED!! ò_ó")
         self.keep_background = keep_background
         if segmentation_strategy == DynamicSegmentationStrategy.SAM.value:
-            sam_checkpoint_path = "checkpoints/sam_checkpoint.pt"
+            sam_checkpoint_path = "./checkpoints/sam_checkpoint.pt"
             SAM_IMG_SIZE = 128
             self.sam_model = SAM(
                 custom_size=True,
@@ -87,7 +87,8 @@ class DynamicSegmentationDataLoader(DataLoader):
 
             if img["synthetic"]:
                 image = TF.resize(image, (450, 600))
-                image = TF.to_tensor(image)
+
+            image = TF.to_tensor(image)
             if self.segmentation_strategy == DynamicSegmentationStrategy.OPENCV.value:
                 # NOTE: This is deprecated, use SAM instead
                 segmented_image = bounding_box_pipeline(

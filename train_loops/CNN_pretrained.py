@@ -47,7 +47,8 @@ def get_model(device):
 
 
 def get_normalization_statistics():
-    image_net_pretrained_models = ["resnet34", "densenet121", "inception_v3"]
+    image_net_pretrained_models = ["resnet34",
+                                   "resnet50", "densenet121", "inception_v3"]
     if ARCHITECTURE in image_net_pretrained_models:
         return IMAGENET_STATISTICS
     else:
@@ -93,7 +94,7 @@ def main():
         strategy=SEGMENTATION_STRATEGY,
         dynamic_segmentation_strategy=DYNAMIC_SEGMENTATION_STRATEGY,
         limit=DATASET_LIMIT,
-        dynamic_load=True,
+        dynamic_load=False,
         oversample_train=OVERSAMPLE_TRAIN,
         normalize=NORMALIZE,
         normalization_statistics=get_normalization_statistics(),

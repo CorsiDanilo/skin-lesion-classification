@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 from torchvision import transforms
 from typing import Optional
-from augmentation.Augmentations import MSLANetAugmentation
+from augmentation.Augmentations import Augmentations
 from PIL import Image
 from tqdm import tqdm
 import pandas as pd

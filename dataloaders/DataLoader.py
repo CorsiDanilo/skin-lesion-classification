@@ -123,8 +123,10 @@ class DataLoader(ABC):
         )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_test['label'].unique())}, increase the limit"
 
         df_train["train"] = True
-        # df_val["train"] = False
-        # df_test["train"] = False
+        df_val["train"] = False
+        df_val["synthetic"] = False
+        df_test["train"] = False
+        df_test["synthetic"] = False
 
         # Remove segmentation path from test and val just to be sure not to use them
         # TODO: Uncomment

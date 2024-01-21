@@ -76,8 +76,10 @@ def test_images_and_segmentation_dataloader_augmented():
 def test_dynamic_segmentation_dataloader():
     dataloader = DynamicSegmentationDataLoader(
         dynamic_load=True,
+        batch_size=8,
         segmentation_strategy=DynamicSegmentationStrategy.SAM.value,
-        normalization_statistics=IMAGENET_STATISTICS)
+        normalization_statistics=IMAGENET_STATISTICS,
+        load_synthetic=True)
     train_dataloder = dataloader.get_train_dataloder()
     val_dataloder = dataloader.get_val_dataloader()
     test_dataloader = dataloader.get_test_dataloader()
@@ -89,11 +91,10 @@ def test_dynamic_segmentation_dataloader():
     assert len(val_batch) == 2
     test_batch = next(iter(test_dataloader))
     assert len(test_batch) == 2
-    tr_images, tr_labels, tr_segmentations = train_batch
-    val_images, val_labels, val_segmentations = val_batch
-    te_images, te_labels, te_segmentations = test_batch
+    tr_images, tr_labels = train_batch
+    val_images, val_labels = val_batch
+    te_images, te_labels = test_batch
     assert tr_images.shape == val_images.shape == te_images.shape, f"tr_images.shape: {tr_images.shape}, val_images.shape: {val_images.shape}, te_images.shape: {te_images.shape}"
-    assert tr_segmentations.shape == val_segmentations.shape == te_segmentations.shape, f"tr_segmentations.shape: {tr_segmentations.shape}, val_segmentations.shape: {val_segmentations.shape}, te_segmentations.shape: {te_segmentations.shape}"
     assert tr_labels.shape == val_labels.shape == te_labels.shape, f"tr_labels.shape: {tr_labels.shape}, val_labels.shape: {val_labels.shape}, te_labels.shape: {te_labels.shape}"
 
 
@@ -131,4 +132,4 @@ def test_offline_mslanet_dataloader():
 
 
 if __name__ == "__main__":
-    test_offline_mslanet_dataloader()
+    test_dynamic_segmentation_dataloader()
