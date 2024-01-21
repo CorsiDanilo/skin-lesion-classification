@@ -30,8 +30,8 @@ class Augmentations:
                                  sat_shift_limit=30, val_shift_limit=20, p=0.5),
             A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.1,
                                rotate_limit=45, p=0.5),
-            A.Cutout(num_holes=8, max_h_size=15,
-                     max_w_size=15, fill_value=0, p=0.5),
+            A.Cutout(num_holes=1, max_h_size=80,
+                     max_w_size=80, fill_value=0, p=0.5),
             ToTensorV2()
         ])
         self.transform = A.Compose(

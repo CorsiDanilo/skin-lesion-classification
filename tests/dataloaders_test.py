@@ -70,9 +70,6 @@ def test_images_and_segmentation_dataloader_augmented():
     tr_images, tr_labels = train_batch
     val_images, val_labels = val_batch
     te_images, te_labels, = test_batch
-    # assert tr_images.shape == val_images.shape == te_images.shape, f"tr_images.shape: {tr_images.shape}, val_images.shape: {val_images.shape}, te_images.shape: {te_images.shape}"
-    # assert tr_segmentations.shape == val_segmentations.shape == te_segmentations.shape, f"tr_segmentations.shape: {tr_segmentations.shape}, val_segmentations.shape: {val_segmentations.shape}, te_segmentations.shape: {te_segmentations.shape}"
-    # assert tr_labels.shape == val_labels.shape == te_labels.shape, f"tr_labels.shape: {tr_labels.shape}, val_labels.shape: {val_labels.shape}, te_labels.shape: {te_labels.shape}"
     print(f"tr_images.shape: {tr_images.shape}")
 
 

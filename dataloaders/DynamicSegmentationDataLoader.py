@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 from augmentation.Augmentations import Augmentations
-from config import BATCH_SIZE, IMAGE_SIZE, KEEP_BACKGROUND, NORMALIZE
+from config import BATCH_SIZE, DATA_DIR, IMAGE_SIZE, KEEP_BACKGROUND, NORMALIZE
 from dataloaders.DataLoader import DataLoader
 from typing import Optional
 import torch
@@ -12,6 +12,7 @@ from typing import Optional
 from PIL import Image
 from tqdm import tqdm
 from torchvision import transforms
+from torchvision.utils import save_image
 import pandas as pd
 from models.SAM import SAM
 from shared.enums import DynamicSegmentationStrategy
@@ -80,6 +81,7 @@ class DynamicSegmentationDataLoader(DataLoader):
 
         if not segmentation_available:
             image = Image.open(img['image_path'])
+
             if img["synthetic"]:
                 image = TF.resize(image, (450, 600))
             image = (np.array(image)).astype(np.uint8)
@@ -91,6 +93,9 @@ class DynamicSegmentationDataLoader(DataLoader):
             elif self.segmentation_strategy == DynamicSegmentationStrategy.SAM.value:
                 segmented_image = self.sam_segmentation_pipeline(
                     image).squeeze(0)
+
+                if img["synthetic"]:
+                    self.save_synthetic_binary_mask(image, img['image_id'])
             else:
                 raise NotImplementedError(
                     f"Dynamic segmentation strategy {self.segmentation_strategy} not implemented")
@@ -164,7 +169,7 @@ class DynamicSegmentationDataLoader(DataLoader):
 
         return cropped_images
 
-    def sam_segmentation_pipeline(self, images: torch.Tensor):
+    def get_segmentation_with_sam(self, images: torch.Tensor):
         if len(images.shape) == 3:
             images = images.unsqueeze(0)
         THRESHOLD = 0.5
@@ -180,11 +185,25 @@ class DynamicSegmentationDataLoader(DataLoader):
         binary_masks = resize_segmentations(
             binary_masks, new_size=(600, 450)).to(self.device)
 
+        return binary_masks
+
+    def sam_segmentation_pipeline(self, images: torch.Tensor):
+        if len(images.shape) == 3:
+            images = images.unsqueeze(0)
+        binary_masks = self.get_segmentation_with_sam(images)
         images = images.to(self.device)
-        # images = resize_images(images, new_size=(450, 450)).to(self.device)
         if not self.keep_background:
             images = binary_masks * images
 
         cropped_images = self.crop_to_background(images, binary_masks)
         cropped_images = cropped_images.to(self.device)
         return cropped_images
+
+    def save_synthetic_binary_mask(self, synthetic_image: torch.Tensor, image_id: str):
+        binary_mask = self.get_segmentation_with_sam(
+            synthetic_image)[0].squeeze(0)
+        save_path = os.path.join(DATA_DIR, "synthetic_segmentations")
+        os.makedirs(save_path, exist_ok=True)
+        image_path = os.path.join(
+            save_path, f"{image_id}_segmentation.png")
+        save_image(binary_mask, image_path)
