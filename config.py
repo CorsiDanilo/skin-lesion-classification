@@ -7,6 +7,8 @@ DATA_DIR = 'data'
 PATH_TO_SAVE_RESULTS = 'results'
 DATASET_TRAIN_DIR = os.path.join(DATA_DIR, "HAM10000_images_train")
 AUGMENTED_IMAGES_DIR = os.path.join(DATA_DIR, "HAM10000_augmented_images")
+AUGMENTED_SEGMENTATION_DIR = os.path.join(
+    DATA_DIR, "HAM10000_augmented_segmentations")
 # DATASET_TEST_DIR = os.path.join(DATA_DIR, "HAM10000_images_test")
 SEGMENTATION_DIR = os.path.join(
     DATA_DIR, 'HAM10000_segmentations_lesion_tschandl')

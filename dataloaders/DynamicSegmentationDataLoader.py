@@ -1,8 +1,7 @@
 import os
 
-import numpy as np
-from augmentation.Augmentations import Augmentations
-from config import BATCH_SIZE, DATA_DIR, IMAGE_SIZE, KEEP_BACKGROUND, NORMALIZE
+from augmentation.StatefulTransform import StatefulTransform
+from config import AUGMENTED_SEGMENTATION_DIR, BATCH_SIZE, DATA_DIR, IMAGE_SIZE, KEEP_BACKGROUND, NORMALIZE
 from dataloaders.DataLoader import DataLoader
 from typing import Optional
 import torch
@@ -20,6 +19,10 @@ from train_loops.SAM_pretrained import preprocess_images
 from utils.opencv_segmentation import bounding_box_pipeline
 from torchvision.transforms import functional as TF
 from utils.utils import approximate_bounding_box_to_square, crop_image_from_box, get_bounding_boxes_from_segmentation, resize_images, resize_segmentations
+
+# NOTE: This has to be set to True only to execute the script.generate_synthetic_segmentation_masks, which will not return valid segmentations, but will
+# save the synthetic segmentation masks on the disk.
+SAVE_SYNTH_SEGMENTATION_MASKS = False
 
 
 class DynamicSegmentationDataLoader(DataLoader):
@@ -51,10 +54,10 @@ class DynamicSegmentationDataLoader(DataLoader):
                          load_synthetic=load_synthetic)
         self.segmentation_strategy = segmentation_strategy
         self.load_synthetic = load_synthetic
-        self.stateful_transform = Augmentations(
-            resize_dim=None,
-            additional_targets={"image": "image", "mask": "mask"})
-        self.image_only_transform = Augmentations(resize_dim=None)
+        if SAVE_SYNTH_SEGMENTATION_MASKS:
+            self.synthetic_segmentation_generated_set = self.init_synthetic_segmentation_generated_set()
+        self.stateful_transform = StatefulTransform(
+            always_rotate=self.always_rotate)
         if self.segmentation_strategy == DynamicSegmentationStrategy.OPENCV.value:
             print(f"NOOOOOO, DON'T USE OPEN_CV AS A STRATEGY, IT'S DEPRECATED!! ò_ó")
         self.keep_background = keep_background
@@ -77,25 +80,28 @@ class DynamicSegmentationDataLoader(DataLoader):
     def load_images_and_labels_at_idx(self, metadata: pd.DataFrame, idx: int, transform: transforms.Compose = None):
         img = metadata.iloc[idx]
         label = img['label']
-        segmentation_available = img['train'] and not img["synthetic"]
+        segmentation_available = img['train']
 
         if not segmentation_available:
             image = Image.open(img['image_path'])
 
             if img["synthetic"]:
                 image = TF.resize(image, (450, 600))
-            image = (np.array(image)).astype(np.uint8)
-            image = self.image_only_transform(image=image)["image"] / 255
+                image = TF.to_tensor(image)
             if self.segmentation_strategy == DynamicSegmentationStrategy.OPENCV.value:
                 # NOTE: This is deprecated, use SAM instead
                 segmented_image = bounding_box_pipeline(
                     image.unsqueeze(0)).squeeze(0)
             elif self.segmentation_strategy == DynamicSegmentationStrategy.SAM.value:
+                # NOTE: This commented piece of code is used just to save the synthetic segmentation masks on the disk
+                if SAVE_SYNTH_SEGMENTATION_MASKS:
+                    if img["synthetic"]:
+                        self.save_synthetic_binary_mask(image, img['image_id'])
+                    else:
+                        return
                 segmented_image = self.sam_segmentation_pipeline(
                     image).squeeze(0)
 
-                if img["synthetic"]:
-                    self.save_synthetic_binary_mask(image, img['image_id'])
             else:
                 raise NotImplementedError(
                     f"Dynamic segmentation strategy {self.segmentation_strategy} not implemented")
@@ -105,15 +111,13 @@ class DynamicSegmentationDataLoader(DataLoader):
 
             return segmented_image, label
 
+        if SAVE_SYNTH_SEGMENTATION_MASKS:
+            return
+
         ti, ts = Image.open(img['image_path']), Image.open(
             img['segmentation_path']).convert('1')
 
-        ti = (np.array(ti)).astype(np.uint8)
-        ts = (np.array(ts)).astype(np.uint8)
-        transformed = self.stateful_transform(image=ti, mask=ts)
-        ti = transformed["image"] / 255
-        ts = (transformed["mask"])
-
+        ti, ts = self.stateful_transform(ti, ts)
         if img["augmented"]:
             if not self.keep_background:
                 ti *= ts
@@ -199,11 +203,22 @@ class DynamicSegmentationDataLoader(DataLoader):
         cropped_images = cropped_images.to(self.device)
         return cropped_images
 
+    def init_synthetic_segmentation_generated_set(self):
+        if not self.load_synthetic:
+            return set()
+        synthetic_segmentation_generated_set = set()
+        for image_id in tqdm(os.listdir(AUGMENTED_SEGMENTATION_DIR)):
+            image_path = os.path.join(AUGMENTED_SEGMENTATION_DIR, image_id)
+            if image_id.endswith(".png"):
+                synthetic_segmentation_generated_set.add(image_path)
+        return synthetic_segmentation_generated_set
+
     def save_synthetic_binary_mask(self, synthetic_image: torch.Tensor, image_id: str):
+        os.makedirs(AUGMENTED_SEGMENTATION_DIR, exist_ok=True)
+        image_path = os.path.join(
+            AUGMENTED_SEGMENTATION_DIR, f"{image_id}_segmentation.png")
+        if image_path in self.synthetic_segmentation_generated_set:
+            return
         binary_mask = self.get_segmentation_with_sam(
             synthetic_image)[0].squeeze(0)
-        save_path = os.path.join(DATA_DIR, "synthetic_segmentations")
-        os.makedirs(save_path, exist_ok=True)
-        image_path = os.path.join(
-            save_path, f"{image_id}_segmentation.png")
         save_image(binary_mask, image_path)

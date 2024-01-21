@@ -5,8 +5,6 @@ import numpy as np
 from PIL import Image, ImageDraw
 from torchvision import transforms
 import torchvision.transforms.functional as TF
-from albumentations.pytorch import ToTensorV2
-import albumentations as A
 
 
 class StatefulTransform:
@@ -18,30 +16,15 @@ class StatefulTransform:
         self.width = width
         self.always_rotate = always_rotate
 
-        self.image_only_transforms = A.Compose([
-            # A.Resize(height=height, width=width),
-            # A.Transpose(p=0.5),
-            # A.VerticalFlip(p=0.5),
-            # A.HorizontalFlip(p=0.5),
-            A.RandomBrightnessContrast(
-                brightness_limit=0.2, contrast_limit=0.2, p=0.5),
-            A.MotionBlur(blur_limit=7, p=0.5),
-            A.MedianBlur(blur_limit=7, p=0.5),
-            A.GaussNoise(var_limit=(10.0, 50.0), p=0.5),
-
-            # A.OpticalDistortion(distort_limit=0.1, p=0.5),
-            # A.GridDistortion(num_steps=5, distort_limit=0.1, p=0.5),
-            # A.ElasticTransform(alpha=0.5, sigma=25, alpha_affine=25, p=0.5),
-
-            A.CLAHE(clip_limit=4.0, p=0.5),
-            A.HueSaturationValue(hue_shift_limit=20,
-                                 sat_shift_limit=30, val_shift_limit=20, p=0.5),
-            # A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.1,
-            #                    rotate_limit=45, p=0.5),
-            # A.Cutout(num_holes=8, max_h_size=15,
-            #          max_w_size=15, fill_value=0, p=0.5),
-            ToTensorV2()
-        ])
+    def add_gaussian_noise(self, image):
+        """
+        Add gaussian noise to a PIL Image.
+        """
+        mean = 0
+        stddev = 0.1
+        noisy_image = image + torch.randn(image.shape) * stddev + mean
+        noisy_image = np.clip(noisy_image, 0., 1.)
+        return noisy_image
 
     def cutout(self, img, seg):
         seg_array = np.array(seg)
@@ -76,29 +59,56 @@ class StatefulTransform:
             seg = transforms.Resize((self.height, self.width),
                                     interpolation=Image.BILINEAR)(seg)
 
+        # Apply the grid distortion
+        # if random.random() > 0.5:
+        #     # Convert tensors back to PIL Images
+        #     # img_pil = to_pil_image(img)
+        #     # seg_pil = to_pil_image(seg)
+
+        #     grid_distortion = GridDistortion(p=1)
+        #     img = grid_distortion(image=np.array(
+        #         img).astype(np.float32))["image"]
+        #     seg = grid_distortion(image=np.array(
+        #         seg).astype(np.float32))["image"]
+
+        #     img = Image.fromarray(img.astype(np.uint8))
+        #     seg = Image.fromarray(seg.astype(np.uint8))
+
         # Cutout
         if random.random() > 0.7:
             img, seg = self.cutout(img, seg)
 
         # Horizonal flip
         if random.random() > 0.5:
-            img = A.HorizontalFlip(p=1)(img)
-            seg = A.HorizontalFlip(p=1)(seg)
+            img = TF.hflip(img)
+            seg = TF.hflip(seg)
 
         # Vertical flip
         if random.random() > 0.5:
-            img = A.VerticalFlip(p=1)(img)
-            seg = A.VerticalFlip(p=1)(seg)
+            img = TF.vflip(img)
+            seg = TF.vflip(seg)
 
         # Random rotation
         if self.always_rotate or random.random() > 0.5:
             angle = random.randint(1, 360)
-            ssr = A.ShiftScaleRotate(
-                shift_limit=0.0625, scale_limit=0.1, rotate_limit=angle, p=1)
-            img = ssr(img)
-            seg = ssr(seg)
+            img = TF.rotate(img, angle)
+            seg = TF.rotate(seg, angle)
+
+        # if random.random() > 0.5:
+        #     elastic_transform = transforms.ElasticTransform()
+        #     img = elastic_transform(img)
+        #     seg = elastic_transform(seg)
+
+        # if random.random() > 0.5:
+        #     color_jitter = ColorJitter(
+        #         brightness=0.2, contrast=0.2, saturation=0.2)
+        #     img = color_jitter(img)
 
         img = transforms.ToTensor()(img)
         seg = transforms.ToTensor()(seg)
+
+        # # Add Gaussian noise
+        # if random.random() > 0.5:
+        #     img = self.add_gaussian_noise(img)
 
         return img, seg

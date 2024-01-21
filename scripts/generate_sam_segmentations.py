@@ -17,9 +17,12 @@ def generate_segmentations():
         load_synthetic=True
     )
     train_loader = dataloder.get_train_dataloder()
-    for batch in tqdm(train_loader):
-        pass
-    pass
+    train_iterator = iter(train_loader)
+    for i in tqdm(range(len(train_loader))):
+        try:
+            batch = next(train_iterator)
+        except:
+            pass
 
 
 if __name__ == "__main__":
