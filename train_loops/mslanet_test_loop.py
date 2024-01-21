@@ -19,6 +19,7 @@ def test(test_model, test_loader, device, data_name):
     with torch.no_grad():
         epoch_test_preds = torch.tensor([]).to(device)
         epoch_test_labels = torch.tensor([]).to(device)
+        epoch_test_scores = torch.tensor([]).to(device)
         for _, test_batch in enumerate(tqdm(test_loader, desc="Testing", leave=False)):
             if len(test_batch) == 3:
                 test_images, test_labels, _ = test_batch
@@ -38,13 +39,16 @@ def test(test_model, test_loader, device, data_name):
 
             #test_outputs = (test_output_ori + test_output_low + test_output_high) / 3
 
+            # Multiclassification loss considering all classes
+            test_epoch_loss = criterion(test_outputs, test_labels)
+            test_loss_iter += test_epoch_loss.item()
+
             test_preds = torch.argmax(test_outputs, -1).detach()
             epoch_test_preds = torch.cat((epoch_test_preds, test_preds), 0)
             epoch_test_labels = torch.cat((epoch_test_labels, test_labels), 0)
 
-            # Multiclassification loss considering all classes
-            test_epoch_loss = criterion(test_outputs, test_labels)
-            test_loss_iter += test_epoch_loss.item()
+            test_outputs = test_outputs.t()
+            epoch_test_scores = torch.cat((epoch_test_scores, test_outputs), 1)
 
         test_loss = test_loss_iter / (len(test_loader) * BATCH_SIZE)
         test_accuracy = accuracy_score(
@@ -52,7 +56,7 @@ def test(test_model, test_loader, device, data_name):
         test_sensitivity = recall_score(
             epoch_test_labels.cpu().numpy(), epoch_test_preds.cpu().numpy(), average='macro', zero_division=0) * 100
 
-        print('Test -> Loss: {:.4f}, Accuracy: {:.4f}%, Recall: {:.4f}%'.format(
+        print('Test -> Loss: {:.4f}, Accuracy: {:.4f}%, Sensitivity (Recall): {:.4f}%'.format(
             test_loss, test_accuracy, test_sensitivity))
         
         test_classes_metrics = {}
@@ -64,6 +68,8 @@ def test(test_model, test_loader, device, data_name):
             test_class_preds_binary = torch.zeros_like(
                 epoch_test_preds, dtype=torch.long).to(device)
             test_class_preds_binary[(epoch_test_preds == class_label)] = 1
+
+            test_scores_class = epoch_test_scores[class_label]
 
             if len(test_class_preds_binary) > 0:
                 test_class_accuracy = accuracy_score(
@@ -79,7 +85,7 @@ def test(test_model, test_loader, device, data_name):
                     test_class_specificity = 0
                 if len(set(test_class_labels_binary.cpu().numpy())) > 1:
                     test_class_auc = roc_auc_score(
-                        test_class_labels_binary.cpu().numpy(), test_class_preds_binary.cpu().numpy()) * 100
+                        test_class_labels_binary.cpu().numpy(), test_scores_class.cpu().numpy()) * 100
                 else:
                     test_class_auc = 0
 
@@ -87,7 +93,7 @@ def test(test_model, test_loader, device, data_name):
                                         "specificity": test_class_specificity, "auc": test_class_auc}
                 test_classes_metrics[class_label] = test_class_metrics
 
-                print(f'Class {class_label} - Accuracy: {test_class_accuracy:.2f}%, Sensitivity: {test_class_sensitivity:.2f}%, Specificity: {test_class_specificity:.2f}%, AUC: {test_class_auc:.2f}%')
+                print(f'Class {class_label} - Accuracy: {test_class_accuracy:.2f}%, Sensitivity (Recall): {test_class_sensitivity:.2f}%, Specificity: {test_class_specificity:.2f}%, AUC: {test_class_auc:.2f}%')
 
         test_results = {
             'test_accuracy': test_accuracy,
@@ -131,8 +137,8 @@ def main(model_path, epoch):
 
 if __name__ == "__main__":
     # Name of the sub-folder into "results" folder in which to find the model to test (e.g. "resnet34_2023-12-10_12-29-49")
-    model_path = "MSLANet_2024-01-21_12-34-23"
+    model_path = "MSLANet_2024-01-21_13-42-54"
     # Specify the epoch number (e.g. 2) or "best" to get best model
-    epoch = "4"
+    epoch = "1"
 
     main(model_path, epoch)

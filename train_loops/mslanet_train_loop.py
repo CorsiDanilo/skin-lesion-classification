@@ -133,7 +133,7 @@ def train_eval_loop(device,
 
                         if (tr_i+1) % 100 == 0:
                             print(
-                                f'Class {class_label} - Accuracy: {tr_class_accuracy:.2f}%, Sensitivity: {tr_class_sensitivity:.2f}%, Specificity: {tr_class_specificity:.2f}%, AUC: {tr_class_auc:.2f}%')
+                                f'Class {class_label} - Accuracy: {tr_class_accuracy:.2f}%, Sensitivity (Recall): {tr_class_sensitivity:.2f}%, Specificity: {tr_class_specificity:.2f}%, AUC: {tr_class_auc:.2f}%')
 
         if config["use_wandb"]:
             wandb.log({"Training Loss": tr_epoch_loss.item()})
@@ -166,7 +166,7 @@ def train_eval_loop(device,
 
                 #val_outputs = (val_output_ori + val_output_low + val_output_high) / 3
 
-                # First loss: Multiclassification loss considering all classes
+                # Multiclassification loss considering all classes
                 val_epoch_loss_multiclass = criterion(
                     val_outputs, val_labels)
                 val_epoch_loss = val_epoch_loss_multiclass
@@ -222,7 +222,7 @@ def train_eval_loop(device,
                                          "specificity": val_class_specificity, "auc": val_class_auc}
                     val_classes_metrics[class_label] = val_class_metrics
 
-                    print(f'Class {class_label} - Accuracy: {val_class_accuracy:.2f}%, Sensitivity: {val_class_sensitivity:.2f}%, Specificity: {val_class_specificity:.2f}%, AUC: {val_class_auc:.2f}%')
+                    print(f'Class {class_label} - Accuracy: {val_class_accuracy:.2f}%, Sensitivity (Recall): {val_class_sensitivity:.2f}%, Specificity: {val_class_specificity:.2f}%, AUC: {val_class_auc:.2f}%')
 
             if config["use_wandb"]:
                 wandb.log({"Validation Loss": val_epoch_loss.item()})
