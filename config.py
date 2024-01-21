@@ -19,7 +19,7 @@ SYNTHETIC_METADATA_TRAIN_DIR = os.path.join(
 # METADATA_NO_DUPLICATES_DIR = os.path.join(
 # DATA_DIR, 'HAM10000_metadata_train.csv')
 # METADATA_TEST_DIR = os.path.join(DATA_DIR, 'HAM10000_metadata_test.csv')
-
+DYNAMIC_LOAD = True  # True if you want to load images dynamically, False otherwise
 
 # ---Library Configurations--- #
 USE_WANDB = False  # Use wandb for logging
@@ -29,7 +29,7 @@ USE_MPS = False  # Use MPS gpu for MacOS
 
 # ---Train Configurations--- #
 RANDOM_SEED = 42  # Random seed
-BATCH_SIZE = 32  # Batch size
+BATCH_SIZE = 64 # Batch size
 INPUT_SIZE = 3  # Input size
 NUM_CLASSES = 7  # Number of classes for classification
 HIDDEN_SIZE = [256, 128]  # Hidden layers configurations
@@ -41,15 +41,10 @@ REG = 0.03  # Weight decay
 ARCHITECTURE = "resnet34"
 DATASET_LIMIT = None  # Value (0, dataset_length) used to limit the dataset
 DROPOUT_P = 0.3  # Dropout probability
-# Used in MSLANet to apply several parallel classification layers with a dropout in it. Predictions are averaged to get the final result.
-NUM_DROPOUT_LAYERS = 1
+NUM_DROPOUT_LAYERS = 1 # Used in MSLANet to apply several parallel classification layers with a dropout in it. Predictions are averaged to get the final result.
 NORMALIZE = True  # True if data must be normalized, False otherwise
-# True if oversampling (with data augmentation) must be applied, False otherwise
-
-# TODO: removed to compare resnet34 without oversampling and MSLANet without oversampling
-OVERSAMPLE_TRAIN = False
-# Proporsion used to downsample the majority. Applied only if OVERSAMPLE_TRAIN=True (1=Do not remove any examples from majority class).
-BALANCE_DOWNSAMPLING = 1
+OVERSAMPLE_TRAIN = True # True if oversampling (with data augmentation) must be applied, False otherwise
+BALANCE_DOWNSAMPLING = 1 # Proporsion used to downsample the majority. Applied only if OVERSAMPLE_TRAIN=True (1=Do not remove any examples from majority class).
 
 # Use binary loss (benign/malign) and multiclassification loss if true, otherwise use only the multiclassification one
 USE_MULTIPLE_LOSS = False
@@ -75,7 +70,7 @@ EMB_SIZE = 800  # Final embedding size
 
 # ---General Model and Debug Configurations--- #
 SAVE_RESULTS = True  # Save results in JSON locally
-SAVE_MODELS = False  # Save models locally
+SAVE_MODELS = True # Save models locally
 PRINT_MODEL_ARCHITECTURE = False  # Print the architecture of the model
 
 # ---Resume Train Configurations--- #

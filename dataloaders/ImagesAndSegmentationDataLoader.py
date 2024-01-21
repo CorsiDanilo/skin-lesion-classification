@@ -38,7 +38,7 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                  normalization_statistics: tuple = None,
                  batch_size: int = BATCH_SIZE,
                  load_segmentations: bool = True,
-                 load_synthetic: bool = True,
+                 load_synthetic: bool = False,
                  return_image_name: bool = False,
                  shuffle_train: bool = True):
         super().__init__(limit=limit,
@@ -49,7 +49,7 @@ class ImagesAndSegmentationDataLoader(DataLoader):
                          normalization_statistics=normalization_statistics,
                          batch_size=batch_size,
                          always_rotate=False,
-                         load_synthetic=load_synthetic)
+                         load_synthetic=False)
         self.resize_dim = resize_dim
         self.load_segmentations = load_segmentations
         self.return_image_name = return_image_name

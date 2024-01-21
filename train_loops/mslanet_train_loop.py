@@ -50,17 +50,22 @@ def train_eval_loop(device,
         epoch_tr_labels = torch.tensor([]).to(device)
         epoch_tr_scores = torch.tensor([]).to(device)
         for tr_i, tr_batch in enumerate(tqdm(train_loader, desc="Training", leave=False)):
-            (tr_image_ori, tr_image_low, tr_image_high), tr_labels = tr_batch
-            tr_image_ori = tr_image_ori.to(device)
-            tr_image_low = tr_image_low.to(device)
-            tr_image_high = tr_image_high.to(device)
+            #(tr_image_ori, tr_image_low, tr_image_high), tr_labels = tr_batch
+            if len(tr_batch) == 3:
+                tr_images, tr_labels, _ = tr_batch
+            else:
+                tr_images, tr_labels = tr_batch
+            #tr_image_ori = tr_image_ori.to(device)
+            #tr_image_low = tr_image_low.to(device)
+            #tr_image_high = tr_image_high.to(device)
             tr_labels = tr_labels.to(device)
 
-            tr_output_ori = model(tr_image_ori)  # Prediction
-            tr_output_low = model(tr_image_low)  # Prediction
-            tr_output_high = model(tr_image_high)  # Prediction
+            #tr_output_ori = model(tr_image_ori)  # Prediction
+            #tr_output_low = model(tr_image_low)  # Prediction
+            #tr_output_high = model(tr_image_high)  # Prediction
 
-            tr_outputs = (tr_output_ori + tr_output_low + tr_output_high) / 3
+            #tr_outputs = (tr_output_ori + tr_output_low + tr_output_high) / 3
+            tr_outputs = model(tr_images)
 
             # Multiclassification loss considering all classes
             tr_epoch_loss = criterion(tr_outputs, tr_labels)
@@ -142,18 +147,24 @@ def train_eval_loop(device,
             epoch_val_labels = torch.tensor([]).to(device)
             epoch_val_scores = torch.tensor([]).to(device)
             for _, val_batch in enumerate(tqdm(val_loader, desc="Validation", leave=False)):
-                (val_image_ori, val_image_low, val_image_high), val_labels = val_batch
+                #(val_image_ori, val_image_low, val_image_high), val_labels = val_batch
+                if len(val_batch) == 3:
+                    val_images, val_labels, _ = val_batch
+                else:
+                    val_images, val_labels = val_batch
 
-                val_image_ori = val_image_ori.to(device)
-                val_image_low = val_image_low.to(device)
-                val_image_high = val_image_high.to(device)
+                #val_image_ori = val_image_ori.to(device)
+                #val_image_low = val_image_low.to(device)
+                #val_image_high = val_image_high.to(device)
                 val_labels = val_labels.to(device)
 
-                val_output_ori = model(val_image_ori)  # Prediction original image
-                val_output_low = model(val_image_low)  # Prediction gradcam 70
-                val_output_high = model(val_image_high)  # Prediction gradcam 110
+                #val_output_ori = model(val_image_ori)  # Prediction original image
+                #val_output_low = model(val_image_low)  # Prediction gradcam 70
+                #val_output_high = model(val_image_high)  # Prediction gradcam 110
 
-                val_outputs = (val_output_ori + val_output_low + val_output_high) / 3
+                val_outputs = model(val_images)
+
+                #val_outputs = (val_output_ori + val_output_low + val_output_high) / 3
 
                 # First loss: Multiclassification loss considering all classes
                 val_epoch_loss_multiclass = criterion(

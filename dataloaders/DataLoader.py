@@ -60,7 +60,8 @@ class DataLoader(ABC):
                        limit: Optional[int] = None):
 
         metadata = pd.read_csv(METADATA_TRAIN_DIR)
-        synthetic_metadata = pd.read_csv(SYNTHETIC_METADATA_TRAIN_DIR)
+        if self.load_synthetic:
+            synthetic_metadata = pd.read_csv(SYNTHETIC_METADATA_TRAIN_DIR)
         label_dict = {'nv': 0, 'bkl': 1, 'mel': 2,
                       'akiec': 3, 'bcc': 4, 'df': 5, 'vasc': 6}  # 2, 3, 4 malignant, otherwise begign
         labels_encoded = metadata['dx'].map(label_dict)

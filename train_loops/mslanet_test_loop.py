@@ -3,11 +3,12 @@ import torch.nn as nn
 from sklearn.metrics import confusion_matrix, recall_score, accuracy_score, roc_auc_score
 from tqdm import tqdm
 import wandb
+from dataloaders.DynamicSegmentationDataLoader import DynamicSegmentationDataLoader
 from dataloaders.MSLANetDataLoader import MSLANetDataLoader
 from models.MSLANet import MSLANet
 from utils.utils import save_results, set_seed, select_device
 from utils.dataloader_utils import get_dataloder_from_strategy
-from config import NUM_DROPOUT_LAYERS, SAVE_RESULTS, DATASET_LIMIT, NORMALIZE, RANDOM_SEED, PATH_TO_SAVE_RESULTS, NUM_CLASSES, DROPOUT_P, BATCH_SIZE, USE_WANDB
+from config import DYNAMIC_LOAD, DYNAMIC_SEGMENTATION_STRATEGY, KEEP_BACKGROUND, NUM_DROPOUT_LAYERS, OVERSAMPLE_TRAIN, SAVE_RESULTS, DATASET_LIMIT, NORMALIZE, RANDOM_SEED, PATH_TO_SAVE_RESULTS, NUM_CLASSES, DROPOUT_P, BATCH_SIZE, USE_WANDB
 from shared.constants import IMAGENET_STATISTICS
 
 def test(test_model, test_loader, device, data_name):
@@ -18,17 +19,24 @@ def test(test_model, test_loader, device, data_name):
     with torch.no_grad():
         epoch_test_preds = torch.tensor([]).to(device)
         epoch_test_labels = torch.tensor([]).to(device)
-        for test_i, ((test_image_ori, test_image_low, test_image_high), test_labels) in enumerate(tqdm(test_loader, desc="Testing", leave=False)):
-            test_image_ori = test_image_ori.to(device)
-            test_image_low = test_image_low.to(device)
-            test_image_high = test_image_high.to(device)
+        for _, test_batch in enumerate(tqdm(test_loader, desc="Testing", leave=False)):
+            if len(test_batch) == 3:
+                test_images, test_labels, _ = test_batch
+            else:
+                test_images, test_labels = test_batch
+
+            #test_image_ori = test_image_ori.to(device)
+            #test_image_low = test_image_low.to(device)
+            #test_image_high = test_image_high.to(device)
             test_labels = test_labels.to(device)
 
-            test_output_ori = test_model(test_image_ori)  # Prediction
-            test_output_low = test_model(test_image_low)  # Prediction
-            test_output_high = test_model(test_image_high)  # Prediction
+            #test_output_ori = test_model(test_image_ori)  # Prediction
+            #test_output_low = test_model(test_image_low)  # Prediction
+            #test_output_high = test_model(test_image_high)  # Prediction
 
-            test_outputs = (test_output_ori + test_output_low + test_output_high) / 3
+            test_outputs = test_model(test_images)
+
+            #test_outputs = (test_output_ori + test_output_low + test_output_high) / 3
 
             test_preds = torch.argmax(test_outputs, -1).detach()
             epoch_test_preds = torch.cat((epoch_test_preds, test_preds), 0)
@@ -108,23 +116,23 @@ def main(model_path, epoch):
     model = MSLANet(num_classes=NUM_CLASSES, dropout_num=NUM_DROPOUT_LAYERS, dropout_p=DROPOUT_P).to(device)
     model = load_test_model(model, model_path, epoch, device)
 
-    dataloader = MSLANetDataLoader(
+    dataloader = DynamicSegmentationDataLoader(
         limit=DATASET_LIMIT,
-        dynamic_load=True,
+        dynamic_load=DYNAMIC_LOAD,
+        upscale_train=OVERSAMPLE_TRAIN,
+        segmentation_strategy=DYNAMIC_SEGMENTATION_STRATEGY,
         normalize=NORMALIZE,
         normalization_statistics=IMAGENET_STATISTICS,
         batch_size=BATCH_SIZE,
-        load_synthetic=True,
-        online_gradcam=False,
-        upscale_train=False
+        keep_background=KEEP_BACKGROUND,
     )
     test_dataloader = dataloader.get_test_dataloader()
     test(model, test_dataloader, device, model_path)
 
 if __name__ == "__main__":
     # Name of the sub-folder into "results" folder in which to find the model to test (e.g. "resnet34_2023-12-10_12-29-49")
-    model_path = "MSLANet_2024-01-16_16-42-12"
+    model_path = "MSLANet_2024-01-21_12-34-23"
     # Specify the epoch number (e.g. 2) or "best" to get best model
-    epoch = "1"
+    epoch = "4"
 
     main(model_path, epoch)

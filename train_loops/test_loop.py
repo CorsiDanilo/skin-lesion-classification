@@ -8,7 +8,6 @@ from utils.utils import save_results, set_seed, select_device
 from utils.dataloader_utils import get_dataloder_from_strategy
 from config import USE_MULTIPLE_LOSS, MULTIPLE_LOSS_BALANCE, SAVE_RESULTS, DATASET_LIMIT, NORMALIZE, RANDOM_SEED, PATH_TO_SAVE_RESULTS, NUM_CLASSES, HIDDEN_SIZE, INPUT_SIZE, IMAGE_SIZE, PATCH_SIZE, EMB_SIZE, N_HEADS, N_LAYERS, DROPOUT_P, SEGMENTATION_STRATEGY, DYNAMIC_SEGMENTATION_STRATEGY, BATCH_SIZE
 from shared.constants import DEFAULT_STATISTICS, IMAGENET_STATISTICS
-from shared.enums import DynamicSegmentationStrategy, SegmentationStrategy
 from models.ResNet34Pretrained import ResNet34Pretrained
 from models.DenseNetPretrained import DenseNetPretrained
 from models.InceptionV3Pretrained import InceptionV3Pretrained
