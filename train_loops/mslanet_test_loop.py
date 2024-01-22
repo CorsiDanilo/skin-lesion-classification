@@ -100,11 +100,6 @@ def test(test_model, test_loader, device, data_name):
         }
         if SAVE_RESULTS:
             save_results(data_name, test_results, test=True)
-            if USE_WANDB:
-                wandb.log({"Testing Loss": test_loss.item()})
-                wandb.log({"Testing Accuracy": test_accuracy})
-                wandb.log({"Testing Sensitivity": test_sensitivity})
-                wandb.log({"Testing Classes Metrics": test_classes_metrics})
 
 def load_test_model(model, model_path, epoch, device):
     state_dict = torch.load(
