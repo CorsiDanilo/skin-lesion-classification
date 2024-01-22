@@ -96,7 +96,8 @@ def test(test_model, test_loader, device, data_name):
         test_results = {
             'test_accuracy': test_accuracy,
             'test_recall': test_sensitivity,
-            'test_loss': test_loss
+            'test_loss': test_loss,
+            'test_classes_metrics': test_classes_metrics
         }
         if SAVE_RESULTS:
             save_results(data_name, test_results, test=True)
