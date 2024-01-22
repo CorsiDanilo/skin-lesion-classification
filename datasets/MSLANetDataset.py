@@ -89,7 +89,7 @@ class MSLANetDataset(CustomDataset):
             if current_images < max_count:
                 num_images_to_add = max_count - current_images
                 print(
-                    f"--Data Balance (Oversampling)-- Adding {num_images_to_add} from {label} class..")
+                    f"--Data Balance (Oversampling)-- Adding {num_images_to_add} to {label} class..")
                 aug_indices = random.choices(
                     label_indices.tolist(), k=num_images_to_add)
                 self.metadata = pd.concat(

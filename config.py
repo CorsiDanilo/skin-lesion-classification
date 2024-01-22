@@ -31,7 +31,7 @@ USE_MPS = False  # Use MPS gpu for MacOS
 
 # ---Train Configurations--- #
 RANDOM_SEED = 42  # Random seed
-BATCH_SIZE = 16 # Batch size
+BATCH_SIZE = 256 # Batch size
 INPUT_SIZE = 3  # Input size
 NUM_CLASSES = 7  # Number of classes for classification
 HIDDEN_SIZE = [512, 256, 128]  # Hidden layers configurations

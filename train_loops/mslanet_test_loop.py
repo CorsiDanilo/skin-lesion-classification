@@ -3,13 +3,11 @@ import torch.nn as nn
 from sklearn.metrics import confusion_matrix, recall_score, accuracy_score, roc_auc_score
 from tqdm import tqdm
 import wandb
-from dataloaders.DynamicSegmentationDataLoader import DynamicSegmentationDataLoader
-from dataloaders.MSLANetDataLoader import MSLANetDataLoader
 from models.MSLANet import MSLANet
+from train_loops.CNN_pretrained import get_normalization_statistics
 from utils.utils import save_results, set_seed, select_device
 from utils.dataloader_utils import get_dataloder_from_strategy
-from config import DYNAMIC_LOAD, DYNAMIC_SEGMENTATION_STRATEGY, KEEP_BACKGROUND, NUM_DROPOUT_LAYERS, OVERSAMPLE_TRAIN, SAVE_RESULTS, DATASET_LIMIT, NORMALIZE, RANDOM_SEED, PATH_TO_SAVE_RESULTS, NUM_CLASSES, DROPOUT_P, BATCH_SIZE, USE_WANDB
-from shared.constants import IMAGENET_STATISTICS
+from config import  DYNAMIC_SEGMENTATION_STRATEGY, KEEP_BACKGROUND, LOAD_SYNTHETIC, NUM_DROPOUT_LAYERS, OVERSAMPLE_TRAIN, SAVE_RESULTS, DATASET_LIMIT, NORMALIZE, RANDOM_SEED, PATH_TO_SAVE_RESULTS, NUM_CLASSES, DROPOUT_P, BATCH_SIZE, SEGMENTATION_STRATEGY, USE_WANDB
 
 def test(test_model, test_loader, device, data_name):
     criterion = nn.CrossEntropyLoss()
@@ -122,15 +120,17 @@ def main(model_path, epoch):
     model = MSLANet(num_classes=NUM_CLASSES, dropout_num=NUM_DROPOUT_LAYERS, dropout_p=DROPOUT_P).to(device)
     model = load_test_model(model, model_path, epoch, device)
 
-    dataloader = DynamicSegmentationDataLoader(
+    dataloader = get_dataloder_from_strategy(
+        strategy=SEGMENTATION_STRATEGY,
+        dynamic_segmentation_strategy=DYNAMIC_SEGMENTATION_STRATEGY,
         limit=DATASET_LIMIT,
-        dynamic_load=DYNAMIC_LOAD,
-        upscale_train=OVERSAMPLE_TRAIN,
-        segmentation_strategy=DYNAMIC_SEGMENTATION_STRATEGY,
+        dynamic_load=False,
+        oversample_train=OVERSAMPLE_TRAIN,
         normalize=NORMALIZE,
-        normalization_statistics=IMAGENET_STATISTICS,
+        normalization_statistics=get_normalization_statistics(),
         batch_size=BATCH_SIZE,
         keep_background=KEEP_BACKGROUND,
+        load_synthetic=LOAD_SYNTHETIC
     )
     test_dataloader = dataloader.get_test_dataloader()
     test(model, test_dataloader, device, model_path)

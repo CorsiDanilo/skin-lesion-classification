@@ -1,22 +1,17 @@
 import torch
-from config import ARCHITECTURE, DYNAMIC_LOAD, PRINT_MODEL_ARCHITECTURE, BALANCE_DOWNSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, DATASET_LIMIT, DROPOUT_P, NUM_DROPOUT_LAYERS, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, OVERSAMPLE_TRAIN, USE_MULTIPLE_LOSS, USE_WANDB
-from dataloaders.DynamicSegmentationDataLoader import DynamicSegmentationDataLoader
-from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
-from dataloaders.MSLANetDataLoader import MSLANetDataLoader
+from config import LOAD_SYNTHETIC, PRINT_MODEL_ARCHITECTURE, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, DATASET_LIMIT, DROPOUT_P, NUM_DROPOUT_LAYERS, NORMALIZE, RESUME, RESUME_EPOCH, RANDOM_SEED, SEGMENTATION_STRATEGY, OVERSAMPLE_TRAIN, USE_WANDB
 from models.MSLANet import MSLANet
-from models.MSLANet_v2 import MSLANet_v2
-from shared.constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
+from train_loops.CNN_pretrained import get_normalization_statistics
+from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device, set_seed
 from train_loops.mslanet_train_loop import train_eval_loop
 
 
 def main():
     set_seed(RANDOM_SEED)
-
     device = select_device()
 
-    #model = MSLANet_v2(num_classes=NUM_CLASSES, hidden_layers=HIDDEN_SIZE, dropout_num=NUM_DROPOUT_LAYERS, dropout_p=DROPOUT_P).to(device)
-    model = MSLANet(num_classes=NUM_CLASSES, dropout_num=NUM_DROPOUT_LAYERS, dropout_p=DROPOUT_P).to(device)
+    model = MSLANet(num_classes=NUM_CLASSES, hidden_layers=HIDDEN_SIZE, dropout_num=NUM_DROPOUT_LAYERS, dropout_p=DROPOUT_P).to(device)
 
     if PRINT_MODEL_ARCHITECTURE:
         print(f"--Model-- Architecture: {model}")
@@ -39,17 +34,18 @@ def main():
         "dropout_p": DROPOUT_P,
     }
 
-    dataloader = DynamicSegmentationDataLoader(
+    dataloader = get_dataloder_from_strategy(
+        strategy=SEGMENTATION_STRATEGY,
+        dynamic_segmentation_strategy=DYNAMIC_SEGMENTATION_STRATEGY,
         limit=DATASET_LIMIT,
-        dynamic_load=DYNAMIC_LOAD,
-        upscale_train=OVERSAMPLE_TRAIN,
-        segmentation_strategy=DYNAMIC_SEGMENTATION_STRATEGY,
+        dynamic_load=False,
+        oversample_train=OVERSAMPLE_TRAIN,
         normalize=NORMALIZE,
-        normalization_statistics=IMAGENET_STATISTICS,
+        normalization_statistics=get_normalization_statistics(),
         batch_size=BATCH_SIZE,
         keep_background=KEEP_BACKGROUND,
+        load_synthetic=LOAD_SYNTHETIC
     )
-    
     train_loader = dataloader.get_train_dataloder()
     val_loader = dataloader.get_val_dataloader()
 
