@@ -212,7 +212,7 @@ def get_model(**kwargs):
         model.load_state_dict(torch.load(
             f"{PATH_TO_SAVE_RESULTS}/{PATH_MODEL_TO_RESUME}/models/melanoma_detection_{RESUME_EPOCH}.pt"))
 
-    if architecture in ["resnet34", "densenet121", "inception_v3"]:
+    if architecture in ["resnet34", "resnet50", "densenet121", "inception_v3"]:
         for p in model.parameters():
             p.requires_grad = False
 

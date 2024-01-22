@@ -7,6 +7,8 @@ DATA_DIR = 'data'
 PATH_TO_SAVE_RESULTS = 'results'
 DATASET_TRAIN_DIR = os.path.join(DATA_DIR, "HAM10000_images_train")
 AUGMENTED_IMAGES_DIR = os.path.join(DATA_DIR, "HAM10000_augmented_images")
+AUGMENTED_SEGMENTATION_DIR = os.path.join(
+    DATA_DIR, "HAM10000_augmented_segmentations")
 # DATASET_TEST_DIR = os.path.join(DATA_DIR, "HAM10000_images_test")
 SEGMENTATION_DIR = os.path.join(
     DATA_DIR, 'HAM10000_segmentations_lesion_tschandl')
@@ -22,9 +24,9 @@ SYNTHETIC_METADATA_TRAIN_DIR = os.path.join(
 DYNAMIC_LOAD = True  # True if you want to load images dynamically, False otherwise
 
 # ---Library Configurations--- #
-USE_WANDB = False  # Use wandb for logging
+USE_WANDB = True  # Use wandb for logging
 # DirectML library for AMD gpu on Windows (set to false if you want to use cpu or standard CUDA)
-USE_DML = True
+USE_DML = False
 USE_MPS = False  # Use MPS gpu for MacOS
 
 # ---Train Configurations--- #
@@ -32,13 +34,13 @@ RANDOM_SEED = 42  # Random seed
 BATCH_SIZE = 16 # Batch size
 INPUT_SIZE = 3  # Input size
 NUM_CLASSES = 7  # Number of classes for classification
-HIDDEN_SIZE = [256, 128]  # Hidden layers configurations
-N_EPOCHS = 30  # Number of epochs
+HIDDEN_SIZE = [512, 256, 128]  # Hidden layers configurations
+N_EPOCHS = 100  # Number of epochs
 LR = 1e-4  # Learning rate
 LR_DECAY = 0.85  # Learning rate decay
-REG = 0.03  # Weight decay
+REG = 0.06  # Weight decay
 # Architecture used for training: resnet34, densenet121, inception_v3, standard, pretrained, efficient
-ARCHITECTURE = "resnet34"
+ARCHITECTURE = "resnet50"
 DATASET_LIMIT = None  # Value (0, dataset_length) used to limit the dataset
 DROPOUT_P = 0.3  # Dropout probability
 NUM_DROPOUT_LAYERS = 1 # Used in MSLANet to apply several parallel classification layers with a dropout in it. Predictions are averaged to get the final result.
@@ -56,6 +58,9 @@ SEGMENTATION_STRATEGY = SegmentationStrategy.DYNAMIC_SEGMENTATION.value
 DYNAMIC_SEGMENTATION_STRATEGY = DynamicSegmentationStrategy.SAM.value
 # If true, the background is kept in the segmentation, otherwise it is removed
 KEEP_BACKGROUND = True
+
+# If true, synthetic images generated with GAN are used as augmentation for training
+LOAD_SYNTHETIC = True
 
 if ARCHITECTURE == "inception_v3":
     IMAGE_SIZE = (299, 299)  # for inception_v3

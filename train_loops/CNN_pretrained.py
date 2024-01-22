@@ -1,5 +1,6 @@
 import torch
-from config import ARCHITECTURE, PRINT_MODEL_ARCHITECTURE, BALANCE_DOWNSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, OVERSAMPLE_TRAIN, USE_MULTIPLE_LOSS, USE_WANDB
+from config import ARCHITECTURE, LOAD_SYNTHETIC, PRINT_MODEL_ARCHITECTURE, BALANCE_DOWNSAMPLING, BATCH_SIZE, DYNAMIC_SEGMENTATION_STRATEGY, INPUT_SIZE, KEEP_BACKGROUND, NUM_CLASSES, HIDDEN_SIZE, N_EPOCHS, LR, REG, DATASET_LIMIT, DROPOUT_P, NORMALIZE, PATH_TO_SAVE_RESULTS, RESUME, RESUME_EPOCH, PATH_MODEL_TO_RESUME, RANDOM_SEED, SEGMENTATION_STRATEGY, OVERSAMPLE_TRAIN, USE_MULTIPLE_LOSS, USE_WANDB
+from models.ResNet50Pretrained import ResNet50Pretrained
 from shared.constants import IMAGENET_STATISTICS, DEFAULT_STATISTICS
 from utils.dataloader_utils import get_dataloder_from_strategy
 from utils.utils import select_device, set_seed
@@ -12,6 +13,9 @@ from models.InceptionV3Pretrained import InceptionV3Pretrained
 def get_model(device):
     if ARCHITECTURE == "resnet34":
         model = ResNet34Pretrained(
+            HIDDEN_SIZE, NUM_CLASSES).to(device)
+    elif ARCHITECTURE == "resnet50":
+        model = ResNet50Pretrained(
             HIDDEN_SIZE, NUM_CLASSES).to(device)
     elif ARCHITECTURE == "densenet121":
         model = DenseNetPretrained(
@@ -43,7 +47,8 @@ def get_model(device):
 
 
 def get_normalization_statistics():
-    image_net_pretrained_models = ["resnet34", "densenet121", "inception_v3"]
+    image_net_pretrained_models = ["resnet34",
+                                   "resnet50", "densenet121", "inception_v3"]
     if ARCHITECTURE in image_net_pretrained_models:
         return IMAGENET_STATISTICS
     else:
@@ -81,19 +86,21 @@ def main():
         "oversample_train": OVERSAMPLE_TRAIN,
         "multiple_loss": USE_MULTIPLE_LOSS,
         "use_wandb": USE_WANDB,
-        "keep_background": KEEP_BACKGROUND
+        "keep_background": KEEP_BACKGROUND,
+        "load_synthetic": LOAD_SYNTHETIC,
     }
 
     dataloader = get_dataloder_from_strategy(
         strategy=SEGMENTATION_STRATEGY,
         dynamic_segmentation_strategy=DYNAMIC_SEGMENTATION_STRATEGY,
         limit=DATASET_LIMIT,
-        dynamic_load=True,
+        dynamic_load=False,
         oversample_train=OVERSAMPLE_TRAIN,
         normalize=NORMALIZE,
         normalization_statistics=get_normalization_statistics(),
         batch_size=BATCH_SIZE,
-        keep_background=KEEP_BACKGROUND,)
+        keep_background=KEEP_BACKGROUND,
+        load_synthetic=LOAD_SYNTHETIC)
     train_loader = dataloader.get_train_dataloder()
     val_loader = dataloader.get_val_dataloader()
 

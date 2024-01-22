@@ -49,8 +49,6 @@ def preprocess_images(images: torch.Tensor, params: Dict[str, float]):
         image = TF.to_tensor(image)
         preprocessed_images.append(image)
     result = torch.stack(preprocessed_images, dim=0).to(torch.float32)
-    # print(f"Result min and max are {result.min()} and {result.max()}")
-    # print(f"Dtype of result is {result.dtype}")
     return result
 
 #######################

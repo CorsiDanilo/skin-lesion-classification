@@ -1,5 +1,5 @@
 from typing import Optional
-from config import BATCH_SIZE, DATASET_LIMIT, KEEP_BACKGROUND, NORMALIZE
+from config import BATCH_SIZE, DATASET_LIMIT, KEEP_BACKGROUND, LOAD_SYNTHETIC, NORMALIZE
 from dataloaders.DataLoader import DataLoader
 from dataloaders.DynamicSegmentationDataLoader import DynamicSegmentationDataLoader
 from dataloaders.ImagesAndSegmentationDataLoader import ImagesAndSegmentationDataLoader
@@ -15,7 +15,8 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
                                 normalize: bool = NORMALIZE,
                                 normalization_statistics: tuple = None,
                                 batch_size: int = BATCH_SIZE,
-                                keep_background: Optional[bool] = KEEP_BACKGROUND) -> DataLoader:
+                                keep_background: Optional[bool] = KEEP_BACKGROUND,
+                                load_synthetic: bool = LOAD_SYNTHETIC) -> DataLoader:
 
     if strategy == SegmentationStrategy.DYNAMIC_SEGMENTATION.value:
         dataloader = DynamicSegmentationDataLoader(
@@ -27,6 +28,7 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
             normalization_statistics=normalization_statistics,
             batch_size=batch_size,
             keep_background=keep_background,
+            load_synthetic=load_synthetic,
         )
     elif strategy == SegmentationStrategy.SEGMENTATION.value:
         dataloader = SegmentedImagesDataLoader(
@@ -47,6 +49,7 @@ def get_dataloder_from_strategy(strategy: SegmentationStrategy,
             normalize=normalize,
             normalization_statistics=normalization_statistics,
             batch_size=batch_size,
+            load_synthetic=load_synthetic,
         )
     else:
         raise NotImplementedError(

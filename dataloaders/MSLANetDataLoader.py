@@ -12,7 +12,7 @@ from tqdm import tqdm
 from torchvision import transforms
 import pandas as pd
 import torchvision.transforms.functional as TF
-from augmentation.Augmentations import MSLANetAugmentation
+from augmentation.Augmentations import Augmentations
 from config import BATCH_SIZE, DATA_DIR, DATASET_TRAIN_DIR, IMAGE_SIZE, METADATA_TRAIN_DIR, NORMALIZE, NUM_CLASSES, RANDOM_SEED, SYNTHETIC_METADATA_TRAIN_DIR
 import random
 

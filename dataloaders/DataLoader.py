@@ -5,7 +5,7 @@ from typing import Optional
 import os
 import pandas as pd
 import torch
-from config import AUGMENTED_IMAGES_DIR, IMAGE_SIZE, DATASET_TRAIN_DIR, METADATA_TRAIN_DIR, NORMALIZE, SEGMENTATION_DIR, BATCH_SIZE, RANDOM_SEED, SYNTHETIC_METADATA_TRAIN_DIR
+from config import AUGMENTED_IMAGES_DIR, AUGMENTED_SEGMENTATION_DIR, IMAGE_SIZE, DATASET_TRAIN_DIR, METADATA_TRAIN_DIR, NORMALIZE, SEGMENTATION_DIR, BATCH_SIZE, RANDOM_SEED, SYNTHETIC_METADATA_TRAIN_DIR
 from shared.constants import DEFAULT_STATISTICS
 from typing import Optional, Tuple
 from sklearn.model_selection import train_test_split
@@ -38,6 +38,7 @@ class DataLoader(ABC):
         self.batch_size = batch_size
         self.data_dir = data_dir
         self.synthetic_data_dir = AUGMENTED_IMAGES_DIR
+        self.synthetic_segmentation_dir = AUGMENTED_SEGMENTATION_DIR
         self.load_synthetic = load_synthetic
         if self.transform is None:
             self.transform = transforms.Compose([
@@ -99,12 +100,15 @@ class DataLoader(ABC):
         if self.load_synthetic:
             # Merge train dataset with synthetic dataset (I want to use the synthetic dataset only for training)
             print(f"---LOADING SYNTHETIC DATA IN THE TRAINING SET---")
-            df_train = df_train[["image_id", "dx", "label", "image_path"]]
+            df_train = df_train[["image_id", "dx", "label",
+                                 "image_path", "segmentation_path"]]
             df_train["synthetic"] = False
             labels_encoded = synthetic_metadata['dx'].map(label_dict)
             synthetic_metadata['label'] = labels_encoded
             synthetic_metadata['image_path'] = synthetic_metadata['image_id'].apply(
                 lambda x: os.path.join(self.synthetic_data_dir, x + '.png'))
+            synthetic_metadata['segmentation_path'] = synthetic_metadata['image_id'].apply(
+                lambda x: os.path.join(self.synthetic_segmentation_dir, x + '_segmentation.png'))
             df_train = pd.concat(
                 [df_train, synthetic_metadata], ignore_index=True)
 
@@ -120,8 +124,10 @@ class DataLoader(ABC):
         )) == 7, f"Number of unique labels in metadata is not 7, it's {len(df_test['label'].unique())}, increase the limit"
 
         df_train["train"] = True
-        # df_val["train"] = False
-        # df_test["train"] = False
+        df_val["train"] = False
+        df_val["synthetic"] = False
+        df_test["train"] = False
+        df_test["synthetic"] = False
 
         # Remove segmentation path from test and val just to be sure not to use them
         # TODO: Uncomment
