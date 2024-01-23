@@ -5,6 +5,7 @@ from models.GradCAM import GradCAM
 from utils.utils import select_device
 from config import DROPOUT_P, NUM_CLASSES, HIDDEN_SIZE, NUM_DROPOUT_LAYERS
 
+# Note: Our version of the model (MSLANet v2) exploits the same class structure as the original MSLANet, but we have made some changes to the data preprocessing part.
 class MSLANet(nn.Module):
     def __init__(self, num_classes=NUM_CLASSES, hidden_layers=HIDDEN_SIZE, dropout_num=NUM_DROPOUT_LAYERS, dropout_p=DROPOUT_P):
         super(MSLANet, self).__init__()

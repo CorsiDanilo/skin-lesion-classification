@@ -26,7 +26,7 @@ DYNAMIC_LOAD = True  # True if you want to load images dynamically, False otherw
 # ---Library Configurations--- #
 USE_WANDB = True  # Use wandb for logging
 # DirectML library for AMD gpu on Windows (set to false if you want to use cpu or standard CUDA)
-USE_DML = False
+USE_DML = True
 USE_MPS = False  # Use MPS gpu for MacOS
 
 # ---Train Configurations--- #
