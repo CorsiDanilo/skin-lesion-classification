@@ -2,9 +2,9 @@
 
 This includes the code for different Skin Lesion Classification models to classify the 7 different types of skin lesions using the [HAM10000 dataset](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/DBW86T).
 
-The code was developed partly for the Advanced Machine Learning (2023-2024) and for the Computer Vision (2023-2024) course at MSC's in Computer Science at University La Sapienza.
+The code was developed partly for the Advanced Machine Learning (2023-2024) and for the Computer Vision (2023-2024) course in the Master Program in Computer Science at the University of Rome "La Sapienza".
 
-The code includes a re-implementation of the [MSLANet - Multi Scale Long Attention Network for Skin Classification](https://link.springer.com/article/10.1007/s10489-022-03320-x) paper, with some adjustments in order to enhance the performances, along with other solutions using Semantic Segmentation with Segment Anything Model and classification with CNNs and Vision Transformers.
+The code includes a re-implementation of the [MSLANet - Multi-Scale Long Attention Network for Skin Classification](https://link.springer.com/article/10.1007/s10489-022-03320-x) paper, with some adjustments in order to enhance the performances, along with other solutions using Semantic Segmentation with [Segment Anything Model](https://github.com/facebookresearch/segment-anything) and classification with CNNs and Vision Transformers.
 
 The model also takes some parts of the code from the [python StyleGAN](https://github.com/huangzh13/StyleGAN.pytorch), implementation, and from [Image2StyleGAN](https://arxiv.org/abs/1904.03189) and [Image2StyleGAN++](https://arxiv.org/abs/1911.11544) papers [unofficial implementations](https://github.com/Jerry2398/Image2StyleGAN-and-Image2StyleGAN-) to generate synthetic images as data augmentation.
 
