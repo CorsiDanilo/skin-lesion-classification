@@ -6,7 +6,7 @@ The code was developed partly for the Advanced Machine Learning (2023-2024) and 
 
 The code includes a re-implementation of the [MSLANet - Multi-Scale Long Attention Network for Skin Classification](https://link.springer.com/article/10.1007/s10489-022-03320-x) paper, with some adjustments in order to enhance the performances, along with other solutions using Semantic Segmentation with [Segment Anything Model](https://github.com/facebookresearch/segment-anything) and classification with CNNs and Vision Transformers.
 
-The model also takes some parts of the code from the [python StyleGAN](https://github.com/huangzh13/StyleGAN.pytorch), implementation, and from [Image2StyleGAN](https://arxiv.org/abs/1904.03189) and [Image2StyleGAN++](https://arxiv.org/abs/1911.11544) papers [unofficial implementations](https://github.com/Jerry2398/Image2StyleGAN-and-Image2StyleGAN-) to generate synthetic images as data augmentation.
+The model also takes some parts of the code from the [Pytorch StyleGAN](https://github.com/huangzh13/StyleGAN.pytorch), implementation, and from [Image2StyleGAN](https://arxiv.org/abs/1904.03189) and [Image2StyleGAN++](https://arxiv.org/abs/1911.11544) papers [unofficial implementations](https://github.com/Jerry2398/Image2StyleGAN-and-Image2StyleGAN-) to generate synthetic images as data augmentation.
 
 The work was carried out by:
 
